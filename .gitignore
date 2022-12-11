@@ -1,4 +1,8 @@
+.vscode/
 .venv/
 .mypy_cache/
 __pycahe__/
 data/
+
+# editor files
+*~
