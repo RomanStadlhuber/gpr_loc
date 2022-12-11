@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <!-- remap topics to connect controller and simulation -->
+    <remap from="/linear_controller/odom" to="/odom" />
+    <remap from="/linear_controller/cmd_vel" to="/cmd_vel" />
+    <!-- launch controller node -->
+    <include file="$(find linear_controller)/launch/controller.launch" />
+    <!-- load rviz with the config to display the TFs -->
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find linear_controller)/config/controller.config.rviz" />
+</launch>

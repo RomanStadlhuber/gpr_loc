@@ -1,0 +1,31 @@
+# this file is used to configure the behavior
+# of the linear controller node
+
+
+# parameters for the linear controller
+controller:
+  # proportionalities
+  K_v: 0.5
+  K_alpha: 2.0
+  K_beta: -1.0
+  # limits
+  v_max: 0.25 # [m/s]
+  omega_max: 0.8 # [rad/s]
+  # goal threshold (setponit-state distance norm)
+  # unitless, since it normalizes (x,y,theta) [m,m,rad]
+  threshold: 0.15
+
+# waypoints to travel
+trajectory:
+  - x: 5.0 # [m]
+    y: -1.0 # [m]
+    theta: -1.57 # [rad]
+  - x: 5.0 # [m]
+    y: -3.0 # [m]
+    theta: 3.141 # [rad]
+  - x: 3.0 # [m]
+    y: -3.0 # [m]
+    theta: 1.57 # [rad]
+  - x: 3.0 # [m]
+    y: -1.0 # [m]
+    theta: 0.0 # [rad]
