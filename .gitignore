@@ -1,8 +1,10 @@
+# hidden files and folders
 .vscode/
 .venv/
 .mypy_cache/
 __pycahe__/
+# rosbags and regression data
+bags/
 data/
-
 # editor files
 *~
