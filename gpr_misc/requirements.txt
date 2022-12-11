@@ -1,0 +1,11 @@
+# process data
+rosbags==0.9.13
+numpy
+pandas
+matplotlib
+seaborn
+
+# linting, formatting and typing
+mypy
+hacking
+black
