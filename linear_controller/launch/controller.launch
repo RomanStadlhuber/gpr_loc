@@ -2,5 +2,6 @@
 <launch>
     <node pkg="linear_controller" type="linear_controller_ctrl_node" name="linear_controller">
         <rosparam file="$(find linear_controller)/config/linear_controller.yaml" />
+        <rosparam file="$(find linear_controller)/config/trajectory.yaml" />
     </node>
 </launch>

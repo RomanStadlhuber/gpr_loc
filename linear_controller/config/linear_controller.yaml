@@ -14,18 +14,3 @@ controller:
   # goal threshold (setponit-state distance norm)
   # unitless, since it normalizes (x,y,theta) [m,m,rad]
   threshold: 0.15
-
-# waypoints to travel
-trajectory:
-  - x: 5.0 # [m]
-    y: -1.0 # [m]
-    theta: -1.57 # [rad]
-  - x: 5.0 # [m]
-    y: -3.0 # [m]
-    theta: 3.141 # [rad]
-  - x: 3.0 # [m]
-    y: -3.0 # [m]
-    theta: 1.57 # [rad]
-  - x: 3.0 # [m]
-    y: -1.0 # [m]
-    theta: 0.0 # [rad]
