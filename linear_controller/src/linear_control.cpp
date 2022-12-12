@@ -48,13 +48,12 @@ public:
         cmd_vel_pub.publish(cmd_vel);
         // update goal waypoint if controller is close enough
         auto const delta = controller.current_distance();
-        auto const close_enougth = 
-            Eigen::Vector2d(delta.x(), delta.y()).norm() <= threshold
-            && delta.z() <= threshold;
-        if (close_enougth)
+        auto const close_enough =
+            Eigen::Vector2d(delta.x(), delta.y()).norm() <= threshold && delta.z() <= threshold;
+        if (close_enough)
         {
             current_waypoint_idx++;
-            if (current_waypoint_idx > trajectory.size()-1)
+            if (current_waypoint_idx > trajectory.size() - 1)
                 current_waypoint_idx = 0;
             ROS_INFO("close enough, updating goal");
         }
@@ -64,7 +63,6 @@ public:
         publish_pose_tf(std::string("base_link"), odom->pose.pose);
         publish_pose_tf(std::string("base_footprint"), odom->pose.pose);
         publish_pose_tf(std::string("odom"), odom->pose.pose);
-
     };
 
 protected:
@@ -125,28 +123,37 @@ private:
     // load controller settings from ROS param file
     auto load_controller_params() -> void
     {
-        // buffer for controller parameters
-        XmlRpc::XmlRpcValue controller_params;
-        if (!nh.getParam("controller", controller_params))
+        XmlRpc::XmlRpcValue controller_parameters;
+        if (!nh.getParam("controller", controller_parameters))
         {
-            ROS_ERROR_ONCE("No controller parameters were supplied!");
+            ROS_ERROR_ONCE("No controller parameters were provided!");
+            ROS_WARN_ONCE("initiating shutdown..");
+            ros::shutdown();
         }
         else
         {
             // controller parameters
-            K_v = controller_params["K_v"];
-            K_alpha = controller_params["K_alpha"];
-            K_beta = controller_params["K_beta"];
+            const double K_v = controller_parameters["K_v"];
+            const double K_alpha = controller_parameters["K_alpha"];
+            const double K_beta = controller_parameters["K_beta"];
             // limits
-            v_max = controller_params["v_max"];
-            omega_max = controller_params["omega_max"];
+            const double v_max = controller_parameters["v_max"];
+            const double omega_max = controller_parameters["omega_max"];
             // goal success threshold
-            threshold = controller_params["threshold"];
+            const double threshold = controller_parameters["threshold"];
+            this->controller = navigation::Controller(
+                K_v, K_alpha, K_beta, v_max, omega_max);
+
+            const bool ignore_yaw = controller_parameters["ignore_yaw"];
+            this->controller.set_ignore_theta(ignore_yaw);
+
+            this->threshold = threshold;
         }
     }
 
     // publishes a transform of the pose to the corresponding frame
-    auto publish_pose_tf(const std::string & frame_id, const geometry_msgs::Pose & pose) -> void{
+    auto publish_pose_tf(const std::string &frame_id, const geometry_msgs::Pose &pose) -> void
+    {
         // code adapted from
         // http://wiki.ros.org/tf2/Tutorials/Writing%20a%20tf2%20broadcaster%20%28C%2B%2B%29
         auto tf = geometry_msgs::TransformStamped();
@@ -184,13 +191,12 @@ auto main(int argc, char **argv) -> int
     static_transformStamped.transform.translation.y = 0;
     static_transformStamped.transform.translation.z = 0;
     tf2::Quaternion quat;
-    quat.setRPY(0,0,0);
+    quat.setRPY(0, 0, 0);
     static_transformStamped.transform.rotation.x = quat.x();
     static_transformStamped.transform.rotation.y = quat.y();
     static_transformStamped.transform.rotation.z = quat.z();
     static_transformStamped.transform.rotation.w = quat.w();
     static_broadcaster.sendTransform(static_transformStamped);
-
 
     auto const controller_node = ControllerNode();
     while (ros::ok())

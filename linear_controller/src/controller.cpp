@@ -21,6 +21,7 @@ namespace navigation
         this->setpoint = zero_pose;
         this->v_max = v_max;
         this->omega_max = omega_max;
+        this->ignore_theta = false;
     }
 
     auto Controller::set_state(const geometry_msgs::Pose &state) -> void
@@ -33,39 +34,42 @@ namespace navigation
         this->setpoint = goal;
     }
 
-    auto Controller::compute_efforts() -> void {
+    auto Controller::compute_efforts() -> void
+    {
         auto const delta_rho = Eigen::Vector2d(
             setpoint.position.x - state.position.x,
-            setpoint.position.y - state.position.y
-        );
-        this -> rho = delta_rho.norm();
-
+            setpoint.position.y - state.position.y);
+        this->rho = delta_rho.norm();
 
         auto const theta_state = pose_theta(state);
-        auto const theta_setpoint = pose_theta(setpoint);
+        auto const theta_setpoint = pose_theta(
+            this->ignore_theta // should the setpoint heading be ignored?
+                ? state        // if so, then the current heading is the setpoint heading
+                : setpoint     // otherwise, use the setpoint heading
+        );
 
         auto const alpha = std::atan2(delta_rho.y(), delta_rho.x()) - theta_state;
-        auto const beta =   theta_setpoint - std::atan2(delta_rho.y(), delta_rho.x());
+        auto const beta = theta_setpoint - std::atan2(delta_rho.y(), delta_rho.x());
 
-        this -> alpha = normalize_angle(alpha);
-        this -> beta = normalize_angle(beta);
+        this->alpha = normalize_angle(alpha);
+        this->beta = normalize_angle(beta);
     }
 
-    auto Controller::current_distance() ->Eigen::Vector3d{
+    auto Controller::current_distance() -> Eigen::Vector3d
+    {
         return Eigen::Vector3d(
             setpoint.position.x - state.position.x,
             setpoint.position.y - state.position.y,
-            pose_theta(setpoint) - pose_theta(state)
-        );
+            pose_theta(setpoint) - pose_theta(state));
     }
 
-        auto Controller::pose_theta(const geometry_msgs::Pose& pose) -> double{
+    auto Controller::pose_theta(const geometry_msgs::Pose &pose) -> double
+    {
         auto const q = tf2::Quaternion(
             pose.orientation.x,
             pose.orientation.y,
             pose.orientation.z,
-            pose.orientation.w
-        );
+            pose.orientation.w);
 
         auto const R = tf2::Matrix3x3(q);
         double roll, pitch, yaw;
@@ -93,16 +97,22 @@ namespace navigation
         return cmd_vel;
     }
 
-    auto Controller::normalize_angle(const double & theta) -> double {
-        if(std::abs(theta) <= M_PI)
+    auto Controller::normalize_angle(const double &theta) -> double
+    {
+        if (std::abs(theta) <= M_PI)
             return theta;
 
-        auto theta_comp = std::fmod(theta, 2* M_PI);
-        if(theta_comp > M_PI)
+        auto theta_comp = std::fmod(theta, 2 * M_PI);
+        if (theta_comp > M_PI)
             theta_comp = theta_comp - 2 * M_PI;
-        else if(theta_comp < -M_PI)
+        else if (theta_comp < -M_PI)
             theta_comp = theta_comp + 2 * M_PI;
 
         return theta_comp;
+    }
+
+    auto Controller::set_ignore_theta(const bool &ignore_theta) -> void
+    {
+        this->ignore_theta = ignore_theta;
     }
 }

@@ -33,6 +33,8 @@ namespace navigation
         double v_max;
         // angular velocity limit
         double omega_max;
+        // ignore the goal orientation
+        bool ignore_theta;
 
     public:
         Controller()
@@ -54,6 +56,8 @@ namespace navigation
         auto get_effort() -> geometry_msgs::Twist;
         // vector of [x,y,theta] to tell the current distance from goal
         auto current_distance() -> Eigen::Vector3d;
+        // ignore/unignore theta (global orientatio of the goal pose)
+        auto set_ignore_theta(const bool &) -> void;
 
     private:
         // compute and buffer control efforts
@@ -61,7 +65,7 @@ namespace navigation
         // converts individual effort values to a twist (velocty command)
         auto cmd_vel() -> geometry_msgs::Twist;
         // get theta angle from quaternion
-        auto pose_theta(const geometry_msgs::Pose&) -> double; 
+        auto pose_theta(const geometry_msgs::Pose &) -> double;
         // normalize an angle to [-pi ; pi]
         auto normalize_angle(const double &) -> double;
     };
