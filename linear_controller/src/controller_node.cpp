@@ -3,8 +3,8 @@
 // the frames to use when performing control of the agent
 // NOTE: they should ideally be independent of any other existing frames
 // these frames should only be modified by the controller and no other nodes
-#define REFERENCE_FRAME_ID "control_map"
-#define ROBOT_FRAME_ID "control_agent"
+#define REFERENCE_FRAME_ID "odom"
+#define ROBOT_FRAME_ID "base_link"
 #define GOAL_FRAME_ID "control_waypoint"
 
 auto main(int argc, char **argv) -> int
@@ -21,7 +21,7 @@ auto main(int argc, char **argv) -> int
     geometry_msgs::TransformStamped static_transformStamped;
     static_transformStamped.header.stamp = ros::Time::now();
     static_transformStamped.header.frame_id = std::string(REFERENCE_FRAME_ID);
-    static_transformStamped.child_frame_id = std::string("base_link");
+    static_transformStamped.child_frame_id = std::string(ROBOT_FRAME_ID);
     static_transformStamped.transform.translation.x = 0;
     static_transformStamped.transform.translation.y = 0;
     static_transformStamped.transform.translation.z = 0;

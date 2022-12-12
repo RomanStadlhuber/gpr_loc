@@ -5,9 +5,9 @@ ControllerNode::ControllerNode(
     const std::string &robot_frame_id,
     const std::string &goal_frame_id
 
-    ) : reference_frame_id("control_map"),
-        robot_frame_id("control_agent"),
-        goal_frame_id("control_goal")
+    ) : reference_frame_id(reference_frame_id),
+        robot_frame_id(robot_frame_id),
+        goal_frame_id(goal_frame_id)
 {
     nh = ros::NodeHandle("~");
     goal_sub = nh.subscribe("goal", 1, &ControllerNode::goal_callback, this);
@@ -38,8 +38,9 @@ auto ControllerNode::odom_callback(const nav_msgs::Odometry::ConstPtr &odom) -> 
     cmd_vel_pub.publish(cmd_vel);
     // update goal waypoint if controller is close enough
     auto const delta = controller.current_distance();
+    // TODO: check yaw if controller doesn't ignore it
     auto const close_enough =
-        Eigen::Vector2d(delta.x(), delta.y()).norm() <= threshold && delta.z() <= threshold;
+        Eigen::Vector2d(delta.x(), delta.y()).norm() <= threshold;
     if (close_enough)
     {
         current_waypoint_idx++;
@@ -50,9 +51,6 @@ auto ControllerNode::odom_callback(const nav_msgs::Odometry::ConstPtr &odom) -> 
     // publish current waypoint
     goal_pub.publish(trajectory[current_waypoint_idx]);
     publish_pose_tf(std::string(robot_frame_id), odom->pose.pose);
-    publish_pose_tf(std::string("base_link"), odom->pose.pose);
-    publish_pose_tf(std::string("base_footprint"), odom->pose.pose);
-    publish_pose_tf(std::string("odom"), odom->pose.pose);
 }
 
 // load waypoint from ROS param file
