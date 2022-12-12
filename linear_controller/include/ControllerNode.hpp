@@ -40,6 +40,7 @@ protected:
     double v_max;     // [m/s]
     double omega_max; // [rad/s]
     double threshold; // minimum required distancje to goal point
+    bool ignore_yaw;  // whether or not to ignore waypoint yaw
     tf2_ros::TransformBroadcaster tf_broadcaster;
 
 private:

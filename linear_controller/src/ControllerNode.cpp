@@ -20,6 +20,8 @@ ControllerNode::ControllerNode(
 
     controller = navigation::Controller(
         K_v, K_alpha, K_beta, v_max, omega_max);
+
+    controller.set_ignore_theta(ignore_yaw);
 }
 
 // defines callback handler for goal pose
@@ -109,14 +111,18 @@ auto ControllerNode::load_controller_params() -> void
         // limits
         const double v_max = controller_parameters["v_max"];
         const double omega_max = controller_parameters["omega_max"];
+
         // goal success threshold
         const double threshold = controller_parameters["threshold"];
-        this->controller = navigation::Controller(
-            K_v, K_alpha, K_beta, v_max, omega_max);
 
         const bool ignore_yaw = controller_parameters["ignore_yaw"];
-        this->controller.set_ignore_theta(ignore_yaw);
 
+        this->K_v = K_v;
+        this->K_alpha = K_alpha;
+        this->K_beta = K_beta;
+        this->v_max = v_max;
+        this->omega_max = omega_max;
+        this->ignore_yaw = ignore_yaw;
         this->threshold = threshold;
     }
 }
