@@ -14,3 +14,4 @@ controller:
   # goal threshold (setponit-state distance norm)
   # unitless, since it normalizes (x,y,theta) [m,m,rad]
   threshold: 0.15
+  ignore_yaw: false
