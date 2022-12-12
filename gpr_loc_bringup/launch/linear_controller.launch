@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <!-- remap the linear_controller topics to the EKF and Controller-Node Topics-->
+    <remap from="/linear_controller/odom" to="/odom" />
+    <remap from="/linear_controller/cmd_vel" to="/taurob_tracker/cmd_vel_raw" />
+    <!-- start the linear controller -->
+    <node pkg="linear_controller" type="linear_controller_ctrl_node" name="linear_controller">
+        <rosparam file="$(find gpr_loc_bringup)/config/controller_parameters.yaml" />
+        <rosparam file="$(find gpr_loc_bringup)/config/trajectory_ccw.yaml" />
+    </node>
+</launch>
