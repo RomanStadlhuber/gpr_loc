@@ -5,12 +5,12 @@
 # parameters for the linear controller
 controller:
   # proportionalities
-  K_v: 0.5
+  K_v: 0.85
   K_alpha: 2.0
   K_beta: -1.0
 
   # limits
-  v_max: 0.25 # max. linear velocity [m/s]
+  v_max: 0.65 # max. linear velocity [m/s]
   omega_max: 0.8 # max. angular velocity [rad/s]
 
   # goal threshold (setponit-state distance norm)

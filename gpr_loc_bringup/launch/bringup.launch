@@ -22,7 +22,7 @@
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gpr_loc_bringup)/config/gpr_loc_training.rviz" />
 
     <!-- load the linear controller -->
-    <include file="$(find gpr_loc_bringup)/launch/linear_controller.launch" />
+    <!-- <include file="$(find gpr_loc_bringup)/launch/linear_controller.launch" /> -->
 
     <node pkg="tf2_ros" type="static_transform_publisher" name="realsense_depth" args="0 0 0 -1.57 0 -1.57 /realsense_rgbd_link /realsense_rgbd_depth_optical_frame" />
 

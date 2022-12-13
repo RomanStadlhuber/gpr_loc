@@ -5,6 +5,12 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /TF1
+        - /TF1/Frames1
+        - /TF1/Tree1
+        - /TF1/Tree1/odom1
+        - /TF1/Tree1/odom1/base_link1
+        - /TF1/Tree1/odom1/base_link1/chassis_link1
       Splitter Ratio: 0.3444444537162781
     Tree Height: 793
   - Class: rviz/Selection
@@ -160,13 +166,13 @@ Visualization Manager:
         base_link:
           Value: true
         camera_link_back:
-          Value: true
+          Value: false
         camera_link_elevated:
-          Value: true
+          Value: false
         camera_link_front:
-          Value: true
+          Value: false
         camera_mount:
-          Value: true
+          Value: false
         chassis_link:
           Value: true
         control_waypoint:
@@ -176,29 +182,29 @@ Visualization Manager:
         flipper_link_front:
           Value: true
         flir_frame:
-          Value: true
+          Value: false
         flir_optical_frame:
-          Value: true
+          Value: false
         imu_link:
           Value: true
         laser_scan_front_frame:
-          Value: true
+          Value: false
         laser_scan_front_model_frame:
-          Value: true
+          Value: false
         laser_scan_rear_frame:
-          Value: true
+          Value: false
         laser_scan_rear_model_frame:
-          Value: true
+          Value: false
         odom:
           Value: true
         realsense_rgbd_depth_optical_frame:
-          Value: true
+          Value: false
         realsense_rgbd_link:
-          Value: true
+          Value: false
         velodyne:
-          Value: true
+          Value: false
         velodyne_base_link:
-          Value: true
+          Value: false
       Marker Scale: 1
       Name: TF
       Show Arrows: true
@@ -403,7 +409,7 @@ Visualization Manager:
           Use Fixed Frame: true
           Use rainbow: true
           Value: true
-      Enabled: true
+      Enabled: false
       Name: Pointcloud
   Enabled: true
   Global Options:
@@ -433,16 +439,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 10.833032608032227
+      Distance: 6.385648727416992
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -1.8883095979690552
-        Y: -0.8938896656036377
-        Z: 2.7491373657539953e-6
+        X: -1.466083288192749
+        Y: 1.2908135652542114
+        Z: 2.9875559448555578e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
