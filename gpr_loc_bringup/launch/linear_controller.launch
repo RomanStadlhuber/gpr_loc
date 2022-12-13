@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
+    <arg name="use_sim_time" default="true" />
     <!-- remap the linear_controller topics to the EKF and Controller-Node Topics-->
     <remap from="/linear_controller/odom" to="/odom" />
     <remap from="/linear_controller/cmd_vel" to="/taurob_tracker/cmd_vel_raw" />
