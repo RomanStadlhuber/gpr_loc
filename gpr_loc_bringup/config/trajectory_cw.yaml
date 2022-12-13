@@ -1,0 +1,20 @@
+# this is the training trajectory in a clockwise fashion
+# basically, it's a diamond shape
+# waypoints to travel
+trajectory:
+  # left vertex
+  - x: -1.5 # [m]
+    y: 2.0 # [m]
+    theta: -1.57 # [rad]
+  # top vertex
+  - x: 0.0 # [m]
+    y: 4.0 # [m]
+    theta: 3.141 # [rad]
+  # right vertex
+  - x: 1.5 # [m]
+    y: 2.0 # [m]
+    theta: 1.57 # [rad]
+  # bottom vertex
+  - x: 0.0 # [m]
+    y: 0.0 # [m]
+    theta: 0.0 # [rad]
