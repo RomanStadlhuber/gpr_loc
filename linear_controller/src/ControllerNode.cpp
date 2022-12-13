@@ -44,7 +44,10 @@ auto ControllerNode::odom_callback(const nav_msgs::Odometry::ConstPtr &odom) -> 
 {
     controller.set_state(odom->pose.pose);
 
-    // skip operation if controller is inactive
+    // publish current waypoint
+    goal_pub.publish(trajectory[current_waypoint_idx]);
+    publish_pose_tf(std::string(robot_frame_id), odom->pose.pose);
+
     if (!controller.get_is_active())
         return;
 
@@ -55,16 +58,19 @@ auto ControllerNode::odom_callback(const nav_msgs::Odometry::ConstPtr &odom) -> 
     // TODO: check yaw if controller doesn't ignore it
     auto const close_enough =
         Eigen::Vector2d(delta.x(), delta.y()).norm() <= threshold;
-    if (close_enough)
+    if (close_enough && controller.get_is_active())
     {
         current_waypoint_idx++;
         if (current_waypoint_idx > trajectory.size() - 1)
             current_waypoint_idx = 0;
         ROS_INFO("close enough, updating goal");
+        // after goal update, a re-publish is needed
+        // otherwise the controller does not receive the latest goal
+        // this would lead it to skip wayoints for all odom updates
+        // that occur before the next goal update
+        goal_pub.publish(trajectory[current_waypoint_idx]);
+        publish_pose_tf(std::string(robot_frame_id), odom->pose.pose);
     }
-    // publish current waypoint
-    goal_pub.publish(trajectory[current_waypoint_idx]);
-    publish_pose_tf(std::string(robot_frame_id), odom->pose.pose);
 }
 
 // load waypoint from ROS param file
