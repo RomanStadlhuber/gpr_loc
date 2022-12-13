@@ -6,8 +6,8 @@
 controller:
   # proportionalities
   K_v: 0.85
-  K_alpha: 2.0
-  K_beta: -1.0
+  K_alpha: 2.5
+  K_beta: -2.4
 
   # limits
   v_max: 0.65 # max. linear velocity [m/s]
