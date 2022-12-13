@@ -21,7 +21,9 @@ namespace navigation
         this->setpoint = zero_pose;
         this->v_max = v_max;
         this->omega_max = omega_max;
-        this->ignore_theta = false;
+        // NOTE: to avoid confusion, controller should always be active
+        set_is_active(true);
+        set_ignore_theta(false);
     }
 
     auto Controller::set_state(const geometry_msgs::Pose &state) -> void
@@ -115,4 +117,7 @@ namespace navigation
     {
         this->ignore_theta = ignore_theta;
     }
+
+    bool Controller::get_is_active() const { return this->is_active; }
+    void Controller::set_is_active(const bool &is_active) { this->is_active = is_active; }
 }

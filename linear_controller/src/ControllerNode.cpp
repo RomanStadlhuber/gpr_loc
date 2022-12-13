@@ -22,12 +22,19 @@ ControllerNode::ControllerNode(
         K_v, K_alpha, K_beta, v_max, omega_max);
 
     controller.set_ignore_theta(ignore_yaw);
+    // set controller inactive until the first goal arrives
+    controller.set_is_active(false);
 }
 
 // defines callback handler for goal pose
 auto ControllerNode::goal_callback(const geometry_msgs::Pose::ConstPtr &goal) -> void
 {
     controller.set_goal(*goal);
+
+    // set controller active as soon as a goal comes in
+    if (!controller.get_is_active())
+        controller.set_is_active(true);
+
     auto const cmd_vel = controller.get_effort();
     cmd_vel_pub.publish(cmd_vel);
     publish_pose_tf(std::string(goal_frame_id), *goal);
@@ -36,6 +43,11 @@ auto ControllerNode::goal_callback(const geometry_msgs::Pose::ConstPtr &goal) ->
 auto ControllerNode::odom_callback(const nav_msgs::Odometry::ConstPtr &odom) -> void
 {
     controller.set_state(odom->pose.pose);
+
+    // skip operation if controller is inactive
+    if (!controller.get_is_active())
+        return;
+
     auto const cmd_vel = controller.get_effort();
     cmd_vel_pub.publish(cmd_vel);
     // update goal waypoint if controller is close enough

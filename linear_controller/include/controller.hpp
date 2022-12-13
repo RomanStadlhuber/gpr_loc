@@ -35,6 +35,8 @@ namespace navigation
         double omega_max;
         // ignore the goal orientation
         bool ignore_theta;
+        // flag used to toggle operation
+        bool is_active;
 
     public:
         Controller()
@@ -58,6 +60,8 @@ namespace navigation
         auto current_distance() -> Eigen::Vector3d;
         // ignore/unignore theta (global orientatio of the goal pose)
         auto set_ignore_theta(const bool &) -> void;
+        bool get_is_active() const;
+        void set_is_active(const bool &);
 
     private:
         // compute and buffer control efforts
