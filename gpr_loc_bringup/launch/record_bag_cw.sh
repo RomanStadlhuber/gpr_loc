@@ -1,7 +1,7 @@
 #!/bin/bash
 rosbag record \
 # filename
--o taurob_ccw.bag \
+-o taurob_cw.bag \
 # control signal "u"
 /taurob_tracker/cmd_vel_raw \
 # raw IMU data
