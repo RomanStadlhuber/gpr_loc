@@ -22,6 +22,7 @@ To set the direction of the training trajectory, supply the parameter `dir_ccw:=
 
 Invoke the `launch/record_bag_*.sh` scripts to record the required data from the running simulation. The recorded data includes
 
+- the simulation time - `std_msgs/Time`
 - ground truth odometry - `nav_msgs/Odometry`
 - pre-computed mechanical odometry - `nav_msgs/Odometry`
 - velocity control signals - `geometry_msgs/Twist`
