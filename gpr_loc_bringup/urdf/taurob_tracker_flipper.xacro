@@ -276,4 +276,26 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
+
+  <!-- add ground truth plugin, see: -->
+  <!-- https://classic.gazebosim.org/tutorials?tut=ros_gzplugins#P3D(3DPositionInterfaceforGroundTruth) -->
+  <gazebo>
+    <plugin name="p3d_base_controller" filename="libgazebo_ros_p3d.so">
+      <alwaysOn>true</alwaysOn>
+      <!-- update rate of the topic should exceed that of all sensor measurements -->
+      <updateRate>50.0</updateRate>
+      <!-- the name of the link on which EKF/VIO/LIO estimates are made -->
+      <bodyName>base_link</bodyName>
+      <!-- name of the ROS topic to publish ground truth to -->
+      <topicName>ground_truth/odom</topicName>
+      <!-- name of the frame used to reference odometry towards -->
+      <!-- or the name of the frame represented by it in gazebo! -->
+      <frameName>world</frameName>
+      <!-- ground truth should not contain any offsets or -->
+      <xyzOffsets>0 0 0</xyzOffsets>
+      <rpyOffsets>0 0 0</rpyOffsets>
+      <gaussianNoise>0</gaussianNoise>
+
+    </plugin>
+  </gazebo>
 </robot>
