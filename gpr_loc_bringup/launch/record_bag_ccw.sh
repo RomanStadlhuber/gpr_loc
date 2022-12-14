@@ -1,14 +1,8 @@
 #!/bin/bash
 rosbag record \
-# filename
 -o taurob_ccw.bag \
-# simulation time
-/clock
-# control signal "u"
+/clock \
 /taurob_tracker/cmd_vel_raw \
-# raw IMU data
 /taurob_tracker/imu/data \
-# precomputed mechanical odometry (from gazebo plugin)
 /odom \
-# ground truth odometry (from gazebo plugin)
-/ground_truth/odom \
+/ground_truth/odom
