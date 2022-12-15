@@ -60,4 +60,4 @@ ENCODER_MAP = {
 
 
 def get_encoder(msg_type: str) -> Optional[FeatureEncodeFn]:
-    return ENCODER_MAP.get(msg_type)
+    return ENCODER_MAP.get(msg_type)  # type: ignore
