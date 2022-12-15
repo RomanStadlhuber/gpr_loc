@@ -9,7 +9,7 @@ import pandas as pd
 import pathlib
 
 
-class RosbagReader:
+class RosbagEncdoer:
     """helper class used to read rosbags"""
 
     def __init__(self, bagfile_path: pathlib.Path) -> None:
@@ -125,18 +125,3 @@ class RosbagReader:
         except Exception as e:
             print(str(e))
             return None
-
-
-if __name__ == "__main__":
-    bagfile_path = pathlib.Path("bags/taurob_ccw_2022-12-14-16-40-22.bag")
-    rosbag_reader = RosbagReader(bagfile_path)
-    dataset = rosbag_reader.encode_bag(
-        feature_topics=[
-            "/odom",
-            "/taurob_tracker/imu/data",
-            "/taurob_tracker/cmd_vel_raw",
-        ],
-        label_topic="/ground_truth/odom",
-    )
-    if dataset is not None:
-        dataset.export(pathlib.Path("data"))
