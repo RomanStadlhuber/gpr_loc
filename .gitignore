@@ -2,7 +2,7 @@
 .vscode/
 .venv/
 .mypy_cache/
-__pycahe__/
+__pycache__/
 # rosbags and regression data
 bags/
 data/
