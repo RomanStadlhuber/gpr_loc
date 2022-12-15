@@ -1,7 +1,7 @@
 """This file contains a `(MessageType, encoder_fn)` map of all desired feature encoders"""
 from helper_types import GPFeature, FeatureEncodeFn
 from rosbags.typesys.types import sensor_msgs__msg__Imu as Imu
-from typing import List, Type, Optional
+from typing import List, Optional
 
 
 class EncoderMap:
@@ -11,8 +11,8 @@ class EncoderMap:
     def __encode_imu(_: Imu) -> List[GPFeature]:
         return []
 
-    __encoder_map = {Imu: __encode_imu}
+    __encoder_map = {Imu.__msgtype__: __encode_imu}
 
     @staticmethod
-    def get_encoder(type: Type) -> Optional[FeatureEncodeFn]:
-        return EncoderMap.__encoder_map.get(type)
+    def get_encoder(msg_type: str) -> Optional[FeatureEncodeFn]:
+        return EncoderMap.__encoder_map.get(msg_type)
