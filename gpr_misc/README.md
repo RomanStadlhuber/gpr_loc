@@ -8,13 +8,13 @@ The following will give an overview of how to generate and interpret GP datasets
 
 GP datasets come in the form `D = (X, y)`, where `X` is a matrix of row vectors that represent the input features for the GP and `y` is the row-vector of scalar-valued output labels.
 
-The `rosbag_parser.py` script allows to generate GP datasets in the form of indexed and column-named CSV files (that can be processed using the Pandas library) based on a singel rosbag input.
+The `RosbagEncoder` class allows to generate GP datasets in the form of indexed and column-named CSV files (that can be processed using the Pandas library) based on a singel rosbag input.
 
 ### Creating Feature Encoders
 
 The parser file uses feature encoding functions that convert ROS messages into feature vectors, with each feature (see `GPFeature` in `helper_types.py`) having both a `column_name` for the exported dataframe and a scalar `value`.
 
-The `rosbags` package provides typings for deserialized ROS messages. In order to create a feature encoder for a specific message type, import the necessary type
+The `rosbags` package provides typings for deserialized ROS messages. In order to create a feature encoder for a specific message type, first import the necessary type
 
 ```python
 from rosbags.typesys.types import (
@@ -49,4 +49,15 @@ ENCODER_MAP = {
 
 ### Running the Encoder
 
-Simpy run the `rosbag_parser.py` by supplying to it a valid path of a rosbag file and a list of topics for both the features and the labels.
+The `gpdatagen` utility allows to run the encoder on different rosbags using various settings from the command-line.
+To learn more about the arguments, run `gpdatagen -h` to obtain a help message. The below example demonstrates the use of the utility, where all arguments except `--out_dir` are required.
+
+```shell
+python3 gpdatagen.py \
+/odom /taurob_tracker/imu/data /taurob_tracker/cmd_vel_raw \
+--label /ground_truth/odom \
+--bag bags/taurob_ccw_2022-12-14-16-40-22.bag \
+--out_dir ./data
+```
+
+where the second line lists the name of all the topics that are used for feature generation and the `--label` flag dictates the single topic that is used to generate labels. Point the encoder to a rosbag file using the `--bag` option and set an output directory where the dataset files can be found vie the `--out_dir` flag.
