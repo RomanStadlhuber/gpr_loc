@@ -1,0 +1,16 @@
+# controller parameters for the evaluation run
+controller:
+  # proportionalities
+  K_v: 0.85
+  K_alpha: 2.5
+  K_beta: -2.4
+
+  # limits
+  v_max: 0.55 # max. linear velocity [m/s]
+  omega_max: 0.7 # max. angular velocity [rad/s]
+
+  # goal threshold (setponit-state distance norm)
+  # unitless, since it normalizes (x,y,theta) [m,m,rad]
+  threshold: 0.15
+  # whether or not to ignore the waypoints' yaw values
+  ignore_yaw: true

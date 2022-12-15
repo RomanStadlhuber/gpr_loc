@@ -2,6 +2,7 @@
 <launch>
     <!-- whether to run counter-clockwise (true) or clockwise (false) -->
     <arg name="dir_ccw" default="true" />
+    <arg name="eval" default="false" />
     <arg name="gui" default="false" />
     <arg name="gpu" default="false" />
     <arg name="x_pos" default="0" />
@@ -22,9 +23,9 @@
     <include file="$(find taurob_tracker_control)/launch/taurob_tracker_control.launch" />
     <!-- Start Rviz -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gpr_loc_bringup)/config/gpr_loc_training.rviz" />
-
-    <!-- load the linear controller -->
+    <!-- load the linear controller, passing both the flag for evaluation and the desired direction for training run -->
     <include file="$(find gpr_loc_bringup)/launch/linear_controller.launch">
+        <arg name="eval" value="$(arg eval)" />
         <arg name="dir_ccw" value="$(arg dir_ccw)" />
     </include>
 
