@@ -3,7 +3,7 @@
 from helper_types import GPFeature, GPDataset
 from rosbags.rosbag1 import Reader
 from rosbags.serde import deserialize_cdr, ros1_to_cdr
-from message_feature_encoders import EncoderMap
+from message_feature_encoders import get_encoder
 from typing import List, Optional
 import pandas as pd
 import pathlib
@@ -36,28 +36,28 @@ class RosbagReader:
                 buffered_features = dict()
                 buffered_label: Optional[List[GPFeature]] = None
 
-                for connection, timestamp, rawdata in reader.messages():
+                for connection, _, rawdata in reader.messages():
 
                     # encode and buffer feature messages
                     if connection.topic in feature_topics:
-                        encoder_fn = EncoderMap.get_encoder(connection.msgtype)
+                        encoder_fn = get_encoder(connection.msgtype)
                         if encoder_fn is None:
                             continue
                         msg = deserialize_cdr(
                             ros1_to_cdr(rawdata, connection.msgtype), connection.msgtype
                         )
-                        features = encoder_fn(msg)
+                        features = encoder_fn(msg, connection.topic)
                         buffered_features[connection.topic] = features
 
                     # encode label message
                     elif connection.topic == label_topic:
-                        encoder_fn = EncoderMap.get_encoder(connection.msgtype)
+                        encoder_fn = get_encoder(connection.msgtype)
                         if encoder_fn is None:
                             continue
                         msg = deserialize_cdr(
                             ros1_to_cdr(rawdata, connection.msgtype), connection.msgtype
                         )
-                        buffered_label = encoder_fn(msg)
+                        buffered_label = encoder_fn(msg, connection.topic)
 
                     else:
                         continue
@@ -115,5 +115,21 @@ class RosbagReader:
 
                 return dataset
 
-        except Exception:
+        except Exception as e:
+            print(str(e))
             return None
+
+
+if __name__ == "__main__":
+    bagfile_path = pathlib.Path("bags/taurob_ccw_2022-12-14-16-40-22.bag")
+    rosbag_reader = RosbagReader(bagfile_path)
+    dataset = rosbag_reader.encode_bag(
+        feature_topics=[
+            "/odom",
+            "/taurob_tracker/imu/data",
+            "/taurob_tracker/cmd_vel_raw",
+        ],
+        label_topic="/ground_truth/odom",
+    )
+    if dataset is not None:
+        dataset.export(pathlib.Path("data"))

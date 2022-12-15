@@ -1,6 +1,7 @@
 from typing import TypeVar, Callable, Any, List
 from dataclasses import dataclass
 import pandas as pd
+import pathlib
 
 TRosMsg = TypeVar("TRosMsg")
 
@@ -26,6 +27,12 @@ class GPDataset:
     # set of all label vectors generated from a rosbag, needs to be separated into its columns to obtain training data
     labels: pd.DataFrame
 
+    def export(self, folder: pathlib.Path) -> None:
+        self.features.to_csv(
+            pathlib.Path.joinpath(folder, f"{self.name}__features.csv")
+        )
+        self.labels.to_csv(pathlib.Path.joinpath(folder, f"{self.name}__labels.csv"))
+
 
 # function typing used to encode messages into GPR feature vectors
-FeatureEncodeFn = Callable[[TRosMsg], List[GPFeature]]
+FeatureEncodeFn = Callable[[TRosMsg, str], List[GPFeature]]
