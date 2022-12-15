@@ -9,7 +9,7 @@ import pandas as pd
 import pathlib
 
 
-class RosbagEncdoer:
+class RosbagEncoder:
     """helper class used to read rosbags"""
 
     def __init__(self, bagfile_path: pathlib.Path) -> None:
