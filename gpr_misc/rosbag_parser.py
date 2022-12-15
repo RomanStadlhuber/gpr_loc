@@ -36,6 +36,8 @@ class RosbagReader:
                 buffered_features = dict()
                 buffered_label: Optional[List[GPFeature]] = None
 
+                iteration_index = 0
+
                 for connection, _, rawdata in reader.messages():
 
                     # encode and buffer feature messages
@@ -82,10 +84,14 @@ class RosbagReader:
                         label_values = [label.value for label in buffered_label]
 
                         feature_df = pd.DataFrame(
-                            data=[feature_values], columns=feature_names
+                            data=[feature_values],
+                            columns=feature_names,
+                            index=[iteration_index],
                         )
                         label_df = pd.DataFrame(
-                            data=[label_values], columns=label_names
+                            data=[label_values],
+                            columns=label_names,
+                            index=[iteration_index],
                         )
 
                         # append to dataset features
@@ -103,6 +109,7 @@ class RosbagReader:
                             dataset_label_df = pd.concat([dataset_label_df, label_df])
 
                         # reset for next iteration
+                        iteration_index += 1
                         buffered_features.clear()
                         buffered_label = None
 
