@@ -19,10 +19,12 @@ class GPFeature:
 class GPDataset:
     """Wrapper for an entire GP dataset"""
 
+    # name of the context in which the dataset was created
+    name: str
     # features are multidimensional and each index of a feature vector stands for some separate information
     features: pd.DataFrame
-    # labels are scalars and as such all labels only represent a single column vector
-    labels: pd.Series
+    # set of all label vectors generated from a rosbag, needs to be separated into its columns to obtain training data
+    labels: pd.DataFrame
 
 
 # function typing used to encode messages into GPR feature vectors
