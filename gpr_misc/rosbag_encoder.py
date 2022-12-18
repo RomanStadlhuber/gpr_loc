@@ -5,7 +5,7 @@ from rosbags.rosbag1 import Reader
 from rosbags.serde import deserialize_cdr, ros1_to_cdr
 from rosbags.typesys.types import nav_msgs__msg__Odometry as Odometry
 from message_feature_encoders import get_encoder
-from typing import List, Optional
+from typing import List, Optional, Dict
 import pandas as pd
 import pathlib
 
@@ -35,26 +35,38 @@ class RosbagEncoder:
                 dataset_feature_df: Optional[pd.DataFrame] = None
                 dataset_label_df: Optional[pd.DataFrame] = None
 
-                buffered_features = dict()
-                buffered_labels = dict()
+                buffered_features: Dict = dict()
+                buffered_labels: Dict = dict()
 
                 iteration_index = 0
+
+                # fns to evaluate if buffers are full
+                def has_all_features() -> bool:
+                    return set(buffered_features.keys()) == set(feature_topics)
+
+                def has_all_labels() -> bool:
+                    return set(buffered_labels.keys()) == set(label_topics)
 
                 for connection, _, rawdata in reader.messages():
 
                     # encode and buffer feature messages
-                    if connection.topic in feature_topics:
+                    if connection.topic in feature_topics and not has_all_features():
+                        # obtain encoder and check if it exists
                         encoder_fn = get_encoder(connection.msgtype)
                         if encoder_fn is None:
                             continue
                         msg = deserialize_cdr(
                             ros1_to_cdr(rawdata, connection.msgtype), connection.msgtype
                         )
+                        # buffer the feature
                         features = encoder_fn(msg, connection.topic)
                         buffered_features[connection.topic] = features
+                        if time_increment_on_label:
+                            continue  # do not allow to buffer labels until features are complete
 
                     # encode label message
-                    elif connection.topic in label_topics:
+                    if connection.topic in label_topics and has_all_features():
+
                         encoder_fn = get_encoder(connection.msgtype)
                         if encoder_fn is None:
                             continue
@@ -64,17 +76,9 @@ class RosbagEncoder:
                         label = encoder_fn(msg, connection.topic)
                         buffered_labels[connection.topic] = label
 
-                    else:
-                        continue
-
                     # once all features and a label have been buffered:
                     # create a dataframe for both features and labels and joint with the total dataframe
-                    # fmt: off
-                    has_all_features = set(buffered_features.keys()) == set(feature_topics)
-                    has_all_labels = set(buffered_labels.keys()) == set(label_topics)
-                    # fmt: on
-
-                    if has_all_features and has_all_labels:
+                    if has_all_features() and has_all_labels():
                         # flatten all features and labels of this iteration into single lists
                         flat_features: List[GPFeature] = [
                             feature

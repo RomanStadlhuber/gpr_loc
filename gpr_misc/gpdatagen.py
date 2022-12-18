@@ -45,6 +45,15 @@ arg_parser.add_argument(
     required=True,
 )
 
+arg_parser.add_argument(
+    "-T",
+    "--time_increment_label",
+    dest="time_increment_label",
+    help="Set this if the features are provided at timestep k and the labels generated at k+1",
+    default=False,
+    action="store_true",
+)
+
 
 if __name__ == "__main__":
     # parse the cli args
@@ -54,9 +63,12 @@ if __name__ == "__main__":
     rosbag_path = pathlib.Path(args.bagfile_path)
     out_dir = pathlib.Path(args.out_dir or ".")
     dataset_name: str = args.dataset_name
+    time_increment_label: bool = args.time_increment_label
     # encode the rosbag
     reader = RosbagEncoder(bagfile_path=rosbag_path)
-    dataset = reader.encode_bag(feature_topics, label_topic)
+    dataset = reader.encode_bag(
+        feature_topics, label_topic, time_increment_on_label=time_increment_label
+    )
     if dataset is not None:
         dataset.export(out_dir, dataset_name)
         print("generated datasets successfully")
