@@ -1,4 +1,5 @@
 from rosbag_encoder import RosbagEncoder
+import plotly.graph_objects as go
 
 # import pandas as pd
 import pathlib
@@ -19,3 +20,18 @@ if __name__ == "__main__":
 
     # join the training trajectory dataframe for plotting
     # trajectories = pd.concat([cw_trajectory, ccw_trajectory])
+
+    # plot 2D trajectory
+
+    if ccw_trajectory is not None:
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=ccw_trajectory["x"].to_numpy(),
+                y=ccw_trajectory["y"].to_numpy(),
+                line=dict(color="blue"),
+                showlegend=False,
+            )
+        )
+        print("plottig")
+        fig.show()
