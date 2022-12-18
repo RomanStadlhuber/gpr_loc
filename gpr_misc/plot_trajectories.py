@@ -1,6 +1,4 @@
 from rosbag_encoder import RosbagEncoder
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 # import pandas as pd
 import pathlib
@@ -21,6 +19,3 @@ if __name__ == "__main__":
 
     # join the training trajectory dataframe for plotting
     # trajectories = pd.concat([cw_trajectory, ccw_trajectory])
-
-    sns.relplot(data=ccw_trajectory, x="x", y="y", hue="label")
-    plt.show()
