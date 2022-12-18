@@ -3,6 +3,7 @@
 from helper_types import GPFeature, GPDataset
 from rosbags.rosbag1 import Reader
 from rosbags.serde import deserialize_cdr, ros1_to_cdr
+from rosbags.typesys.types import nav_msgs__msg__Odometry as Odometry
 from message_feature_encoders import get_encoder
 from typing import List, Optional
 import pandas as pd
@@ -121,6 +122,30 @@ class RosbagEncoder:
                 )
 
                 return dataset
+
+        except Exception as e:
+            print(str(e))
+            return None
+
+    def read_trajectory(
+        self, odom_topic: str, label: str, bagfile_path: Optional[pathlib.Path] = None
+    ) -> Optional[pd.DataFrame]:
+        try:
+            with Reader(bagfile_path or self.bagfile_path) as reader:
+                pos_df = pd.DataFrame(columns=["x", "y", "label"])
+                idx = 0
+                for connection, _, rawdata in reader.messages():
+                    if connection.topic == odom_topic:
+                        msg: Odometry = deserialize_cdr(
+                            ros1_to_cdr(rawdata, connection.msgtype), connection.msgtype
+                        )
+                        pos_df.loc[idx] = [
+                            msg.pose.pose.position.x,
+                            msg.pose.pose.position.y,
+                            label,
+                        ]
+                        idx += 1
+                return pos_df
 
         except Exception as e:
             print(str(e))
