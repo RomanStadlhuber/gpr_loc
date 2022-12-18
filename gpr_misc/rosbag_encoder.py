@@ -163,3 +163,43 @@ class RosbagEncoder:
         except Exception as e:
             print(str(e))
             return None
+
+
+"""
+NOTES to self:
+
+
+
+process dataset: [dX_t-1, U_t-1], dX_t
+    buffer the feature topics until all have been stored
+    ONLY THEN, buffer all the label topics until all have been stored
+    --> use flag for time-delay
+
+observation dataset:
+    do as is done currently:
+    buffer both features and labels at the same time until all have been stored
+    allow multiple label topics (e.g. mech-odom & imu)
+
+
+---------------------------
+conclusion:
+    allow multiple label topics
+    add flag for time-increment on label
+
+
+
+routine without time-increment for label:
+
+    receive message
+        if topic is feature: buffer in feature
+        if topic is label: buffer in label
+        if both feature and label are full: add to dataframe
+
+routine with increment
+
+    receive message
+        if topic is feature and feature is not full: buffer in feature (otherwise ignore)
+        if topic is label and feature is not full: ignore
+        if topic is label and feature is full: buffer in label
+        if both feature and label are full: add to dataframe
+"""
