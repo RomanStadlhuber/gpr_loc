@@ -27,11 +27,14 @@ class GPDataset:
     # set of all label vectors generated from a rosbag, needs to be separated into its columns to obtain training data
     labels: pd.DataFrame
 
-    def export(self, folder: pathlib.Path) -> None:
+    def export(self, folder: pathlib.Path, dataset_name: str) -> None:
+        """export the dataset features and labels to CSV files"""
         self.features.to_csv(
-            pathlib.Path.joinpath(folder, f"{self.name}__features.csv")
+            pathlib.Path.joinpath(folder, f"{self.name}__{dataset_name}_features.csv")
         )
-        self.labels.to_csv(pathlib.Path.joinpath(folder, f"{self.name}__labels.csv"))
+        self.labels.to_csv(
+            pathlib.Path.joinpath(folder, f"{self.name}__{dataset_name}_labels.csv")
+        )
 
 
 # function typing used to encode messages into GPR feature vectors

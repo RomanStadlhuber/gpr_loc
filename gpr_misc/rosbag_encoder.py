@@ -20,7 +20,8 @@ class RosbagEncoder:
     def encode_bag(
         self,
         feature_topics: List[str],
-        label_topic: str,
+        label_topics: List[str],
+        time_increment_on_label: bool = False,  # if the label should contain data from the next timestep
         timestamp_min: Optional[int] = None,
         timestamp_max: Optional[int] = None,
     ) -> Optional[GPDataset]:
@@ -35,7 +36,7 @@ class RosbagEncoder:
                 dataset_label_df: Optional[pd.DataFrame] = None
 
                 buffered_features = dict()
-                buffered_label: Optional[List[GPFeature]] = None
+                buffered_labels = dict()
 
                 iteration_index = 0
 
@@ -53,25 +54,28 @@ class RosbagEncoder:
                         buffered_features[connection.topic] = features
 
                     # encode label message
-                    elif connection.topic == label_topic:
+                    elif connection.topic in label_topics:
                         encoder_fn = get_encoder(connection.msgtype)
                         if encoder_fn is None:
                             continue
                         msg = deserialize_cdr(
                             ros1_to_cdr(rawdata, connection.msgtype), connection.msgtype
                         )
-                        buffered_label = encoder_fn(msg, connection.topic)
+                        label = encoder_fn(msg, connection.topic)
+                        buffered_labels[connection.topic] = label
 
                     else:
                         continue
 
                     # once all features and a label have been buffered:
                     # create a dataframe for both features and labels and joint with the total dataframe
-                    if (
-                        set(buffered_features.keys()) == set(feature_topics)
-                        and buffered_label is not None
-                    ):
-                        # flatten all features of this iteration into a single
+                    # fmt: off
+                    has_all_features = set(buffered_features.keys()) == set(feature_topics)
+                    has_all_labels = set(buffered_labels.keys()) == set(label_topics)
+                    # fmt: on
+
+                    if has_all_features and has_all_labels:
+                        # flatten all features and labels of this iteration into single lists
                         flat_features: List[GPFeature] = [
                             feature
                             for features in buffered_features.values()
@@ -81,8 +85,13 @@ class RosbagEncoder:
                             feature.column_name for feature in flat_features
                         ]
                         feature_values = [feature.value for feature in flat_features]
-                        label_names = [label.column_name for label in buffered_label]
-                        label_values = [label.value for label in buffered_label]
+                        flat_labels: List[GPFeature] = [
+                            label
+                            for labels in buffered_labels.values()
+                            for label in labels
+                        ]
+                        label_names = [label.column_name for label in flat_labels]
+                        label_values = [label.value for label in flat_labels]
 
                         feature_df = pd.DataFrame(
                             data=[feature_values],
@@ -112,7 +121,7 @@ class RosbagEncoder:
                         # reset for next iteration
                         iteration_index += 1
                         buffered_features.clear()
-                        buffered_label = None
+                        buffered_labels.clear()
 
                 bag_name = self.bagfile_path.name.split(".")[0]
 

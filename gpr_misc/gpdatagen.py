@@ -21,7 +21,9 @@ arg_parser.add_argument(
     help="Topics to use as GP input features",
     nargs="+",  # at least one, arbitrarly many and throws error if none supplied
 )
-arg_parser.add_argument("--label", dest="label_topic", required=True, type=str)
+arg_parser.add_argument(
+    "--label", dest="label_topics", required=True, type=str, nargs="+"
+)
 arg_parser.add_argument("--bag", dest="bagfile_path", required=True, type=str)
 arg_parser.add_argument(
     "-o",
@@ -33,17 +35,28 @@ arg_parser.add_argument(
     default=".",
 )
 
+arg_parser.add_argument(
+    "-n",
+    "--name",
+    dest="dataset_name",
+    metavar="Name of the dataset",
+    type=str,
+    help="Name of the datset (e.g. 'process' or 'observation'),",
+    required=True,
+)
+
 
 if __name__ == "__main__":
     # parse the cli args
     args = arg_parser.parse_args()
     feature_topics: List[str] = args.feature_topics
-    label_topic: str = args.label_topic
+    label_topic: List[str] = args.label_topics
     rosbag_path = pathlib.Path(args.bagfile_path)
     out_dir = pathlib.Path(args.out_dir or ".")
+    dataset_name: str = args.dataset_name
     # encode the rosbag
     reader = RosbagEncoder(bagfile_path=rosbag_path)
     dataset = reader.encode_bag(feature_topics, label_topic)
     if dataset is not None:
-        dataset.export(out_dir)
+        dataset.export(out_dir, dataset_name)
         print("generated datasets successfully")
