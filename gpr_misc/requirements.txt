@@ -2,8 +2,7 @@
 rosbags==0.9.13
 numpy
 pandas
-matplotlib
-seaborn
+plotly
 
 # linting, formatting and typing
 mypy
