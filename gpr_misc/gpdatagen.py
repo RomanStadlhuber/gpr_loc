@@ -4,6 +4,7 @@
 """The command-line utility that wraps the Rosbag Parser and allows to export GP Datasets from rosbags."""
 
 from rosbag_encoder import RosbagEncoder
+from postprocessors import OdomDeltaPostprocessor
 from typing import List
 import argparse
 import pathlib
@@ -64,10 +65,16 @@ if __name__ == "__main__":
     out_dir = pathlib.Path(args.out_dir or ".")
     dataset_name: str = args.dataset_name
     time_increment_label: bool = args.time_increment_label
+    # create the postprocessor
+    # TODO: make this code adaptive by adding a flag for the postprocessor name
+    post_processor = OdomDeltaPostprocessor(odom_topics={"/ground_truth/odom", "/odom"})
     # encode the rosbag
     reader = RosbagEncoder(bagfile_path=rosbag_path)
     dataset = reader.encode_bag(
-        feature_topics, label_topic, time_increment_on_label=time_increment_label
+        feature_topics,
+        label_topic,
+        time_increment_on_label=time_increment_label,
+        postproc=post_processor,
     )
     if dataset is not None:
         dataset.export(out_dir, dataset_name)
