@@ -6,6 +6,8 @@ from rosbags.typesys.types import (
     nav_msgs__msg__Odometry as Odometry,
 )
 from typing import List, Optional, Tuple, Any
+from scipy.spatial.transform import Rotation
+import numpy as np
 
 
 def __to_gp_features(xs: List[Tuple[str, Any]]) -> List[GPFeature]:
@@ -27,14 +29,23 @@ def __encode_imu(msg: Imu, topic: str) -> List[GPFeature]:
 
 
 def __encode_odometry(msg: Odometry, topic: str) -> List[GPFeature]:
+    # construct numpy quaternion from pose orientation
+    quat = np.array(
+        [
+            msg.pose.pose.orientation.x,
+            msg.pose.pose.orientation.y,
+            msg.pose.pose.orientation.z,
+            msg.pose.pose.orientation.w,
+        ]
+    )
+    # convert rotation to euler angles and extract only z-rotation
+    r = Rotation(quat, normalize=True)
+    theta, *_ = r.as_euler("zyx", degrees=False)
     return __to_gp_features(
         [
-            (f"odom.twist.lin.x ({topic})", msg.twist.twist.linear.x),
-            (f"odom.twist.lin.y ({topic})", msg.twist.twist.linear.y),
-            # (f"odom.twist.lin.z ({topic})", msg.twist.twist.linear.z),
-            # (f"odom.twist.ang.x ({topic})", msg.twist.twist.angular.x),
-            # (f"odom.twist.ang.y ({topic})", msg.twist.twist.angular.y),
-            (f"odom.twist.ang.z ({topic})", msg.twist.twist.angular.z),
+            (f"pose2d.x ({topic})", msg.pose.pose.position.x),
+            (f"pose2d.y ({topic})", msg.pose.pose.position.y),
+            (f"pose2d.yaw ({topic})", theta),
         ]
     )
 
