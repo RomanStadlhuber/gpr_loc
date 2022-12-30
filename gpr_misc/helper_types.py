@@ -1,6 +1,7 @@
 from typing import TypeVar, Callable, Any, List
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
+from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import pathlib
 
@@ -36,6 +37,35 @@ class GPDataset:
         self.labels.to_csv(
             pathlib.Path.joinpath(folder, f"{self.name}__{dataset_name}_labels.csv")
         )
+
+    def standard_scale(self) -> StandardScaler:
+        """standard scale this dataset
+
+        returns the fitted `sklearn.StandardScaler` which can then be used to rescale the data
+        """
+        scaler = StandardScaler()
+        self.features[self.features.columns] = scaler.fit_transform(
+            self.features[self.features.columns]
+        )
+        self.labels[self.labels.columns] = scaler.fit_transform(
+            self.labels[self.labels.columns]
+        )
+        # return the fitted scaler
+        return scaler
+
+    def rescale(self, fitted_scaler: StandardScaler) -> None:
+        """rescale a transformed dataset given a fitted `sklearn.StandardScaler`
+
+        performs in-place rescaling of the dataset
+        """
+        self.features[self.features.columns] = fitted_scaler.fit_transform(
+            self.features[self.features.columns]
+        )
+        self.labels[self.labels.columns] = fitted_scaler.fit_transform(
+            self.labels[self.labels.columns]
+        )
+        # return the fitted scaler
+        return fitted_scaler
 
 
 # function typing used to encode messages into GPR feature vectors
