@@ -78,9 +78,20 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
         """Wrapper function to apply the postprocessing logic on an entire dataframe"""
 
         row_count, *_ = df.shape
-        remaining_columns = set(df.columns).difference(self.odom_topics)
+
+        old_columns: List[str] = []
         modified_colums: List[str] = []
         for topic in self.odom_topics:
+            if f"pose2d.x ({topic})" not in df.columns:
+                continue
+
+            old_columns.extend(
+                [
+                    f"pose2d.x ({topic})",
+                    f"pose2d.y ({topic})",
+                    f"pose2d.yaw ({topic})",
+                ]
+            )
             modified_colums.extend(
                 [
                     f"delta2d.x ({topic})",
@@ -88,6 +99,8 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
                     f"delta2d.yaw ({topic})",
                 ]
             )
+        # the columns of the original dataframe that will not be modified
+        remaining_columns = set(df.columns.to_list()).difference(old_columns)
 
         # the new dataframe that will be iteratively filled in this function
         new_df = pd.DataFrame(columns=[*modified_colums, *remaining_columns])
@@ -116,6 +129,9 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
             row_2nd = df.loc[i + 1]  # the next row
             # compute the 2d deltas for the following odometry poses
             for odom_topic in self.odom_topics:
+                if f"pose2d.x ({odom_topic})" not in df.columns:
+                    continue
+
                 pose_1st = pose_from_topic(row_1st, odom_topic)
                 pose_2nd = pose_from_topic(row_2nd, odom_topic)
                 pose_delta = OdomDeltaPostprocessor.compute_pose_delta(
@@ -126,6 +142,6 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
                 new_df.loc[i, f"delta2d.y ({odom_topic})"] = delta_y
                 new_df.loc[i, f"delta2d.yaw ({odom_topic})"] = delta_yaw
             # add the remaining columns aren't modified
-            new_df.loc[i, remaining_columns] = row_1st[remaining_columns]
+            new_df.loc[i, list(remaining_columns)] = row_1st[list(remaining_columns)]
 
         return new_df
