@@ -55,6 +55,16 @@ arg_parser.add_argument(
     action="store_true",
 )
 
+# TODO: implement this arument for optional postprocessing
+arg_parser.add_argument(
+    "--processor",
+    dest="processor",
+    metavar="Name of the postprocessor",
+    help="the name of the desired postprocessor",
+    type=str,
+    default="",
+)
+
 
 if __name__ == "__main__":
     # parse the cli args
