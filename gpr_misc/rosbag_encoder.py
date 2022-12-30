@@ -1,6 +1,6 @@
 # from rosbags.rosbag1 import Reader
 # from rosbags.serde import deserialize_cdr, ros1_to_cdr
-from helper_types import GPFeature, GPDataset
+from helper_types import GPFeature, GPDataset, DatasetPostprocessor
 from rosbags.rosbag1 import Reader
 from rosbags.serde import deserialize_cdr, ros1_to_cdr
 from rosbags.typesys.types import nav_msgs__msg__Odometry as Odometry
@@ -24,6 +24,7 @@ class RosbagEncoder:
         time_increment_on_label: bool = False,  # if the label should contain data from the next timestep
         timestamp_min: Optional[int] = None,
         timestamp_max: Optional[int] = None,
+        postproc: Optional[DatasetPostprocessor] = None,
     ) -> Optional[GPDataset]:
         """read the rosbag and encode all"""
         if not self.bagfile_path.exists() or not self.bagfile_path.is_file():
@@ -133,8 +134,11 @@ class RosbagEncoder:
                 dataset = GPDataset(
                     name=bag_name, features=dataset_feature_df, labels=dataset_label_df
                 )
-
-                return dataset
+                # apply postprocessing logic if provided
+                if postproc is not None:
+                    return postproc.postprocess_dataset(dataset)
+                else:
+                    return dataset
 
         except Exception as e:
             print(str(e))

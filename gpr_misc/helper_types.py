@@ -1,5 +1,6 @@
 from typing import TypeVar, Callable, Any, List
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
 import pandas as pd
 import pathlib
 
@@ -39,3 +40,15 @@ class GPDataset:
 
 # function typing used to encode messages into GPR feature vectors
 FeatureEncodeFn = Callable[[TRosMsg, str], List[GPFeature]]
+
+
+class DatasetPostprocessor(ABC):
+    """Inherit from this class to apply postprocessing logic to a GP dataset."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    @abstractmethod
+    def postprocess_dataset(self, dataset: GPDataset) -> GPDataset:
+        """convert an existing dataset by postprocessing it"""
+        pass
