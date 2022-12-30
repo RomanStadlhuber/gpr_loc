@@ -1,8 +1,10 @@
-# process data
+# processing data
 rosbags==0.9.13
 numpy
 pandas
+scipy
 plotly
+scikit-learn
 
 # linting, formatting and typing
 mypy
