@@ -52,3 +52,14 @@ if __name__ == "__main__":
     model = GPy.models.GPRegression(X, Y, rbf_kernel)
     # print information about the model
     print(model)
+    # start optimizing the model
+    print("Beginning model optimization...")
+    model.optimize(messages=True)
+
+    print(
+        f"""
+---
+Most significant input dimensions: {model.get_most_significant_input_dimensions()}
+---
+    """
+    )
