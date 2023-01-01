@@ -105,15 +105,14 @@ class GPDataset:
             self.labels[self.labels.columns]
         )
 
-    def join(self, other: Type["GPDataset"]) -> "GPDataset":
+    def join(self, other: Type["GPDataset"], name: str = "joined") -> "GPDataset":
         """join this dataset with another dataset"""
+
+        # TODO: make parameter a union (GPDataset | List[GPDataset]) and join all at once
         joined_features = self.features.join(other.features)
         joined_labels = self.labels.join(other.labels)
-        joined_name = f"({self.name}) x ({other.name})"
 
-        return GPDataset(
-            name=joined_name, features=joined_features, labels=joined_labels
-        )
+        return GPDataset(name=name, features=joined_features, labels=joined_labels)
 
     def print_info(self) -> None:
 

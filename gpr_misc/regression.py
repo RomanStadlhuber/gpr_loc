@@ -21,6 +21,18 @@ arg_parser.add_argument(
     help="the dataset filename prefix (what's before _features/labels.csv)",
 )
 
+"""TODO:
+
+make the program load multiple training and test datasets
+
+- Option 1: accept a dedicated folder with a required structure:
+    - root folder name is the scenario
+        - contains training and test subfolders
+        - these subfolders contain all of the respective datasets
+- Option 2: accept one folder for training and one for test
+- Option 3: accept mutliple prefixes, seperated into training and test
+"""
+
 if __name__ == "__main__":
     args = arg_parser.parse_args()
     datset_dir = pathlib.Path(args.dir)
