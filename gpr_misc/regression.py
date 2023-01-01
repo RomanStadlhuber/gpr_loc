@@ -28,7 +28,7 @@ if __name__ == "__main__":
     # use the plotly backend for graphs
     GPy.plotting.change_plotting_library("plotly")
     # load dataset D = (X, Y)
-    D = GPDataset(dataset_folder=datset_dir, data_file_prefix_name=dataset_prefix)
+    D = GPDataset.load(dataset_folder=datset_dir, data_file_prefix_name=dataset_prefix)
     # print information about the dataset
     D.print_info()
     # standard-scale the dataset and store the scaler objects

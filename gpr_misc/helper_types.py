@@ -1,4 +1,4 @@
-from typing import TypeVar, Callable, Any, List, Tuple
+from typing import TypeVar, Callable, Any, List, Tuple, Type
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from sklearn.preprocessing import StandardScaler
@@ -31,10 +31,9 @@ class GPDataset:
     # set of all label vectors generated from a rosbag, needs to be separated into its columns to obtain training data
     labels: pd.DataFrame
 
-    def __init__(
-        self, dataset_folder: pathlib.Path, data_file_prefix_name: str
-    ) -> None:
-        """An optional constructor that uses the filename prefix to load features and labels"""
+    @staticmethod
+    def load(dataset_folder: pathlib.Path, data_file_prefix_name: str) -> "GPDataset":
+        """Uses the filename prefix to load features and labels and construct a new Dataset"""
 
         features_dir = dataset_folder.joinpath(f"{data_file_prefix_name}_features.csv")
         labels_dir = dataset_folder.joinpath(f"{data_file_prefix_name}_labels.csv")
@@ -45,9 +44,10 @@ class GPDataset:
             and labels_dir.exists()
             and labels_dir.is_file()
         ):
-            self.name = data_file_prefix_name
-            self.features = pd.read_csv(features_dir, index_col=0)
-            self.labels = pd.read_csv(labels_dir, index_col=0)
+            name = data_file_prefix_name
+            features = pd.read_csv(features_dir, index_col=0)
+            labels = pd.read_csv(labels_dir, index_col=0)
+            return GPDataset(name, features, labels)
         else:
             raise FileNotFoundError(
                 f"""One of the dataset files cannot be found.
@@ -103,6 +103,16 @@ class GPDataset:
         )
         self.labels[self.labels.columns] = fitted_label_scaler.inverse_transform(
             self.labels[self.labels.columns]
+        )
+
+    def join(self, other: Type["GPDataset"]) -> "GPDataset":
+        """join this dataset with another dataset"""
+        joined_features = self.features.join(other.features)
+        joined_labels = self.labels.join(other.labels)
+        joined_name = f"({self.name}) x ({other.name})"
+
+        return GPDataset(
+            name=joined_name, features=joined_features, labels=joined_labels
         )
 
     def print_info(self) -> None:
