@@ -6,6 +6,7 @@ rosbags==0.9.13
 numpy
 pandas
 scipy
+matplotlib
 plotly
 scikit-learn
 gpy
