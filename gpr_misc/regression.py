@@ -75,3 +75,6 @@ Most significant input dimensions: {model.get_most_significant_input_dimensions(
 ---
     """
     )
+
+    # TODO: load a test dataset and perform prediction, see:
+    # https://gpy.readthedocs.io/en/deploy/GPy.core.html?highlight=predict#GPy.core.gp.GP.predict
