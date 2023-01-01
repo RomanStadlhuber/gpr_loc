@@ -1,3 +1,6 @@
+# system dependencies
+wheel
+
 # processing data
 rosbags==0.9.13
 numpy
@@ -5,6 +8,7 @@ pandas
 scipy
 plotly
 scikit-learn
+gpy
 
 # linting, formatting and typing
 mypy
