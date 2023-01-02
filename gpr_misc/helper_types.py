@@ -1,4 +1,4 @@
-from typing import TypeVar, Callable, Any, List, Tuple, Type
+from typing import TypeVar, Callable, Any, List, Tuple, Iterable, Optional
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from sklearn.preprocessing import StandardScaler
@@ -32,29 +32,67 @@ class GPDataset:
     labels: pd.DataFrame
 
     @staticmethod
-    def load(dataset_folder: pathlib.Path, data_file_prefix_name: str) -> "GPDataset":
+    def load(
+        dataset_folder: pathlib.Path, data_file_prefix_name: Optional[str] = None
+    ) -> "GPDataset":
         """Uses the filename prefix to load features and labels and construct a new Dataset"""
 
-        features_dir = dataset_folder.joinpath(f"{data_file_prefix_name}_features.csv")
-        labels_dir = dataset_folder.joinpath(f"{data_file_prefix_name}_labels.csv")
-
-        if (
-            features_dir.exists()
-            and features_dir.is_file()
-            and labels_dir.exists()
-            and labels_dir.is_file()
-        ):
-            name = data_file_prefix_name
-            features = pd.read_csv(features_dir, index_col=0)
-            labels = pd.read_csv(labels_dir, index_col=0)
-            return GPDataset(name, features, labels)
-        else:
-            raise FileNotFoundError(
-                f"""One of the dataset files cannot be found.
-                - features: {features_dir}
-                - labels: {labels_dir}
-            """
+        if data_file_prefix_name is not None:
+            features_dir = dataset_folder.joinpath(
+                f"{data_file_prefix_name}_features.csv"
             )
+            labels_dir = dataset_folder.joinpath(f"{data_file_prefix_name}_labels.csv")
+
+            if (
+                features_dir.exists()
+                and features_dir.is_file()
+                and labels_dir.exists()
+                and labels_dir.is_file()
+            ):
+                name = data_file_prefix_name
+                features = pd.read_csv(features_dir, index_col=0)
+                labels = pd.read_csv(labels_dir, index_col=0)
+                return GPDataset(name, features, labels)
+            else:
+                raise FileNotFoundError(
+                    f"""One of the dataset files cannot be found.
+                    - features: {features_dir}
+                    - labels: {labels_dir}
+                """
+                )
+        else:
+            feature_files = [
+                x
+                for x in dataset_folder.iterdir()
+                if x.is_file() and "features.csv" in x.name
+            ]
+
+            label_files = [
+                x
+                for x in dataset_folder.iterdir()
+                if x.is_file() and "labels.csv" in x.name
+            ]
+            # check that the directory only contains one dataset
+            if len(feature_files) != len(label_files) != 1:
+                raise FileNotFoundError(
+                    f"""
+                    There is more than one dataset in the directory '{dataset_folder.name}'.
+                    Only one dataset (_features and _labels files) is allowed per
+                    """
+                )
+            # load the dataset from the directory
+            feature_df = pd.read_csv(feature_files[0], index_col=0)
+            label_df = pd.read_csv(label_files[0], index_col=0)
+            return GPDataset(
+                name=dataset_folder.name, features=feature_df, labels=label_df
+            )
+
+    @staticmethod
+    def join(others: Iterable["GPDataset"], name: str = "joined") -> "GPDataset":
+        """join multiple GP Datasets (in the order as passed)"""
+        joined_features = pd.concat([other.features for other in others])
+        joined_labels = pd.concat([other.labels for other in others])
+        return GPDataset(name=name, features=joined_features, labels=joined_labels)
 
     def get_X(self) -> np.ndarray:
         """obtain a column-vector matrix of the dataset features"""
@@ -104,15 +142,6 @@ class GPDataset:
         self.labels[self.labels.columns] = fitted_label_scaler.inverse_transform(
             self.labels[self.labels.columns]
         )
-
-    def join(self, other: Type["GPDataset"], name: str = "joined") -> "GPDataset":
-        """join this dataset with another dataset"""
-
-        # TODO: make parameter a union (GPDataset | List[GPDataset]) and join all at once
-        joined_features = self.features.join(other.features)
-        joined_labels = self.labels.join(other.labels)
-
-        return GPDataset(name=name, features=joined_features, labels=joined_labels)
 
     def print_info(self) -> None:
 
