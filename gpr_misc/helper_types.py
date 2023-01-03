@@ -6,6 +6,7 @@ from pprint import pformat
 import pandas as pd
 import numpy as np
 import pathlib
+import GPy
 
 TRosMsg = TypeVar("TRosMsg")
 
@@ -33,15 +34,15 @@ class GPDataset:
 
     @staticmethod
     def load(
-        dataset_folder: pathlib.Path, data_file_prefix_name: Optional[str] = None
+        dataset_folder: pathlib.Path,
+        name: Optional[str] = None,
+        file_prefix_name: Optional[str] = None,
     ) -> "GPDataset":
         """Uses the filename prefix to load features and labels and construct a new Dataset"""
 
-        if data_file_prefix_name is not None:
-            features_dir = dataset_folder.joinpath(
-                f"{data_file_prefix_name}_features.csv"
-            )
-            labels_dir = dataset_folder.joinpath(f"{data_file_prefix_name}_labels.csv")
+        if file_prefix_name is not None:
+            features_dir = dataset_folder.joinpath(f"{file_prefix_name}_features.csv")
+            labels_dir = dataset_folder.joinpath(f"{file_prefix_name}_labels.csv")
 
             if (
                 features_dir.exists()
@@ -49,7 +50,7 @@ class GPDataset:
                 and labels_dir.exists()
                 and labels_dir.is_file()
             ):
-                name = data_file_prefix_name
+                name = name or file_prefix_name
                 features = pd.read_csv(features_dir, index_col=0)
                 labels = pd.read_csv(labels_dir, index_col=0)
                 return GPDataset(name, features, labels)
@@ -84,7 +85,7 @@ class GPDataset:
             feature_df = pd.read_csv(feature_files[0], index_col=0)
             label_df = pd.read_csv(label_files[0], index_col=0)
             return GPDataset(
-                name=dataset_folder.name, features=feature_df, labels=label_df
+                name=name or dataset_folder.name, features=feature_df, labels=label_df
             )
 
     @staticmethod
@@ -162,6 +163,42 @@ GP Dataset: "{self.name}"
 ---
 """
         )
+
+
+@dataclass
+class GPModel:
+    """Helper class to save and load GPy model data
+
+    The save/load logic is implemented according to:
+    https://github.com/SheffieldML/GPy#saving-models-in-a-consistent-way-across-versions
+    """
+
+    name: str
+    parameters: np.ndarray
+
+    def save(self, dir: pathlib.Path) -> None:
+        # TODO: find out why this won't work with the full name
+        filename = self.name.replace("/", "--")
+        np.save(dir / f"{filename}.npy", self.parameters)
+
+    @staticmethod
+    def load(file: pathlib.Path) -> "GPModel":
+        """load a model wrapper instance from a file"""
+        name = file.name.split(".")[0].replace("--", "/")
+        return GPModel(name, np.load(file))
+
+    @staticmethod
+    def load_regression_model(
+        file: pathlib.Path, X: np.ndarray, Y: np.ndarray
+    ) -> GPy.Model:
+        """load a regression model from a file"""
+        m_load = GPy.Model(X, Y, initialize=False)
+        m_load.update_model(False)
+        m_load.initialize_parameter()
+        model_data = GPModel.load(file)
+        m_load[:] = model_data.parameters
+        m_load.update_model(True)
+        return m_load
 
 
 # function typing used to encode messages into GPR feature vectors
