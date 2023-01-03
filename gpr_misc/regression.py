@@ -1,4 +1,5 @@
 from gp_scenario import GPScenario
+from datetime import datetime
 import argparse
 import pathlib
 import GPy
@@ -44,7 +45,7 @@ arg_parser.add_argument(
     action="store_true",
 )
 # name of the joined datasets (that is, the regression job)
-arg_parser.add_argument("-n", "--name", dest="name", required=True, type=str)
+arg_parser.add_argument("-n", "--name", dest="name", type=str)
 # model export directory
 arg_parser.add_argument("-o", "--out_dir", dest="out_dir", required=False, type=str)
 
@@ -55,7 +56,7 @@ if __name__ == "__main__":
     train_dirs = [pathlib.Path(d) for d in args.train_dirs]
     test_dir = pathlib.Path(args.test_dir) if args.test_dir else None
     inspect_only: bool = args.inspect_only or False
-    scenario_name: str = args.name
+    scenario_name: str = args.name or datetime.today().strftime("%Y%m%d-%H%M%S")
     export_dir = pathlib.Path(args.out_dir) if args.out_dir else None
     model_dir = pathlib.Path(args.model_dir) if args.model_dir else None
     # use the plotly backend for graphs
@@ -73,9 +74,12 @@ if __name__ == "__main__":
         sys.exit()
 
     if export_dir is not None:
+        export_dir = export_dir / f"{scenario_name}"
         if not export_dir.exists():
             os.mkdir(export_dir)
-        regressor.export_model_parameters(export_dir)
+
+        if model_dir is None:  # only export models if they do not exist
+            regressor.export_model_parameters(export_dir)
 
         if test_dir is not None:
             D_regr = regressor.perform_regression(messages=True)
