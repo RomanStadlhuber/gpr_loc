@@ -10,6 +10,7 @@ matplotlib
 plotly
 scikit-learn
 gpy
+tqdm
 
 # linting, formatting and typing
 mypy
