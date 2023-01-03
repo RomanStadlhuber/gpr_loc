@@ -47,6 +47,10 @@ ENCODER_MAP = {
 }
 ```
 
+### Adding Custom Postprocessing Routines
+
+Have a look at the `postprocessors.py` script. Postprocessors inherit from an abstract base class and can be passed to an instance when calling `RosbagEncoder.encode_bag()` using the `postproc=...` paramater. See `gpdatagen.py` for more details.
+
 ### Running the Encoder
 
 The `gpdatagen` utility allows to run the encoder on different rosbags using various settings from the command-line.
@@ -80,10 +84,82 @@ where the second line lists the names of all the topics that are used for featur
 python3 gpdatagen.py \
 /ground_truth/odom \
 --label /odom /taurob_tracker/imu/data \
---time_increment_label \
 --bag path/to/your.bag \
 --out_dir ./data
 --name observation
 ```
 
 Note that here only a single topic is used to generate the features and multiple sensor topics are used as labels. Moreover, since observations are instant, there is no timestep increment required.
+
+## Performing Regression on Datasets
+
+The `regression.py` CLI utility allows to create regression models from training datasets, load existing pre-trained models and perform prediction on test-datasets. Run `python3 regression.py -h` for more information on its parameters.
+
+### Recommended folder structure
+
+In the following, three folders containing GP datasets are depicted. The below examples will use two datasets to generate training data and run a test on the third test dataset. It is important to remark that, when loading datasets via the regression utility
+
+- only one dataset (`*_features.csv` & `*_labels.csv`) per folder is allowed
+- multiple folders can be loaded and joined into a single trainin dataset
+- the **column names** of all datasets **need to be equivalent for both test and training data**
+
+```
+data
+├── process_test
+│   ├── taurob_eval-deltas__process_features.csv
+│   └── taurob_eval-deltas__process_labels.csv
+├── process_train_ccw
+│   ├── taurob_ccw-deltas__process_features.csv
+│   └── taurob_ccw-deltas__process_labels.csv
+└── process_train_cw
+    ├── taurob_cw-deltas__process_features.csv
+    └── taurob_cw-deltas__process_labels.csv
+```
+
+### Inspecting Datasets (Training & Test)
+
+The `regression.py` script allows to inspect the loaded datasets. I.e. using the data described above, run
+
+```bash
+python3 regression.py data/process_train_ccw data/process_train_cw/ --test data/process_test/ --inspect_only
+```
+
+which will merely output information about the datasets and exit immediately. Optionally, give the regression scenario a name to identify it at a later point (which will be done in the next examples).
+
+### Generating and Exporting Models
+
+If no directory containing pre-trained models is provided, the utility will generate them automatically. The models can then be saved on disk using the `--out_dir` option.
+
+```bash
+# create new models and perform prediction
+python3 regression.py \
+data/process_train_ccw data/process_train_cw/ \
+--name example-scenario \
+--out_dir data/models
+```
+
+This will run `GPy`s optimization routines and generate a folder named after the `--name` value inside the `--out_dir` directory. This folder will contain the optimized model parameters and regression results (if data was provided using the `--test` flag).
+
+**NOTE**: the exported model parameters will be named after the column names of the labels dataframe. _However_, since ros topics include the `"/"` characters in their names, which is illegal in files, it is replaced with `"--"` (and correspondlingy undone when reloading the models). **Do not modify the filenames of the exported models parameters**. Future versions might include and make use of metadata to migitate this issue.
+
+### Reloading exported Models
+
+The `--models` flag can be used to pass the directory that contains the pre-trained models (such as those exported in the example above). If models are provided, the regression utlity will skip creating and optimizing models and load the existing ones instead.
+
+Prediction can then be made using the provided `--test` dataset and saved using the `--export` flag.
+
+```bash
+# load existing models and perform prediction
+python3 regression.py \
+data/process_train_ccw data/process_train_cw/ \
+--test data/process_test/ \
+--models data/models/example-scenario/ \
+--name example-scenario-pretrained \
+--out_dir data/models
+```
+
+This example will use the pre-trained models from above and only perfrom prediction on the new data. The results of that prediction process will be stored in a new folder named after `--name`, withing the `--out_dir`.
+
+#### Misceral Information
+
+Internally, the provided datasets are standard-scaled before training and rescaled upon inference. **Do not provide standard-scaled datasets on your own**, as the regression utility will store the scalers when loading the datasets and use them to rescale once inference is complete.
