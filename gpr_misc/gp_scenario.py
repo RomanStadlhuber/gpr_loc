@@ -138,15 +138,16 @@ class GPScenario:
             return None
 
         X_test = self.D_test.get_X()
-        regression_labels = pd.DataFrame(columns=self.labels)
+        regression_labels = pd.DataFrame()
         for labelled_model in self.models:
             label = labelled_model.label
             model = labelled_model.model
             # perform regression, then rescale and export
             # TODO: export covariance
             (Y_regr, _) = model.predict_noiseless(X_test)
-            # TODO: probably needs reshaping
-            regression_labels[label] = Y_regr
+            # create a dataframe for this label and join with the rest of the labels
+            df_Y_regr = pd.DataFrame(columns=[label], data=Y_regr)
+            regression_labels = pd.concat([regression_labels, df_Y_regr], axis=0)
 
         D_regr = GPDataset(
             name=f"{self.scenario}_regression-output",
