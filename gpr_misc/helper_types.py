@@ -192,7 +192,7 @@ class GPModel:
         file: pathlib.Path, X: np.ndarray, Y: np.ndarray
     ) -> GPy.Model:
         """load a regression model from a file"""
-        m_load = GPy.Model(X, Y, initialize=False)
+        m_load = GPy.models.GPRegression(X, Y, initialize=False)
         m_load.update_model(False)
         m_load.initialize_parameter()
         model_data = GPModel.load(file)
