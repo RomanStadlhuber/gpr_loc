@@ -1,6 +1,7 @@
 from typing import Optional, Iterable, List
 from helper_types import GPDataset, GPModel
 from dataclasses import dataclass
+from tqdm import tqdm
 import pandas as pd
 import pathlib
 import GPy
@@ -24,6 +25,9 @@ class GPScenario:
     Optimized models can be used for regression, where a dataset is returned consisting of the regression
     inputs and the mean value outputs as labels.
 
+    An important NOTE is that since the ROS topic names contain slashes, these need to be replaced when
+    serializing the models into files. In this case, the "/" character is replaced by "--" and vice versa.
+    This logic is also found in the helper_types script GPModel class!
     """
 
     def __init__(
@@ -32,6 +36,7 @@ class GPScenario:
         train_dirs: Iterable[pathlib.Path],
         test_dir: Optional[pathlib.Path] = None,
         kernel_dir: Optional[pathlib.Path] = None,
+        inspect_only: bool = False,
     ) -> None:
         # the name of the regression scenario
         self.scenario = scenario_name
@@ -58,6 +63,13 @@ class GPScenario:
         self.labels = self.D_train.labels.columns
         # a list containing the optimized model kernels
         self.models: List[LabelledModel] = []
+
+        self.D_train.print_info()
+        if self.D_test:
+            self.D_test.print_info()
+
+        if inspect_only:
+            return
         # generate models if none were provided, otherwise load them
         if self.kernel_dir is None:
             self.generate_models(messages=True)
@@ -125,7 +137,7 @@ class GPScenario:
         kernel_files = [x for x in self.kernel_dir.iterdir() if x.suffix == ".npy"]
         models: List[GPy.Model] = []
         for kernel_file in kernel_files:
-            label = kernel_file.name.split(".")[0]
+            label = kernel_file.name.split(".npy")[0].replace("--", "/")
             Y = self.D_train.get_Y(label)
             model = GPModel.load_regression_model(kernel_file, X, Y)
             models.append(LabelledModel(label, model))
@@ -137,9 +149,12 @@ class GPScenario:
         if self.models is None or self.D_test is None:
             return None
 
+        if messages:
+            print(f"performing regression in scenario {self.scenario}..")
+
         X_test = self.D_test.get_X()
         regression_labels = pd.DataFrame()
-        for labelled_model in self.models:
+        for labelled_model in tqdm(self.models):
             label = labelled_model.label
             model = labelled_model.model
             # perform regression, then rescale and export
