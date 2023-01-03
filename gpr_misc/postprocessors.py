@@ -1,5 +1,6 @@
 from helper_types import GPDataset, DatasetPostprocessor
 from typing import Tuple, Set, List
+from tqdm import tqdm
 import pandas as pd
 import numpy as np
 
@@ -124,7 +125,9 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
                     f"No 2D pose can be extracted from this topics data: '{topic}'"
                 )
 
-        for i in range(row_count - 2):
+        print("post-processing poses to compute deltas")
+
+        for i in tqdm(range(row_count - 2)):
             row_1st = df.loc[i]  # the current row
             row_2nd = df.loc[i + 1]  # the next row
             # compute the 2d deltas for the following odometry poses
