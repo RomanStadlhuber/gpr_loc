@@ -1,37 +1,26 @@
-from rosbag_encoder import RosbagEncoder
+from helper_types import GPDataset
 import plotly.graph_objects as go
-
-# import pandas as pd
 import pathlib
 
+
 if __name__ == "__main__":
-    # the two rosbags used for training data
-    ccw_bagfile_path = pathlib.Path("bags/taurob_ccw_2022-12-14-16-40-22.bag")
-    cw_bagfile_path = pathlib.Path("bags/taurob_cw_2022-12-15-16-03-39.bag")
+    # NOTE: assume the column names are the same for all datasets
+    path_cw = pathlib.Path("./data/trajectories/clockwise")
 
-    encoder = RosbagEncoder(ccw_bagfile_path)
+    dataset_cw = GPDataset.load(dataset_folder=path_cw, name="Clockwise trajectory")
+    # the diff drive estimates are the features
+    trajectory_cw_odom = dataset_cw.features
+    # the ground truth are the labels
+    trajectory_cw_groundtruth = dataset_cw.labels
 
-    ccw_trajectory = encoder.read_trajectory(
-        "/ground_truth/odom", "counter-clockwise", bagfile_path=ccw_bagfile_path
-    )
-    """cw_trajectory = encoder.read_trajectory(
-        "/ground_truth/odom", "counter-clockwise", bagfile_path=cw_bagfile_path
-    )"""
-
-    # join the training trajectory dataframe for plotting
-    # trajectories = pd.concat([cw_trajectory, ccw_trajectory])
-
-    # plot 2D trajectory
-
-    if ccw_trajectory is not None:
-        fig = go.Figure()
-        fig.add_trace(
-            go.Scatter(
-                x=ccw_trajectory["x"].to_numpy(),
-                y=ccw_trajectory["y"].to_numpy(),
-                line=dict(color="blue"),
-                showlegend=False,
-            )
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=trajectory_cw_odom["pose2d.x (/odom)"].to_numpy(),
+            y=trajectory_cw_odom["pose2d.y (/odom)"].to_numpy(),
+            line=dict(color="blue"),
+            showlegend=False,
         )
-        print("plottig")
-        fig.show()
+    )
+    print("plotting")
+    fig.show()
