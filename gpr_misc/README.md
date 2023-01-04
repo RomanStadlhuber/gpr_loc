@@ -60,6 +60,10 @@ To learn more about the arguments, run `gpdatagen -h` to obtain a help message. 
 
 In the process dataset, the timesteps of the labels are incremented w.r.t. that of the features. To achieve this behavior, use the `-T` or `--time_increment_label` flag.
 
+To compute the deltas between odometry poses, pass the `--deltas` flag to the utility, otherwise the poses will be used.
+
+**Quick Tip**: omit the `--deltas` flag to generate the poses that can be used for plotting trajectiories.
+
 ```bash
 # generate a process dataset of the form:
 # features: state and control-input at time k
@@ -67,6 +71,7 @@ In the process dataset, the timesteps of the labels are incremented w.r.t. that 
 python3 gpdatagen.py \
 /ground_truth/odom /taurob_tracker/cmd_vel_raw \
 --label /ground_truth/odom \
+--deltas
 --time_increment_label \
 --bag path/to/your.bag \
 --out_dir ./data
@@ -84,6 +89,7 @@ where the second line lists the names of all the topics that are used for featur
 python3 gpdatagen.py \
 /ground_truth/odom \
 --label /odom /taurob_tracker/imu/data \
+--deltas
 --bag path/to/your.bag \
 --out_dir ./data
 --name observation
