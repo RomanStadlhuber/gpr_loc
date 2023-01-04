@@ -71,10 +71,10 @@ To compute the deltas between odometry poses, pass the `--deltas` flag to the ut
 python3 gpdatagen.py \
 /ground_truth/odom /taurob_tracker/cmd_vel_raw \
 --label /ground_truth/odom \
---deltas
+--deltas \
 --time_increment_label \
 --bag path/to/your.bag \
---out_dir ./data
+--out_dir ./data \
 --name process
 ```
 
@@ -89,9 +89,9 @@ where the second line lists the names of all the topics that are used for featur
 python3 gpdatagen.py \
 /ground_truth/odom \
 --label /odom /taurob_tracker/imu/data \
---deltas
+--deltas \
 --bag path/to/your.bag \
---out_dir ./data
+--out_dir ./data \
 --name observation
 ```
 
