@@ -9,7 +9,6 @@ from typing import List
 import argparse
 import pathlib
 
-
 arg_parser = argparse.ArgumentParser(
     prog="gpdatagen",
     description="utility used to generate GP datasets from rosbags",
@@ -57,14 +56,12 @@ arg_parser.add_argument(
 
 # TODO: implement this arument for optional postprocessing
 arg_parser.add_argument(
-    "--processor",
-    dest="processor",
-    metavar="Name of the postprocessor",
-    help="the name of the desired postprocessor",
-    type=str,
-    default="",
+    "--deltas",
+    dest="deltas",
+    help="Whether or not to compute odom deltas",
+    default=False,
+    action="store_true",
 )
-
 
 if __name__ == "__main__":
     # parse the cli args
@@ -75,16 +72,21 @@ if __name__ == "__main__":
     out_dir = pathlib.Path(args.out_dir or ".")
     dataset_name: str = args.dataset_name
     time_increment_label: bool = args.time_increment_label
+    compute_deltas: bool = args.deltas or False
     # create the postprocessor
     # TODO: make this code adaptive by adding a flag for the postprocessor name
-    post_processor = OdomDeltaPostprocessor(odom_topics={"/ground_truth/odom", "/odom"})
+    proc = (
+        OdomDeltaPostprocessor(odom_topics={"/ground_truth/odom", "/odom"})
+        if compute_deltas
+        else None
+    )
     # encode the rosbag
     reader = RosbagEncoder(bagfile_path=rosbag_path)
     dataset = reader.encode_bag(
         feature_topics,
         label_topic,
         time_increment_on_label=time_increment_label,
-        postproc=post_processor,
+        postproc=proc,
     )
     if dataset is not None:
         dataset.export(out_dir, dataset_name)
