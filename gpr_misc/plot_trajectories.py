@@ -1,6 +1,7 @@
 from plotters import TrajectoryPlotter
 from helper_types import GPDataset
 import plotly.graph_objects as go
+import numpy as np
 import pathlib
 
 
@@ -39,31 +40,59 @@ if __name__ == "__main__":
     fig = go.Figure()
     plotter = TrajectoryPlotter(fontsize=18)
     lineplot_cw = plotter.line_trace(
-        y=trajectory_cw_odom["pose2d.x (/odom)"].to_numpy(),
-        x=trajectory_cw_odom["pose2d.y (/odom)"].to_numpy(),
+        y=trajectory_cw_groundtruth["pose2d.x (/ground_truth/odom)"].to_numpy(),
+        x=trajectory_cw_groundtruth["pose2d.y (/ground_truth/odom)"].to_numpy(),
         color=color_cw,
-        name="Training trajectory (clockwise and counter-clockwise)",
+        name="Training trajectory (clockwise)",
     )
     lineplot_ccw = plotter.line_trace(
-        y=trajectory_ccw_odom["pose2d.x (/odom)"].to_numpy(),
-        x=trajectory_ccw_odom["pose2d.y (/odom)"].to_numpy(),
+        y=trajectory_ccw_groundtruth["pose2d.x (/ground_truth/odom)"].to_numpy(),
+        x=trajectory_ccw_groundtruth["pose2d.y (/ground_truth/odom)"].to_numpy(),
         color=color_ccw,
-        name="counter clockwise",
+        name="Training trajectory (counter-clockwise)",
     )
     lineplot_eval = plotter.line_trace(
-        y=trajectory_eval_odom["pose2d.x (/odom)"].to_numpy(),
-        x=trajectory_eval_odom["pose2d.y (/odom)"].to_numpy(),
+        y=trajectory_eval_groundtruth["pose2d.x (/ground_truth/odom)"].to_numpy(),
+        x=trajectory_eval_groundtruth["pose2d.y (/ground_truth/odom)"].to_numpy(),
         color=color_eval,
         name="Evaluation trajectory",
     )
+
+    training_setpoints = np.array([[1.5, 2], [0, 4], [-1.5, 2], [0, 0]])
+    test_setpoints = np.array([[1.5, 0], [-1.5, 4], [1.5, 4], [-1.5, 0]]) + np.array(
+        [0.5, 0]
+    )
+
+    markers_training = plotter.marker_trace(
+        y=training_setpoints[:, 0],
+        x=training_setpoints[:, 1],
+        symbol="triangle-down",
+        color="orange",
+        marker_size=16,
+        marker_outline_width=2,
+        name="Training setpoints (both trajectories)",
+    )
+
+    markers_test = plotter.marker_trace(
+        y=test_setpoints[:, 0],
+        x=test_setpoints[:, 1],
+        symbol="diamond",
+        color="red",
+        marker_size=12,
+        marker_outline_width=2,
+        name="Evaluation setpoints",
+    )
+
     fig.add_trace(lineplot_cw)
-    # fig.add_trace(lineplot_ccw)
+    fig.add_trace(lineplot_ccw)
     fig.add_trace(lineplot_eval)
+    fig.add_trace(markers_training)
+    fig.add_trace(markers_test)
     plotter.format_figure(
         fig,
         x_title="x [m]",
         y_title="y [m]",
-        y_range=(-2, 2.5),
+        y_range=(-2, 4.8),
         # x_range=(-1.5, 5.5),
         width_px=800,
         height_px=600,
