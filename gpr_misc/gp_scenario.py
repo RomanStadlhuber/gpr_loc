@@ -120,6 +120,7 @@ class GPScenario:
                     f"Constructing a sparse GP at a relative sample count of {int(self.sparsity*100)} %"
                 )
             # build the model
+            # TODO: do we need to load existing kernel hyperparamters from dense GP to help the optimizater?
             model = (
                 GPy.models.GPRegression(X, Y, rbf_kernel)
                 if self.sparsity is None

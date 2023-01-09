@@ -150,7 +150,7 @@ This will run `GPy`s optimization routines and generate a folder named after the
 
 #### Generate a sparse GP
 
-Add the `--sparsity` flag with a value greater than zero and less than one.
+Add the `--sparsity` flag with a value greater than zero and less than one. E.g. `--sparsity 0.6` will construct a sparse GP subset with 60% of the original samples. 
 
 ### Reloading exported Models
 
