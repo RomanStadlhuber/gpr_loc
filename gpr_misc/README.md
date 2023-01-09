@@ -148,6 +148,10 @@ This will run `GPy`s optimization routines and generate a folder named after the
 
 **NOTE**: the exported model parameters will be named after the column names of the labels dataframe. _However_, since ros topics include the `"/"` characters in their names, which is illegal in files, it is replaced with `"--"` (and correspondlingy undone when reloading the models). **Do not modify the filenames of the exported models parameters**. Future versions might include and make use of metadata to migitate this issue.
 
+#### Generate a sparse GP
+
+Add the `--sparsity` flag with a value greater than zero and less than one.
+
 ### Reloading exported Models
 
 The `--models` flag can be used to pass the directory that contains the pre-trained models (such as those exported in the example above). If models are provided, the regression utlity will skip creating and optimizing models and load the existing ones instead.
