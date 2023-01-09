@@ -1,4 +1,5 @@
 from gp_scenario import GPScenario
+from typing import Optional
 from datetime import datetime
 import argparse
 import pathlib
@@ -44,6 +45,14 @@ arg_parser.add_argument(
     default=False,
     action="store_true",
 )
+arg_parser.add_argument(
+    "--sparsity",
+    dest="sparsity",
+    type=float,
+    required=False,
+    metavar="The sparsity of the GP relative to the input dataset(s).",
+    help="A factor 0 < x < 1 (not including) that determines the relative number of samples used.",
+)
 # name of the joined datasets (that is, the regression job)
 arg_parser.add_argument("-n", "--name", dest="name", type=str)
 # model export directory
@@ -59,6 +68,7 @@ if __name__ == "__main__":
     scenario_name: str = args.name or datetime.today().strftime("%Y%m%d-%H%M%S")
     export_dir = pathlib.Path(args.out_dir) if args.out_dir else None
     model_dir = pathlib.Path(args.model_dir) if args.model_dir else None
+    sparsity: Optional[float] = args.sparsity
     # use the plotly backend for graphs
     GPy.plotting.change_plotting_library("plotly")
 
@@ -68,6 +78,7 @@ if __name__ == "__main__":
         test_dir=test_dir,
         kernel_dir=model_dir,
         inspect_only=inspect_only,
+        sparsity=sparsity,
     )
 
     if inspect_only:
