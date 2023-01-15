@@ -189,16 +189,27 @@ class GPModel:
 
     @staticmethod
     def load_regression_model(
-        file: pathlib.Path, X: np.ndarray, Y: np.ndarray
+        file: pathlib.Path, X: np.ndarray, Y: np.ndarray, sparse: bool = False
     ) -> GPy.Model:
         """load a regression model from a file"""
-        m_load = GPy.models.GPRegression(X, Y, initialize=False)
+        m_load = (
+            GPy.models.GPRegression(X, Y, initialize=False)
+            if not sparse
+            else GPy.models.SparseGPRegression(X, Y, initialize=False)
+        )
         m_load.update_model(False)
         m_load.initialize_parameter()
         model_data = GPModel.load(file)
-        m_load[:] = model_data.parameters
-        m_load.update_model(True)
-        return m_load
+        try:
+            m_load[:] = model_data.parameters
+            m_load.update_model(True)
+            return m_load
+        except ValueError:
+            raise Exception(
+                """You are trying to load a sparse model into a dense one.
+To load a sparse model, pass the optional parameter 'sparse = True' to GPModel.load_regression_model.
+            """
+            )
 
 
 # function typing used to encode messages into GPR feature vectors
