@@ -53,6 +53,7 @@ Starting evaluation, remark:
             # output vector for each dense regression index
             y = D_sparse.get_Y(name).reshape(-1)  # collapse to 1-dim (row-vec)
             # perform linear least squares regression on the (sparse, dense) data
+            # https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lstsq.html
             (slope, _), *_ = lstsq(
                 M, y
             )  # TODO: it seems that regression outputs are NaN!
