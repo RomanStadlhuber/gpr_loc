@@ -170,6 +170,37 @@ data/process_train_ccw data/process_train_cw/ \
 
 This example will use the pre-trained models from above and only perfrom prediction on the new data. The results of that prediction process will be stored in a new folder named after `--name`, withing the `--out_dir`.
 
+#### Loading a Sparse Regression Model
+
+As of now, a sparse model cannot be detected automatically. Therefore, when loading and evaluating a sparse regression model, specify the `--load_sparse` flag in the above command.
+
+Below is an example on how to load a sparse model using `helper_types.GPModel`:
+
+```python
+>>> from helper_types import GPModel, GPDataset
+# choose some example test dataset and make sure it exists
+>>> dataset_dir = pathlib.Path("data/process_test")
+>>> dataset_dir.exists()
+True
+>>> D = GPDataset.load(dataset_dir)
+# load the test input features
+>>> X = D.get_X()
+# load some test label data
+>>> Y = D.get_Y("your label name")
+>>> params_file = pathlib.Path("data/models/sparse-pretrained/example.npy")
+# make sure the directory exists...
+>>> params_file.exists()
+True
+>>> sparse_models = GPModel.load_regression_model(
+    file=params_file,
+    X=X,
+    Y=Y,
+    sparse=True
+)
+# print the model
+>>> print(model)
+```
+
 #### Misceral Information
 
 Internally, the provided datasets are standard-scaled before training and rescaled upon inference. **Do not provide standard-scaled datasets on your own**, as the regression utility will store the scalers when loading the datasets and use them to rescale once inference is complete.
