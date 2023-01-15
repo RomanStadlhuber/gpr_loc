@@ -37,7 +37,7 @@ class GPScenario:
         test_dir: Optional[pathlib.Path] = None,
         kernel_dir: Optional[pathlib.Path] = None,
         inspect_only: bool = False,
-        sparsity: Optional[float] = None,
+        sparsity: Optional[int] = None,
     ) -> None:
         # the name of the regression scenario
         self.scenario = scenario_name
@@ -69,17 +69,22 @@ class GPScenario:
         if self.D_test:
             self.D_test.print_info()
 
-        # warn the user of the sparsity is at an incorrect rate
-        if sparsity and (sparsity >= 1.0 or sparsity <= 0.0):
+        num_datapoints, *_ = self.D_train.get_X().shape
+        # warn the user if the sparsity count is too large
+        if sparsity and (sparsity > num_datapoints or sparsity <= 0):
             raise Exception(
-                f"""Incorrect sparsity level ({sparsity})!
-    The sparsity level needs to be within a range of ]0.0, 1.0[ (i.e. not included).
-    Based on this level, a sample count relative to that the full dataset will be picked.
+                f"""
+            Number of sparse datapoints is out of bounds ({sparsity}).
+            Sparsity needs to be greater than 0 and less than number of data points ({num_datapoints}).
+            Please provide a sparsity between 1 and {num_datapoints}.
+            To speed up the search process, 15 or less inducing inputs are recommended.
             """
             )
 
         # the relative number of samples (between 0 and 1) or nothing
-        self.sparsity = sparsity if sparsity and 0.0 < sparsity <= 1.0 else None
+        self.sparsity = (
+            sparsity if sparsity and 0 < sparsity <= num_datapoints else None
+        )
 
         if inspect_only:
             return
@@ -107,7 +112,7 @@ class GPScenario:
         # load the input data for all models
         X = self.D_train.get_X()
         # obtain dimensionality of input data
-        num_elements, dim, *__ = X.shape
+        _, dim, *__ = X.shape
         # list used to store all models
         models: List[GPy.Model] = []
         # individually create models for each label_
@@ -116,16 +121,14 @@ class GPScenario:
             # define the kernel function for the GP
             rbf_kernel = GPy.kern.RBF(input_dim=dim, variance=1.0, lengthscale=1.0)
             if self.sparsity is not None:
-                print(
-                    f"Constructing a sparse GP at a relative sample count of {int(self.sparsity*100)} %"
-                )
+                print(f"Constructing a sparse GP with {self.sparsity} inducing inputs.")
             # build the model
             # TODO: do we need to load existing kernel hyperparamters from dense GP to help the optimizater?
             model = (
                 GPy.models.GPRegression(X, Y, rbf_kernel)
                 if self.sparsity is None
                 else GPy.models.SparseGPRegression(
-                    X, Y, rbf_kernel, num_inducing=int(self.sparsity * num_elements)
+                    X, Y, rbf_kernel, num_inducing=self.sparsity
                 )
             )
             if messages:

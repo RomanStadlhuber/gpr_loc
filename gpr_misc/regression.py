@@ -48,7 +48,7 @@ arg_parser.add_argument(
 arg_parser.add_argument(
     "--sparsity",
     dest="sparsity",
-    type=float,
+    type=int,
     required=False,
     metavar="The sparsity of the GP relative to the input dataset(s).",
     help="A factor 0 < x < 1 (not including) that determines the relative number of samples used.",
