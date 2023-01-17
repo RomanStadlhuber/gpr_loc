@@ -112,13 +112,18 @@ class GPDataset:
             pathlib.Path.joinpath(folder, f"{self.name}__{dataset_name}_labels.csv")
         )
 
-    def standard_scale(self) -> Tuple[StandardScaler, StandardScaler]:
+    def standard_scale(
+        self, scalers: Optional[Tuple[StandardScaler, StandardScaler]] = None
+    ) -> Tuple[StandardScaler, StandardScaler]:
         """standard scale this dataset
 
-        returns the fitted `sklearn.StandardScaler` which can then be used to rescale the data
+        Returns the fitted `sklearn.StandardScaler` which can then be used to rescale the data.
+
+        Optionally, pass external feature and label scalers in the form `(feature_scaler, label_scaler)`
+        (these will then be returned as well).
         """
-        feature_scaler = StandardScaler()
-        label_scaler = StandardScaler()
+        feature_scaler = StandardScaler() if scalers is None else scalers[0]
+        label_scaler = StandardScaler() if scalers is None else scalers[1]
         self.features[self.features.columns] = feature_scaler.fit_transform(
             self.features[self.features.columns]
         )
