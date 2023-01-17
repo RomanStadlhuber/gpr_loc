@@ -60,7 +60,11 @@ class GPScenario:
         )
         # scale the test dataset if it exists
         (self.test_feature_scaler, self.test_label_scaler,) = (
-            self.D_test.standard_scale() if self.D_test else (None, None)
+            self.D_test.standard_scale(
+                scalers=(self.train_feature_scaler, self.train_label_scaler)
+            )
+            if self.D_test
+            else (None, None)
         )
         # the names of the columns used in the regression process
         self.labels = self.D_train.labels.columns
