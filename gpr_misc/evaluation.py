@@ -1,6 +1,7 @@
 from plotters import TrajectoryPlotter
 from helper_types import GPDataset
 from scipy.linalg import lstsq
+from typing import Optional, List
 import plotly.graph_objects as go
 import numpy as np
 import argparse
@@ -12,7 +13,11 @@ class DenseToSparseEvaluation:
         self.plotter = plotter
 
     def fit_linear_model_dense_sparse(
-        self, dir_dense: pathlib.Path, dir_sparse: pathlib.Path, messages: bool = True
+        self,
+        dir_dense: pathlib.Path,
+        dir_sparse: pathlib.Path,
+        messages: bool = True,
+        plot_titles: Optional[List[str]] = None,
     ) -> None:
         D_dense = GPDataset.load(dataset_folder=dir_dense, name="eval-dense")
         D_sparse = GPDataset.load(dataset_folder=dir_sparse, name="eval-sparse")
@@ -39,7 +44,7 @@ Starting evaluation, remark:
             """
             )
 
-        for name in label_names:
+        for idx, name in enumerate(label_names):
             # "design matrix" of the form
             # [ [1, x1],
             #   [1, x2],
@@ -78,11 +83,12 @@ Linear Model Regression for label "{name}":
                 marker_size=5,
                 marker_outline_width=1,
             )
+            x_min = x.min()
             x_max = x.max()  # plot the slope line from 0 to max
             # NOTE: y_max = slope * x_max
             regression_slope = self.plotter.line_trace(
-                x=np.array([0, x_max]),
-                y=np.array([0], slope * x_max),
+                x=np.array([x_min, x_max]),
+                y=np.array([(1 - slope) * x_min, (1 - slope) * x_max]),
                 color="red",
                 name="linear model",
             )
@@ -91,6 +97,7 @@ Linear Model Regression for label "{name}":
 
             self.plotter.format_figure(
                 fig=fig,
+                figure_title=plot_titles[idx] if plot_titles else None,
                 x_title="Dense GP output",
                 y_title="Sparse GP output",
                 width_px=800,
