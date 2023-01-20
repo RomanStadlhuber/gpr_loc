@@ -1,4 +1,4 @@
-from typing import TypeVar, Callable, Any, List, Tuple, Iterable, Optional
+from typing import TypeVar, Callable, Any, List, Tuple, Iterable, Optional, Union
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from sklearn.preprocessing import StandardScaler
@@ -195,7 +195,7 @@ class GPModel:
     @staticmethod
     def load_regression_model(
         file: pathlib.Path, X: np.ndarray, Y: np.ndarray, sparse: bool = False
-    ) -> GPy.Model:
+    ) -> Union[GPy.models.GPRegression, GPy.models.SparseGPRegression]:
         """load a regression model from a file"""
         m_load = (
             GPy.models.GPRegression(X, Y, initialize=False)
