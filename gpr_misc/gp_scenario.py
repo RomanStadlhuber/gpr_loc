@@ -1,7 +1,6 @@
-from typing import Optional, Iterable, List
+from typing import Optional, Iterable, List, Union
 from helper_types import GPDataset, GPModel
 from dataclasses import dataclass
-from tqdm import tqdm
 import pandas as pd
 import pathlib
 import GPy
@@ -10,7 +9,7 @@ import GPy
 @dataclass
 class LabelledModel:
     label: str
-    model: GPy.Model
+    model: Union[GPy.models.GPRegression, GPy.models.SparseGPRegression]
 
 
 class GPScenario:
@@ -190,7 +189,7 @@ class GPScenario:
 
         X_test = self.D_test.get_X()
         regression_labels = pd.DataFrame()
-        for labelled_model in tqdm(self.models):
+        for labelled_model in self.models:
             label = labelled_model.label
             model = labelled_model.model
             # perform regression, then rescale and export
@@ -198,7 +197,7 @@ class GPScenario:
             (Y_regr, _) = model.predict_noiseless(X_test)
             # create a dataframe for this label and join with the rest of the labels
             df_Y_regr = pd.DataFrame(columns=[label], data=Y_regr)
-            regression_labels = pd.concat([regression_labels, df_Y_regr], axis=0)
+            regression_labels = pd.concat([regression_labels, df_Y_regr], axis=1)
 
         D_regr = GPDataset(
             name=f"{self.scenario}_regression-output",
