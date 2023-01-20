@@ -2,14 +2,19 @@
 wheel
 
 # processing data
+
+# these versions are required,
+# mostly because of hard dependencies of GPy
+# unversioned packages cause no change in
+# computation behavior
 rosbags==0.9.13
-numpy
-pandas
-scipy
-matplotlib
-plotly
-scikit-learn
-gpy
+numpy==1.22.4
+pandas==1.4.3
+scipy==1.9.0
+matplotlib==3.6.2
+plotly==5.10.0
+scikit-learn==1.2.0
+gpy==1.10.0
 tqdm
 
 # linting, formatting and typing
