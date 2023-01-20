@@ -87,9 +87,23 @@ class TrajectoryPlotter:
         y_range: Optional[Tuple[float, float]] = None,
         width_px: Optional[int] = None,
         height_px: Optional[int] = None,
+        figure_title: Optional[str] = None,
     ) -> None:
+
+        # set a title object for the layout, if a figure title was provided, see:
+        # https://plotly.com/python/figure-labels/#align-plot-title
+        title = dict(
+            text=figure_title,
+            y=0.9,  # vertical position in image
+            x=0.5,  # horizontal position in image
+            xanchor="center",
+            yanchor="top",
+        )
+
         """styles the plot according to the paper style-guidelines"""
         fig.update_layout(
+            # set a title (if provided)
+            title=title if figure_title is not None else None,
             # move the legend to the top right
             legend=dict(
                 yanchor="top",  # ?
