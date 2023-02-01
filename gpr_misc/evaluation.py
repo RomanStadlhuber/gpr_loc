@@ -53,7 +53,7 @@ Starting evaluation, remark:
             # ]
             # where the first value is the weight (should be 1)
             # the inputs are the sparse regressions
-            x = D_sparse.get_Y(name).reshape(-1)  # collapse to 1-dim (row-vec)
+            x = D_dense.get_Y(name).reshape(-1)  # collapse to 1-dim (row-vec)
             M = x[:, np.newaxis] ** [0, 1]
             # output vector for each dense regression index
             y = D_sparse.get_Y(name).reshape(-1)  # collapse to 1-dim (row-vec)
