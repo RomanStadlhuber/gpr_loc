@@ -1,6 +1,7 @@
 from plotters import TrajectoryPlotter
 from helper_types import GPDataset
 from scipy.linalg import lstsq
+from sklearn.metrics import mean_squared_error
 from typing import Optional, List
 import plotly.graph_objects as go
 import numpy as np
@@ -11,6 +12,27 @@ import pathlib
 class DenseToSparseEvaluation:
     def __init__(self, plotter=TrajectoryPlotter) -> None:
         self.plotter = plotter
+
+    def compute_rmse(
+        self,
+        dir_dense: pathlib.Path,
+        dir_sparse: pathlib.Path,
+        dir_groundtruth: pathlib.Path,
+    ) -> None:
+        D_dense = GPDataset.load(dataset_folder=dir_dense, name="dense regression")
+        D_sparse = GPDataset.load(dataset_folder=dir_sparse, name="sparse regression")
+        D_groundtruth = GPDataset.load(dir_groundtruth, name="groundtruth")
+        labels = D_groundtruth.labels.columns.to_list()
+        print("--- root mean squared error from GP mean to groundtruth:")
+        for label in labels:
+            y_true = D_groundtruth.get_Y(label)
+            rmse_dense = mean_squared_error(
+                y_true=y_true, y_pred=D_dense.get_Y(label), squared=False
+            )
+            rmse_sparse = mean_squared_error(
+                y_true=y_true, y_pred=D_sparse.get_Y(label), squared=False
+            )
+            print(f"| {label} | dense: {rmse_dense} | sparse: {rmse_sparse} |")
 
     def fit_linear_model_dense_sparse(
         self,
@@ -122,17 +144,53 @@ arg_parser.add_argument(
 arg_parser.add_argument(
     dest="sparse_dir",
     type=str,
-    metavar="The Sparse Regression Dataset Directory",
+    metavar="Sparse Regression Dataset Directory",
     help="The root directory of the sparse output data",
 )
-# TODO: optional arguments for plotting
-
+# ground truth dataset
+arg_parser.add_argument(
+    "-gt",
+    "--groundtruth",
+    type=str,
+    dest="groundtruth_dir",
+    required=False,
+    metavar="Groundtruth dataset",
+    help="Root directory of the ground truth dataset",
+)
+arg_parser.add_argument(
+    "-lm",
+    "--linear_model_fit",
+    dest="fit_linear_model",
+    action="store_true",
+    default=False,
+    required=False,
+    help="Compute and plot a linear model fit.",
+)
+arg_parser.add_argument(
+    "-rmse",
+    "--compute_rmse",
+    dest="compute_rmse",
+    action="store_true",
+    default=False,
+    required=False,
+    help="Compute and print the root mean squared error (RMSE)",
+)
 
 if __name__ == "__main__":
     args = arg_parser.parse_args()
     dense_dir = pathlib.Path(args.dense_dir)
     sparse_dir = pathlib.Path(args.sparse_dir)
+    groundtruth_dir = pathlib.Path(args.groundtruth_dir) or None
+    fit_linear_model = args.fit_linear_model or False
+    compute_rmse = args.compute_rmse or False
     # create a plotter for the output and pass to the eval processor
     plotter = TrajectoryPlotter(fontsize=20)
     evaluator = DenseToSparseEvaluation(plotter=plotter)
-    evaluator.fit_linear_model_dense_sparse(dir_dense=dense_dir, dir_sparse=sparse_dir)
+    if fit_linear_model:
+        evaluator.fit_linear_model_dense_sparse(
+            dir_dense=dense_dir, dir_sparse=sparse_dir
+        )
+    if compute_rmse and groundtruth_dir is not None:
+        evaluator.compute_rmse(
+            dir_dense=dense_dir, dir_sparse=sparse_dir, dir_groundtruth=groundtruth_dir
+        )
