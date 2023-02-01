@@ -197,6 +197,7 @@ class GPModel:
         file: pathlib.Path, X: np.ndarray, Y: np.ndarray, sparse: bool = False
     ) -> Union[GPy.models.GPRegression, GPy.models.SparseGPRegression]:
         """load a regression model from a file"""
+        # TODO: how to load a model with a kernel that uses a lengthscale matrix?
         m_load = (
             GPy.models.GPRegression(X, Y, initialize=False)
             if not sparse
