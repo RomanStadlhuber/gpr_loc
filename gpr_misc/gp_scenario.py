@@ -58,7 +58,10 @@ class GPScenario:
             GPDataset.load(dataset_folder=self.test_dir) if self.test_dir else None
         )
         # scale the test dataset if it exists
-        (self.test_feature_scaler, self.test_label_scaler,) = (
+        (
+            self.test_feature_scaler,
+            self.test_label_scaler,
+        ) = (
             self.D_test.standard_scale(
                 scalers=(self.train_feature_scaler, self.train_label_scaler)
             )
@@ -202,7 +205,7 @@ class GPScenario:
 
         D_regr = GPDataset(
             name=f"{self.scenario}_regression-output",
-            features=self.D_train.features,
+            features=self.D_test.features,
             labels=regression_labels,
         )
         D_regr.rescale(self.train_feature_scaler, self.train_label_scaler)
