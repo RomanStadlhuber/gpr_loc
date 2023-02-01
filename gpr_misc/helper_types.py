@@ -197,11 +197,16 @@ class GPModel:
         file: pathlib.Path, X: np.ndarray, Y: np.ndarray, sparse: bool = False
     ) -> Union[GPy.models.GPRegression, GPy.models.SparseGPRegression]:
         """load a regression model from a file"""
-        # TODO: how to load a model with a kernel that uses a lengthscale matrix?
+        _, dim, *__ = X.shape
+        # create an ARD kernel (with a diagonal lengthscale matrix, that is) in order to
+        # properly load the model parameters
+        rbf_kernel = GPy.kern.RBF(input_dim=dim, ARD=True)
         m_load = (
-            GPy.models.GPRegression(X, Y, initialize=False)
+            GPy.models.GPRegression(X, Y, initialize=False, kernel=rbf_kernel)
             if not sparse
-            else GPy.models.SparseGPRegression(X, Y, initialize=False)
+            else GPy.models.SparseGPRegression(
+                X, Y, initialize=False, kernel=rbf_kernel
+            )
         )
         m_load.update_model(False)
         m_load.initialize_parameter()

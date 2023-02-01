@@ -38,7 +38,6 @@ class GPScenario:
         inspect_only: bool = False,
         sparsity: Optional[int] = None,
         load_sparse_models: bool = False,
-        lengthscale_matrix: bool = False,
     ) -> None:
         # the name of the regression scenario
         self.scenario = scenario_name
@@ -47,8 +46,6 @@ class GPScenario:
         self.test_dir = test_dir
         self.kernel_dir = kernel_dir
         self.load_sparse = load_sparse_models
-        # whether or not to use a diagonal matrix or single value lengthscale
-        self.lengthscale_matrix = lengthscale_matrix
         # the training and test datasets
         training_datasets = self.load_datasets(self.train_dirs)
         self.D_train = GPDataset.join(training_datasets, f"{self.scenario} - training")
@@ -128,19 +125,16 @@ class GPScenario:
             Y = self.D_train.get_Y(label)
             # define the kernel function for the GP
             rbf_kernel = GPy.kern.RBF(
-                input_dim=dim,
-                variance=1.0,
-                lengthscale=1.0,
-                ARD=self.lengthscale_matrix,  # use a diagonal matrix instead of single lengthscale
+                input_dim=dim, variance=1.0, lengthscale=1.0, ARD=True
             )
             if self.sparsity is not None:
                 print(f"Constructing a sparse GP with {self.sparsity} inducing inputs.")
             # build the model
             model = (
-                GPy.models.GPRegression(X, Y, rbf_kernel)
+                GPy.models.GPRegression(X, Y, kernel=rbf_kernel)
                 if self.sparsity is None
                 else GPy.models.SparseGPRegression(
-                    X, Y, rbf_kernel, num_inducing=self.sparsity
+                    X, Y, kernel=rbf_kernel, num_inducing=self.sparsity
                 )
             )
             if messages:
