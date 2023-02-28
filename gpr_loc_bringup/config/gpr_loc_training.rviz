@@ -7,7 +7,6 @@ Panels:
         - /Global Options1
         - /TF1
         - /TF1/Frames1
-        - /TF1/Tree1
         - /TF1/Tree1/odom1
         - /TF1/Tree1/odom1/base_link1
         - /TF1/Tree1/odom1/base_link1/chassis_link1
@@ -205,6 +204,8 @@ Visualization Manager:
           Value: false
         velodyne_base_link:
           Value: false
+        world:
+          Value: false
       Marker Scale: 1
       Name: TF
       Show Arrows: true
@@ -241,6 +242,8 @@ Visualization Manager:
                   {}
           control_waypoint:
             {}
+        world:
+          {}
       Update Interval: 0
       Value: true
     - Class: rviz/Group

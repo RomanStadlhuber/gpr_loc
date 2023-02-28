@@ -5,11 +5,20 @@
     <arg name="eval" default="false" />
     <arg name="gui" default="false" />
     <arg name="gpu" default="false" />
-    <arg name="x_pos" default="0" />
-    <arg name="y_pos" default="0" />
-    <arg name="yaw" default="0" />
-
+    <!-- if the linear controller should also be launched -->
+    <arg name="linear_ctrl" default="false" />
+    <!-- if the Search And Rescue (SAR) world should be used -->
+    <arg name="sar_world" default="true" />
+    <!-- set the starting pose according to the world -->
+    <arg if="$(eval arg('sar_world'))" name="x_pos" default="4.5" />
+    <arg if="$(eval arg('sar_world'))" name="y_pos" default="3.5" />
+    <arg if="$(eval arg('sar_world'))" name="yaw" default="-1.57" />
+    <arg unless="$(eval arg('sar_world'))" name="x_pos" default="0" />
+    <arg unless="$(eval arg('sar_world'))" name="y_pos" default="0" />
+    <arg unless="$(eval arg('sar_world'))" name="yaw" default="0" />
+    <!-- launch the world -->
     <include file="$(find gpr_loc_bringup)launch/training_world.launch">
+        <arg name="sar_world" value="$(arg sar_world)" />
         <arg name="gui" value="$(arg gui)" />
         <arg name="gpu" value="$(arg gpu)" />
         <arg name="use_sim_time" value="true" /> <!-- um timing probleme zu vermeiden -->
@@ -18,17 +27,26 @@
         <arg name="y_pos" value="$(arg y_pos)" />
         <arg name="yaw" value="$(arg yaw)" />
     </include>
-
+    <!-- Start the Ground Truth TF publisher Node-->
+    <remap from="/p3d_tf_broadcaster_node/ground_truth/odom" to="/ground_truth/odom" />
+    <node pkg="gpr_loc_bringup" type="gpr_loc_bringup_p3d_tf_broadcaster_node"
+        name="p3d_tf_broadcaster_node" />
+    <!-- static TF that puts odom onto base_link -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="odom_onto_baselink"
+        args="0 0 0 0 0 0 /odom /base_link" />
     <!-- Start Controller -->
-    <include file="$(find taurob_tracker_control)/launch/taurob_tracker_control.launch" />
+    <include file="$(find gpr_loc_bringup)/launch/taurob_tracker_control.launch" />
     <!-- Start Rviz -->
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gpr_loc_bringup)/config/gpr_loc_training.rviz" />
-    <!-- load the linear controller, passing both the flag for evaluation and the desired direction for training run -->
-    <include file="$(find gpr_loc_bringup)/launch/linear_controller.launch">
+    <node name="rviz" pkg="rviz" type="rviz"
+        args="-d $(find gpr_loc_bringup)/config/gpr_loc_training.rviz" />
+    <!-- load the linear controller, passing both the flag for evaluation and the desired direction
+    for training run, if the linear_ctrl arg is set to 'true' -->
+    <include if="$(eval arg('linear_ctrl'))"
+        file="$(find gpr_loc_bringup)/launch/linear_controller.launch">
         <arg name="eval" value="$(arg eval)" />
         <arg name="dir_ccw" value="$(arg dir_ccw)" />
     </include>
-
-    <node pkg="tf2_ros" type="static_transform_publisher" name="realsense_depth" args="0 0 0 -1.57 0 -1.57 /realsense_rgbd_link /realsense_rgbd_depth_optical_frame" />
-
+    <!-- static TF for realsense depth cam -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="realsense_depth"
+        args="0 0 0 -1.57 0 -1.57 /realsense_rgbd_link /realsense_rgbd_depth_optical_frame" />
 </launch>

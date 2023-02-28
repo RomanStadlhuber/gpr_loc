@@ -13,24 +13,25 @@
     <!-- these are the arguments you can pass this launch file, for example paused:=true -->
     <arg name="paused" default="false" />
     <arg name="use_sim_time" default="true" />
-    <arg name="gui" default="false" />
+    <arg name="gui" default="true" />
     <arg name="headless" default="false" />
     <arg name="debug" default="false" />
     <arg name="laser_offset_rot" default="0.0" />
 
-    <arg name="sar_world" default="false" />
-
     <!-- We resume the logic in empty_world.launch, changing only the name of the world to be
     launched -->
+
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
-        <arg if="$(eval arg('sar_world'))" name="world_name"
-            value="$(find taurob_tracker_gazebo)/worlds/Indoor_Worlds/fhtw.world" />
+        <arg name="world_name" value="$(find taurob_tracker_gazebo)/worlds/Indoor_Worlds/fhtw.world" />
         <arg name="debug" value="$(arg debug)" />
         <arg name="gui" value="$(arg gui)" />
-        <arg name="paused" value="$(arg paused)" />
-        <arg name="use_sim_time" value="$(arg use_sim_time)" />
+        <arg
+            name="paused" value="$(arg paused)" />
+        <arg name="use_sim_time"
+            value="$(arg use_sim_time)" />
         <arg name="headless" value="$(arg headless)" />
-        <arg name="extra_gazebo_args" value="--verbose" />
+        <arg
+            name="extra_gazebo_args" value="--verbose" />
     </include>
 
     <!-- Load the URDF into the ROS Parameter Server -->

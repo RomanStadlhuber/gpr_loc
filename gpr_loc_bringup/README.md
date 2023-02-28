@@ -7,6 +7,9 @@ This package intends to
 - predefines trajectories used to generate datasets
 - configure a linear controller to enable traversing of the trajectories
     - see the `linear_controller` ros-package for more details
+- disable the `robot_pose_ekf` package invoked in `taurob_tracker_control.launch` and use groundtruth odometry instead
+    - the ground truth odometry is published using the `p3d_base_controller` (see `taurob_tacker_flipper.xacro`)
+    - the `p3d_tf_broadcaster_node` echoes the groundtruth to the TF tree
 
 ## Launching the simulation
 
@@ -17,6 +20,25 @@ roslaunch gpr_loc_bringup bringup.launch
 ```
 
 To set the direction of the training trajectory, supply the parameter `dir_ccw:=false` (defaults to `true`).
+
+### Disabling the linear Controller
+
+```bash
+roslaunch gpr_loc_bringup bringup.launch linear_ctrl:=false
+```
+
+### Launching the Search And Rescue (SAR) World
+
+**NOTE** It is recommended to disable the controller for these worlds and use teleop instead
+(see the optional argument).
+
+```bash
+roslaunch gpr_loc_bringup bringup.launch sar_world:=true [linear_ctrl:=false]
+```
+
+### Starting Gazebo in GUI Mode
+
+To any invocation of `bringup.launch`, add `gui:=true`.
 
 ## Recording Rosbags to generate Datasets
 
