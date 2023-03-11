@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
     <param name="use_sim_time" value="true" />
+    <!-- static TF that puts the map onto the odom_frame -->
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="odom_onto_map"
+        args="0 0 0 0 0 0 /map /odom" /> -->
     <!-- remap the laser scan topic from gmapping to that published by the taurob -->
     <remap from="/scan" to="/taurob_tracker/laser_scan_front" />
     <!-- launch the GMapping Occupancy Grid SLAM node -->
     <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping">
-        <param name="linear_update" type="double" value="0.0625" />
-        <param name="angular__update" type="double" value="0.0625" />
+        <rosparam file="$(find gpr_loc_bringup)/config/move_base_params/slam_gmapping_params.yaml"
+            command="load" />
     </node>
 </launch>
