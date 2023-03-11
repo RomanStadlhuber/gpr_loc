@@ -162,6 +162,8 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        base_footprint:
+          Value: true
         base_link:
           Value: true
         camera_link_back:
@@ -200,12 +202,12 @@ Visualization Manager:
           Value: false
         realsense_rgbd_link:
           Value: false
+        scan_merged:
+          Value: true
         velodyne:
           Value: false
         velodyne_base_link:
           Value: false
-        world:
-          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
@@ -213,37 +215,36 @@ Visualization Manager:
       Show Names: true
       Tree:
         map:
-          {}
-        odom:
-          base_link:
-            chassis_link:
-              camera_link_back:
-                {}
-              camera_link_front:
-                {}
-              camera_mount:
-                camera_link_elevated:
-                  {}
-              flipper_link_back:
-                {}
-              flipper_link_front:
-                {}
-              flir_frame:
-                flir_optical_frame:
-                  {}
-              imu_link:
-                {}
-              laser_scan_front_model_frame:
-                laser_scan_front_frame:
-                  {}
-              laser_scan_rear_model_frame:
-                laser_scan_rear_frame:
-                  {}
-              velodyne_base_link:
-                velodyne:
-                  {}
-        world:
-          {}
+          odom:
+            base_footprint:
+              base_link:
+                chassis_link:
+                  camera_link_back:
+                    {}
+                  camera_link_front:
+                    {}
+                  camera_mount:
+                    camera_link_elevated:
+                      {}
+                  flipper_link_back:
+                    {}
+                  flipper_link_front:
+                    {}
+                  flir_frame:
+                    flir_optical_frame:
+                      {}
+                  imu_link:
+                    {}
+                  laser_scan_front_model_frame:
+                    laser_scan_front_frame:
+                      scan_merged:
+                        {}
+                  laser_scan_rear_model_frame:
+                    laser_scan_rear_frame:
+                      {}
+                  velodyne_base_link:
+                    velodyne:
+                      {}
       Update Interval: 0
       Value: true
     - Class: rviz/Group
@@ -452,25 +453,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 11.601873397827148
+      Distance: 11.878839492797852
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 2.778768301010132
-        Y: -1.0904345512390137
-        Z: 3.941230261261808e-6
+        X: 5.374253273010254
+        Y: -3.109875202178955
+        Z: 1.1570624337764457e-5
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8247953057289124
+      Pitch: 0.7897953391075134
       Target Frame: <Fixed Frame>
       Value: ThirdPersonFollower (rviz)
-      Yaw: 5.2995100021362305
+      Yaw: 5.059510707855225
     Saved: ~
 Window Geometry:
   Displays:
@@ -495,4 +496,4 @@ Window Geometry:
     collapsed: false
   Width: 1482
   X: 1021
-  Y: 79
+  Y: 42

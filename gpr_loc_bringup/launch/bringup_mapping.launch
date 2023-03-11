@@ -7,8 +7,13 @@
         <arg name="linear_ctrl" value="false" />
         <arg name="rviz_config_filename" value="gpr_loc_slam.rviz" />
     </include>
+    <!-- the node combining front and rear scans-->
+    <include file="$(find gpr_loc_bringup)/launch/merge_scans.launch" />
     <!-- the SLAM node (GMapping) -->
-    <include file="$(find gpr_loc_bringup)/launch/mapping.launch" />
+    <include file="$(find gpr_loc_bringup)/launch/mapping.launch">
+        <!-- make the GMapping node subscribe to the merged laser scan topic-->
+        <arg name="scan_topic" value="/scan_merged" />
+    </include>
     <!-- the move_base setup for navigation -->
     <include file="$(find gpr_loc_bringup)/launch/move_base.launch" />
 </launch>

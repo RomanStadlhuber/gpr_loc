@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <!-- NOTE: this file uses an external package:
+    
+        http://wiki.ros.org/ira_laser_tools
+    
+        also, see this thread on how to marge two scans (assuming they're published with associated TFs)
+    https://answers.ros.org/question/392446/how-to-merge-two-laserscans-to-one-laserscan-with-different-frame_ids/?answer=392507#post-id-392507 
+    -->
+    <param name="use_sim_time" value="true" />
+    <!-- static TF that generates the merged scans frame -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_onto_scan_merged"
+        args="0 0 0 0 0 0 /laser_scan_front_frame /scan_merged" />
+    <node pkg="ira_laser_tools" name="laserscan_multi_merger" type="laserscan_multi_merger">
+        <param name="destination_frame" value="scan_merged" />
+        <param name="scan_destination_topic" value="/scan_merged" />
+        <param name="laserscan_topics"
+            value="/taurob_tracker/laser_scan_front /taurob_tracker/laser_scan_rear" />
+    </node>
+</launch>

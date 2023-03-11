@@ -4,8 +4,9 @@
     <!-- static TF that puts the map onto the odom_frame -->
     <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="odom_onto_map"
         args="0 0 0 0 0 0 /map /odom" /> -->
+    <arg name="scan_topic" default="/taurob_tracker/laser_scan_front" />
     <!-- remap the laser scan topic from gmapping to that published by the taurob -->
-    <remap from="/scan" to="/taurob_tracker/laser_scan_front" />
+    <remap from="/scan" to="$(arg scan_topic)" />
     <!-- launch the GMapping Occupancy Grid SLAM node -->
     <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping">
         <rosparam file="$(find gpr_loc_bringup)/config/move_base_params/slam_gmapping_params.yaml"
