@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <!-- the simulation & rviz -->
+    <include file="$(find gpr_loc_bringup)/launch/bringup.launch">
+        <!-- the arguments required to setup the Search and Rescue SLAM -->
+        <arg name="sar_world" value="true" />
+        <arg name="linear_ctrl" value="false" />
+        <arg name="rviz_config_filename" value="gpr_loc_slam.rviz" />
+    </include>
+    <!-- the SLAM node (GMapping) -->
+    <include file="$(find gpr_loc_bringup)/launch/mapping.launch" />
+    <!-- the move_base setup for navigation -->
+    <include file="$(find gpr_loc_bringup)/launch/move_base.launch" />
+</launch>
