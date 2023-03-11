@@ -9,6 +9,8 @@
     <arg name="linear_ctrl" default="false" />
     <!-- if the Search And Rescue (SAR) world should be used -->
     <arg name="sar_world" default="true" />
+    <!-- the rviz config file -->
+    <arg name="rviz_config_filename" default="gpr_loc_training.rviz" />
     <!-- set the starting pose according to the world -->
     <arg if="$(eval arg('sar_world'))" name="x_pos" default="4.5" />
     <arg if="$(eval arg('sar_world'))" name="y_pos" default="3.5" />
@@ -32,13 +34,13 @@
     <node pkg="gpr_loc_bringup" type="gpr_loc_bringup_p3d_tf_broadcaster_node"
         name="p3d_tf_broadcaster_node" />
     <!-- static TF that puts odom onto base_link -->
-    <node pkg="tf2_ros" type="static_transform_publisher" name="odom_onto_baselink"
-        args="0 0 0 0 0 0 /odom /base_link" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_footprint_onto_base_link"
+        args="0 0 0 0 0 0 /base_footprint /base_link" />
     <!-- Start Controller -->
     <include file="$(find gpr_loc_bringup)/launch/taurob_tracker_control.launch" />
     <!-- Start Rviz -->
     <node name="rviz" pkg="rviz" type="rviz"
-        args="-d $(find gpr_loc_bringup)/config/gpr_loc_training.rviz" />
+        args="-d $(find gpr_loc_bringup)/config/$(arg rviz_config_filename)" />
     <!-- load the linear controller, passing both the flag for evaluation and the desired direction
     for training run, if the linear_ctrl arg is set to 'true' -->
     <include if="$(eval arg('linear_ctrl'))"
