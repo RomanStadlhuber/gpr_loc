@@ -1,0 +1,5 @@
+linearUpdate: 0.0625 # [m] moved
+angularUpdate: 0.0625 # [rad] rotated
+temporalUpdate: 1.0 # [sec] elapsed
+maxRange: 4.5 # [m]
+base_frame: base_link
