@@ -21,11 +21,12 @@ void callback_p3d_groundtruth(const nav_msgs::Odometry::ConstPtr &msg)
         msg->pose.pose.orientation.y,
         msg->pose.pose.orientation.z,
         msg->pose.pose.orientation.w));
+    // TODO: make the parent and child frame names parameters!
     tf_broadcaster.sendTransform(
         tf::StampedTransform(transform,
                              ros::Time::now(),
-                             msg->header.frame_id,
-                             "odom"));
+                             "odom",
+                             "base_footprint"));
 }
 
 int main(int argc, char **argv)
