@@ -1,0 +1,15 @@
+# --- Parametrs for the Local Costmap
+
+local_costmap:
+  global_frame: odom # NOTE: alternatively, choose "world"
+  robot_base_frame: base_footprint
+
+  update_frequency: 10.0
+  publish_frequency: 10.0
+  transform_tolerance: 0.5  
+
+  static_map: false  
+  rolling_window: true
+  width: 3
+  height: 3
+  resolution: 0.05
