@@ -7,9 +7,6 @@ Panels:
         - /Global Options1
         - /TF1
         - /TF1/Frames1
-        - /TF1/Tree1/odom1
-        - /TF1/Tree1/odom1/base_link1
-        - /TF1/Tree1/odom1/base_link1/chassis_link1
       Splitter Ratio: 0.3444444537162781
     Tree Height: 793
   - Class: rviz/Selection
@@ -208,7 +205,7 @@ Visualization Manager:
           Value: false
       Marker Scale: 1
       Name: TF
-      Show Arrows: true
+      Show Arrows: false
       Show Axes: true
       Show Names: true
       Tree:
@@ -442,16 +439,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 6.385648727416992
+      Distance: 7.010852813720703
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -1.466083288192749
-        Y: 1.2908135652542114
-        Z: 2.9875559448555578e-6
+        X: -1.6423804759979248
+        Y: 1.1898173093795776
+        Z: 3.941230261261808e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
