@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <param name="use_sim_time" value="true" />
+    <!-- remap the laser scan topic from gmapping to that published by the taurob -->
+    <remap from="/scan" to="/taurob_tracker/laser_scan_front" />
+    <!-- launch the GMapping Occupancy Grid SLAM node -->
+    <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping">
+        <param name="linear_update" type="double" value="0.0625" />
+        <param name="angular__update" type="double" value="0.0625" />
+    </node>
+</launch>
