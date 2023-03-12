@@ -1,8 +1,8 @@
 base_frame: base_link
 map_frame: map
 odom_frame: odom
-map_update_interval: 5.0 # [sec] elapsed
-maxRange: 4.5 # [m] scan range
+map_update_interval: 2.0 # [sec] elapsed
+maxRange: 8.5 # [m] scan range
 linearUpdate: 0.125 # [m] moved
 angularUpdate: 0.125 # [rad] rotated
 temporalUpdate: 2.0 # [sec] elapsed

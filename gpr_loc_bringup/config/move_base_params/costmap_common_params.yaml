@@ -1,17 +1,20 @@
 
 # --- Common Parameters for the Costmap package (costmap_2d)
-# see Sec. 2.3.1: http://wiki.ros.org/navigation/Tutorials/RobotSetup
+# see Sec. 2.3.1: http://wiki.ros.org/navigation/Tutorials/RobotSetup  
 
-obstacle_range: 4.0  # the max range to consider obstacles.
-raytrace_range: 4.5  # the raytracing range for the freespace
+obstacle_range: 8.0  # the max range to consider obstacles.
+raytrace_range: 8.5  # the raytracing range for the freespace
 
 # dimensios of the Taurob robot (assume 1.8m x 1m and origin is in center)
 # order: clockwise, starting from bottom left vertex of footprint
 # footprint: [[-0.2, -0.2], [-0.2, 0.2], [0.2, 0.2], [0.2, -0.2]]
-footprint: [[-0.9, -0.5], [-0.9, 0.5], [0.9, 0.5], [0.9, -0.5]]
+footprint: [[-0.9, -0.65], [-0.9, 0.65], [0.9, 0.65], [0.9, -0.65]]
 
 inflation_radius: 0.25
 cost_scaling_factor: 3.0
+
+
+# track_unknown_space: true
 
 map_type: costmap
 # there are two row-LiDAR sensors, one on the front and one on the back
