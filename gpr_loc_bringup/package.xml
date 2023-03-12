@@ -71,6 +71,7 @@
   <exec_depend>tf2</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>gazebo_ros</exec_depend>
+  <exec_depend>ira_laser_tools</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

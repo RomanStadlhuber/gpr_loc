@@ -35,10 +35,19 @@ roslaunch gpr_loc_bringup bringup.launch linear_ctrl:=false
 ```bash
 roslaunch gpr_loc_bringup bringup.launch sar_world:=true [linear_ctrl:=false]
 ```
-
 ### Starting Gazebo in GUI Mode
 
 To any invocation of `bringup.launch`, add `gui:=true`.
+
+## SLAM and Exploration
+
+A separate launch file exists for SLAM (using either manual navigation or [`explore_lite`](http://wiki.ros.org/explore_lite)). To start the SLAM simulation scenario, run
+
+```bash
+roslaunch gpr_loc_bringup bringup_mapping.launch
+```
+
+which will start a simulation in a maze-like world, enabling the robot to navigate using [`move_base`](http://wiki.ros.org/explore_lite) and create an occupancy grid map using [`gmapping`](http://wiki.ros.org/gmapping?distro=noetic).
 
 ## Recording Rosbags to generate Datasets
 

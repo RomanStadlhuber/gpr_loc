@@ -6,9 +6,9 @@
     <arg name="gui" default="false" />
     <arg name="gpu" default="false" />
     <!-- if the linear controller should also be launched -->
-    <arg name="linear_ctrl" default="false" />
+    <arg name="linear_ctrl" default="true" />
     <!-- if the Search And Rescue (SAR) world should be used -->
-    <arg name="sar_world" default="true" />
+    <arg name="sar_world" default="false" />
     <!-- the rviz config file -->
     <arg name="rviz_config_filename" default="gpr_loc_training.rviz" />
     <!-- set the starting pose according to the world -->
