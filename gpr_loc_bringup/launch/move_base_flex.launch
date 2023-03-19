@@ -1,0 +1,53 @@
+﻿<?xml version="1.0"?>
+<launch>
+    <arg name="replan" default="true" />
+    <!-- remap the control output-->
+    <remap from="/cmd_vel" to="/taurob_tracker/cmd_vel_raw" />
+    <!-- remap the MoveBaseAction so explore_lite can use it-->
+    <!-- <remap from="/move_base/move_base" to="/move_base" /> -->
+    <!-- Move Base Flex -->
+    <node pkg="mbf_costmap_nav" type="mbf_costmap_nav" respawn="true" name="move_base"
+        output="screen">
+        <remap from="move_base_flex" to="move_base" />
+        <param name="tf_timeout" value="1.5" />
+        <param name="planner_max_retries" value="3" />
+        <rosparam file="$(find gpr_loc_bringup)/config/move_base_flex_params/planners.yaml"
+            command="load" />
+        <rosparam file="$(find gpr_loc_bringup)/config/move_base_flex_params/controllers.yaml"
+            command="load" />
+        <rosparam
+            file="$(find gpr_loc_bringup)/config/move_base_flex_params/recovery_behaviors.yaml"
+            command="load" />
+        <rosparam
+            file="$(find gpr_loc_bringup)/config/move_base_flex_params/costmap_common_params.yaml"
+            command="load" ns="global_costmap" />
+        <rosparam
+            file="$(find gpr_loc_bringup)/config/move_base_flex_params/costmap_common_params.yaml"
+            command="load" ns="local_costmap" />
+        <rosparam
+            file="$(find gpr_loc_bringup)/config/move_base_flex_params/global_costmap_params.yaml"
+            command="load" />
+        <rosparam
+            file="$(find gpr_loc_bringup)/config/move_base_flex_params/local_costmap_params.yaml"
+            command="load" />
+        <rosparam
+            file="$(find gpr_loc_bringup)/config/move_base_flex_params/costmap_converter_params.yaml"
+            command="load" />
+        <param name="controller_frequency" value="5.0" />
+        <param name="controller_patience" value="5.0" />
+    </node>
+
+    <!-- Navigation -->
+    <group if="$(arg replan)">
+        <node pkg="gpr_loc_bringup" type="taurob_smach_replan.py" respawn="true"
+            name="taurob_smach"
+            output="screen" />
+    </group>
+
+    <group unless="$(arg replan)">
+        <node pkg="gpr_loc_bringup" type="taurob_smach.py" respawn="true" name="taurob_smach"
+            output="screen" />
+    </group>
+
+
+</launch> 

@@ -58,3 +58,14 @@ Invoke the `launch/record_bag_*.sh` scripts to record the required data from the
 - pre-computed mechanical odometry - `nav_msgs/Odometry`
 - velocity control signals - `geometry_msgs/Twist`
 - raw IMU data - `sensor_msgs/IMU`
+
+## Using `move_base_flex`
+
+### Installing dependencies
+
+```bash
+apt install -y -q \
+ros-$ROS_DISTRO-move-base-flex ros-$ROS_DISTRO-mbf-costmap-nav \
+ros-$ROS_DISTRO-smach ros-$ROS_DISTRO-smach-ros \
+ros-$ROS_DISTRO-eband-local-planner ros-$ROS_DISTRO-teb-local-planner ros-$ROS_DISTRO-moveback-recovery
+```
