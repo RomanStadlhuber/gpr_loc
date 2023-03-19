@@ -8,3 +8,5 @@ bags/
 data/
 # editor files
 *~
+# the navigation package that I did not write
+taurob_navigation/
