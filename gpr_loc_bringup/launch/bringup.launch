@@ -19,7 +19,7 @@
     <arg unless="$(eval arg('sar_world'))" name="y_pos" default="0" />
     <arg unless="$(eval arg('sar_world'))" name="yaw" default="0" />
     <!-- launch the world -->
-    <include file="$(find gpr_loc_bringup)launch/training_world.launch">
+    <include file="$(find gpr_loc_bringup)launch/include/training_world.launch">
         <arg name="sar_world" value="$(arg sar_world)" />
         <arg name="gui" value="$(arg gui)" />
         <arg name="gpu" value="$(arg gpu)" />
@@ -37,14 +37,14 @@
     <node pkg="tf2_ros" type="static_transform_publisher" name="base_footprint_onto_base_link"
         args="0 0 0 0 0 0 /base_footprint /base_link" />
     <!-- Start Controller -->
-    <include file="$(find gpr_loc_bringup)/launch/taurob_tracker_control.launch" />
+    <include file="$(find gpr_loc_bringup)/launch/include/taurob_tracker_control.launch" />
     <!-- Start Rviz -->
     <node name="rviz" pkg="rviz" type="rviz"
         args="-d $(find gpr_loc_bringup)/config/$(arg rviz_config_filename)" />
     <!-- load the linear controller, passing both the flag for evaluation and the desired direction
     for training run, if the linear_ctrl arg is set to 'true' -->
     <include if="$(eval arg('linear_ctrl'))"
-        file="$(find gpr_loc_bringup)/launch/linear_controller.launch">
+        file="$(find gpr_loc_bringup)/launch/include/linear_controller.launch">
         <arg name="eval" value="$(arg eval)" />
         <arg name="dir_ccw" value="$(arg dir_ccw)" />
     </include>

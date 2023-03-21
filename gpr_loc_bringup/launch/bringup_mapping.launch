@@ -12,13 +12,15 @@
         <arg name="gui" value="$(arg gui)" />
     </include>
     <!-- the node combining front and rear scans-->
-    <include file="$(find gpr_loc_bringup)/launch/merge_scans.launch" />
+    <include file="$(find gpr_loc_bringup)/launch/include/merge_scans.launch" />
     <!-- the SLAM node (GMapping) -->
-    <include file="$(find gpr_loc_bringup)/launch/mapping.launch">
+    <include file="$(find gpr_loc_bringup)/launch/include/mapping.launch">
         <!-- make the GMapping node subscribe to the merged laser scan topic-->
         <arg name="scan_topic" value="/scan_merged" />
     </include>
     <!-- the move_base setup for navigation (uses flex by default) -->
-    <include if="$(eval arg('mbf'))" file="$(find gpr_loc_bringup)/launch/move_base_flex.launch" />
-    <include unless="$(eval arg('mbf'))" file="$(find gpr_loc_bringup)/launch/move_base.launch" />
+    <include if="$(eval arg('mbf'))"
+        file="$(find gpr_loc_bringup)/launch/include/move_base_flex.launch" />
+    <include unless="$(eval arg('mbf'))"
+        file="$(find gpr_loc_bringup)/launch/include/move_base.launch" />
 </launch>
