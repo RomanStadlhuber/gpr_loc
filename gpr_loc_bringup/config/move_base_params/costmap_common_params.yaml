@@ -9,9 +9,9 @@ raytrace_range: 3  # the raytracing range for the freespace
 # order: clockwise, starting from bottom left vertex of footprint
 # footprint: [[-0.2, -0.2], [-0.2, 0.2], [0.2, 0.2], [0.2, -0.2]]
 footprint: [[-0.6, -0.35], [-0.6, 0.35], [0.6, 0.35], [0.6, -0.35]]
-footprint_padding: 0.05
+footprint_padding: 0.1
 
-inflation_radius: 0.25  
+inflation_radius: 0.15
 cost_scaling_factor: 3.0
 
 # the plugins required by the navigation stack

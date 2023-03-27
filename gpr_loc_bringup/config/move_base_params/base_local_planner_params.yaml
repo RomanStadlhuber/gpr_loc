@@ -1,11 +1,16 @@
+# NOTE: configuration files adapted from:
+# https://github.com/facebookresearch/pyrobot/blob/main/robots/LoCoBot/locobot_navigation/base_navigation/config/create/base_local_planner_params.yaml
+
+
+
 #base_global_planner: navfn/NavfnROS
 base_global_planner: global_planner/GlobalPlanner
 
-# base_local_planner: dwa_local_planner/DWAPlannerROS
+base_local_planner: dwa_local_planner/DWAPlannerROS
 # base_local_planner: teb_local_planner/TebLocalPlannerROS
-base_local_planner: base_local_planner/TrajectoryPlannerROS
+# base_local_planner: base_local_planner/TrajectoryPlannerROS
 
-recovery_behavior_enabled: false
+recovery_behavior_enabled: true
 
 
 
@@ -18,35 +23,35 @@ controller_patience: 3.0
 planner_frequency: 1.0
 planner_patience: 5.0
 
-oscillation_timeout: 10.0
-oscillation_distance: 0.2
+oscillation_timeout: 0.0 # infinite timeout
+oscillation_distance: 0.05 # timer reset distance
 
 
 
 TrajectoryPlannerROS:
   #Set the acceleration limits of the robot
   acc_lim_theta: 0.7
-  acc_lim_x: 0.5
+  acc_lim_x: 0.3
   acc_lim_y: 0
 
   #Set the velocity limits of the robot
-  max_vel_x: 1.2
-  min_vel_x: -1.2
-  max_vel_theta: 0.8
-  min_vel_theta: -0.8
+  max_vel_x: 0.42
+  min_vel_x: -0.42
+  max_vel_theta: 0.9
+  min_vel_theta: -0.9
   max_rotational_vel: 1.0
-  min_in_place_rotational_vel: 0.8
-  min_in_place_vel_theta: 0.8
+  min_in_place_vel_theta: 0.1
+  max_in_place_vel_theta: 0.85
 
   #The velocity the robot will command when trying to escape from a stuck situation
-  escape_vel: -0.2
+  escape_vel: -0.4
 
-  #For this example, we'll use a holonomic robot
-  holonomic_robot: false
+  # Taurob is not holonomic
+  holonomic_robot: true
 
   #Set the tolerance on achieving a goal
   xy_goal_tolerance: 0.1
-  yaw_goal_tolerance: 0.1
+  yaw_goal_tolerance: 0.3
   latch_xy_goal_tolerance: true
 
   #We'll configure how long and with what granularity we'll forward simulate trajectories
@@ -61,11 +66,11 @@ TrajectoryPlannerROS:
   #Parameters for scoring trajectories
   goal_distance_bias: 0.8
   path_distance_bias: 1.0
-  occdist_scale: 0.01
+  occdist_scale: 0.05
   heading_lookahead: 0.325
 
   #We'll use the Dynamic Window Approach to control instead of Trajectory Rollout for this example
-  dwa: false
+  dwa: true
 
   #How far the robot must travel before oscillation flags are reset
   oscillation_reset_dist: 0.05
@@ -77,32 +82,32 @@ TrajectoryPlannerROS:
 DWAPlannerROS:
 
   # Robot Configuration Parameters - Kobuki
-  max_vel_x: 0.1  # 0.55
-  min_vel_x: -0.1 
+  max_vel_x: 0.42  # 0.55
+  min_vel_x: -0.42 
 
   max_vel_y: 0.0  # diff drive robot
   min_vel_y: 0.0  # diff drive robot
 
-  max_vel_trans: 0.1 # choose slightly less than the base's capability
-  min_vel_trans: -0.1  # this is the min trans velocity when there is negligible rotational velocity
+  max_vel_trans: 0.42 # choose slightly less than the base's capability
+  min_vel_trans: -0.42  # this is the min trans velocity when there is negligible rotational velocity
   trans_stopped_vel: 0.1
 
   # Warning!
   #   do not set min_vel_trans to 0.0 otherwise dwa will always think translational velocities
   #   are non-negligible and small in place rotational velocities will be created.
 
-  max_vel_theta: 0.4  # choose slightly less than the base's capability
-  min_vel_theta: 0.4  # this is the min angular velocity when there is negligible translational velocity
-  theta_stopped_vel: 1
+  max_vel_theta: 0.9  # choose slightly less than the base's capability
+  min_vel_theta: -0.9  # this is the min angular velocity when there is negligible translational velocity
+  theta_stopped_vel: 0.1
   
-  acc_lim_x: 1.0 # maximum is theoretically 2.0, but we 
-  acc_lim_thetaeta: 2.0
-  acc_lim_y: 0.0      # diff drive robot
+  acc_lim_x: 1.0 
+  acc_lim_theta: 2.0
+  acc_lim_y: 0.0 
 
   # Goal Tolerance Parameters
-  yaw_goal_tolerance: 0.3  # 0.05
+  yaw_goal_tolerance: 0.05  # 0.05
   xy_goal_tolerance: 0.15  # 0.10
-  latch_xy_goal_tolerance: false
+  latch_xy_goal_tolerance: true
 
   # Forward Simulation Parameters
   sim_time: 1.5       # 1.7
@@ -127,7 +132,7 @@ DWAPlannerROS:
   # Debugging
   publish_traj_pc : true
   publish_cost_grid_pc: true
-  global_frame_id: map
+  global_frame_id: odom
 
 
   # Differential-drive robot configuration - necessary?
@@ -189,7 +194,7 @@ TebLocalPlannerROS:
  # GoalTolerance
     
  xy_goal_tolerance: 0.2
- yaw_goal_tolerance: 0.1
+ yaw_goal_tolerance: 0.3
  free_goal_vel: False
     
  # Obstacles
