@@ -12,8 +12,8 @@
     <!-- the rviz config file -->
     <arg name="rviz_config_filename" default="gpr_loc_training.rviz" />
     <!-- set the starting pose according to the world -->
-    <arg if="$(eval arg('sar_world'))" name="x_pos" default="4.5" />
-    <arg if="$(eval arg('sar_world'))" name="y_pos" default="3.5" />
+    <arg if="$(eval arg('sar_world'))" name="x_pos" default="4.5" /> <!-- 4.5 (fhtw_world)-->
+    <arg if="$(eval arg('sar_world'))" name="y_pos" default="3.5" /> <!-- 3.5 (fhtw_world)-->
     <arg if="$(eval arg('sar_world'))" name="yaw" default="-1.57" />
     <arg unless="$(eval arg('sar_world'))" name="x_pos" default="0" />
     <arg unless="$(eval arg('sar_world'))" name="y_pos" default="0" />

@@ -409,7 +409,7 @@ Visualization Manager:
           Use Fixed Frame: true
           Use rainbow: true
           Value: true
-      Enabled: false
+      Enabled: true
       Name: Pointcloud
     - Alpha: 0.699999988079071
       Class: rviz/Map
@@ -551,25 +551,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 19.943302154541016
+      Distance: 18.906478881835938
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 7.411347389221191
-        Y: -3.6329119205474854
-        Z: 1.1532785720191896e-5
+        X: 16.899436950683594
+        Y: -5.084864616394043
+        Z: 1.6165826309588738e-5
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8897952437400818
+      Pitch: 0.6147955060005188
       Target Frame: <Fixed Frame>
       Value: ThirdPersonFollower (rviz)
-      Yaw: 5.099510192871094
+      Yaw: 6.064516544342041
     Saved: ~
 Window Geometry:
   Displays:

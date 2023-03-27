@@ -2,8 +2,8 @@
 # --- Common Parameters for the Costmap package (costmap_2d)
 # see Sec. 2.3.1: http://wiki.ros.org/navigation/Tutorials/RobotSetup  
 
-obstacle_range: 2.5  # the max range to consider obstacles.
-raytrace_range: 3  # the raytracing range for the freespace
+obstacle_range: 8.5  # the max range to consider obstacles.
+raytrace_range: 9  # the raytracing range for the freespace
 
 # dimensios of the Taurob robot (assume 1.8m x 1m and origin is in center)
 # order: clockwise, starting from bottom left vertex of footprint
@@ -11,7 +11,7 @@ raytrace_range: 3  # the raytracing range for the freespace
 footprint: [[-0.6, -0.35], [-0.6, 0.35], [0.6, 0.35], [0.6, -0.35]]
 footprint_padding: 0.1
 
-inflation_radius: 0.15
+inflation_radius: 0.3
 cost_scaling_factor: 3.0
 
 # the plugins required by the navigation stack
