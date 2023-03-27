@@ -17,6 +17,6 @@ clear_costmap:
   #layer_names: ["obstacles"]
 
 rotate_recovery:
-  acc_lim_th: 0.02
+  acc_lim_theta: 0.02
   max_rotational_vel: 0.25 
   min_in_place_rotational_vel: 0.05

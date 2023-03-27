@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
     <arg name="gui" default="false" />
-    <arg name="mbf" default="true" />
+    <arg name="mbf" default="false" />
     <!-- the simulation & rviz -->
     <include file="$(find gpr_loc_bringup)/launch/bringup.launch">
         <!-- the arguments required to setup the Search and Rescue SLAM -->

@@ -2,4 +2,4 @@ linearUpdate: 0.0625 # [m] moved
 angularUpdate: 0.0625 # [rad] rotated
 temporalUpdate: 1.0 # [sec] elapsed
 maxRange: 8.0 # [m]
-base_frame: base_link
+base_frame: /base_footprint

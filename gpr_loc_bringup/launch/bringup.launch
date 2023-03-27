@@ -49,6 +49,6 @@
         <arg name="dir_ccw" value="$(arg dir_ccw)" />
     </include>
     <!-- static TF for realsense depth cam -->
-    <node pkg="tf2_ros" type="static_transform_publisher" name="realsense_depth"
-        args="0 0 0 -1.57 0 -1.57 /realsense_rgbd_link /realsense_rgbd_depth_optical_frame" />
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="realsense_depth"
+        args="0 0 0 -1.57 0 -1.57 /realsense_rgbd_link /realsense_rgbd_depth_optical_frame" /> -->
 </launch>

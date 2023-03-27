@@ -63,15 +63,15 @@ dwa:
   trans_stopped_vel: 0.01 #0.1
 
   # Warning!
-  #   do not set min_trans_vel to 0.0 otherwise dwa will always think translational velocities
+  #   do not set min_vel_trans to 0.0 otherwise dwa will always think translational velocities
   #   are non-negligible and small in place rotational velocities will be created.
 
   max_vel_theta: 0.25 #0.5 #2.0  # choose slightly less than the base's capability
   min_vel_theta: 0.05 #0.4  # this is the min angular velocity when there is negligible translational velocity
-  rot_stopped_vel: 0.1
+  theta_stopped_vel: 0.1
 
   acc_lim_x: 0.02 #0.7 # maximum is theoretically 2.0, but we
-  acc_lim_theta: 0.02 #10.0
+  acc_lim_thetaeta: 0.02 #10.0
   acc_lim_y: 0.1      # diff drive robot
 
   # Goal Tolerance Parameters
@@ -126,7 +126,7 @@ teb:
   max_vel_x_backwards: 0.25 #0.5
   max_vel_theta: 0.25 #0.5
   acc_lim_x: 0.02 #0.5
-  acc_lim_theta: 0.02 #0.5
+  acc_lim_thetaeta: 0.02 #0.5
   min_turning_radius: 0.0
   footprint_model: # types: "point", "circular", "two_circles", "line", "polygon"
     type: "two_circles"
@@ -165,7 +165,7 @@ teb:
   weight_max_vel_x: 2
   weight_max_vel_theta: 1
   weight_acc_lim_x: 1
-  weight_acc_lim_theta: 1
+  weight_acc_lim_thetaeta: 1
   weight_kinematics_nh: 1000
   weight_kinematics_forward_drive: 1
   weight_kinematics_turning_radius: 1
