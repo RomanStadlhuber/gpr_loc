@@ -11,6 +11,29 @@ This package intends to
     - the ground truth odometry is published using the `p3d_base_controller` (see `taurob_tacker_flipper.xacro`)
     - the `p3d_tf_broadcaster_node` echoes the groundtruth to the TF tree
 
+## Install Dependencies
+
+**TODO:** add a `.rosinstall` file.
+
+### Prebuilt ROS Packages
+
+```bash
+sudo apt install -y -q \
+    ros-$ROS_DISTRO-move-base ros-$ROS_DISTRO-gmapping ros-$ROS_DISTRO-explore-lite
+```
+
+### External Dependencies
+
+#### Laser Scan Merging
+
+In order to run `gmapping` on both laser scans, they're combined using the `scan_merger` node.
+
+Install and build the [`ira_laser_tools`](https://github.com/iralabdisco/ira_laser_tools) package.
+
+#### Linear Controller
+
+This package also depends on the `linear_controller` package, which is provided in the root of the `gpr_loc` repository.
+
 ## Launching the simulation
 
 All of the functionality listed above is invoked using a single launch file.
@@ -58,14 +81,3 @@ Invoke the `launch/record_bag_*.sh` scripts to record the required data from the
 - pre-computed mechanical odometry - `nav_msgs/Odometry`
 - velocity control signals - `geometry_msgs/Twist`
 - raw IMU data - `sensor_msgs/IMU`
-
-## Using `move_base_flex`
-
-### Installing dependencies
-
-```bash
-apt install -y -q \
-ros-$ROS_DISTRO-move-base-flex ros-$ROS_DISTRO-mbf-costmap-nav \
-ros-$ROS_DISTRO-smach ros-$ROS_DISTRO-smach-ros \
-ros-$ROS_DISTRO-eband-local-planner ros-$ROS_DISTRO-teb-local-planner ros-$ROS_DISTRO-moveback-recovery
-```

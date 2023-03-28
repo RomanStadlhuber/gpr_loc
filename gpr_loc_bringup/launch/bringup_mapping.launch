@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
     <arg name="gui" default="false" />
-    <arg name="mbf" default="false" />
     <!-- the simulation & rviz -->
     <include file="$(find gpr_loc_bringup)/launch/bringup.launch">
         <!-- the arguments required to setup the Search and Rescue SLAM -->
@@ -18,9 +17,6 @@
         <!-- make the GMapping node subscribe to the merged laser scan topic-->
         <arg name="scan_topic" value="/scan_merged" />
     </include>
-    <!-- the move_base setup for navigation (uses flex by default) -->
-    <include if="$(eval arg('mbf'))"
-        file="$(find gpr_loc_bringup)/launch/include/move_base_flex.launch" />
-    <include unless="$(eval arg('mbf'))"
-        file="$(find gpr_loc_bringup)/launch/include/move_base.launch" />
+    <!-- the move_base setup for navigation -->
+    <include file="$(find gpr_loc_bringup)/launch/include/move_base.launch" />
 </launch>

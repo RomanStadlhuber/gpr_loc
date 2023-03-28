@@ -72,6 +72,9 @@
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>gazebo_ros</exec_depend>
   <exec_depend>ira_laser_tools</exec_depend>
+  <exec_depend>gmapping</exec_depend>
+  <exec_depend>move_base</exec_depend>
+  <exec_depend>explore_lite</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
