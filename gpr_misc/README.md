@@ -2,6 +2,14 @@
 
 This package includes the code that is used to develop the gaussian process regression scheme for mobile robot localization.
 
+## Before you start
+
+Install the latest version of pip. This is **required** in order to install the required version of Open3D.
+
+```
+pip install --upgrade pip
+```
+
 ## Generating Datasets from Rosbags
 
 The following will give an overview of how to generate and interpret GP datasets from resbags.
