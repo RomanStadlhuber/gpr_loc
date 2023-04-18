@@ -74,10 +74,12 @@ which will start a simulation in a maze-like world, enabling the robot to naviga
 
 ## Recording Rosbags to generate Datasets
 
-Invoke the `launch/record_bag_*.sh` scripts to record the required data from the running simulation. The recorded data includes
+```bash
+rosbag record /odom /ground_truth/odom /velodyne_points /tf /tf_static /clock 
+```
 
 - the simulation time - `std_msgs/Time`
 - ground truth odometry - `nav_msgs/Odometry`
 - pre-computed mechanical odometry - `nav_msgs/Odometry`
 - velocity control signals - `geometry_msgs/Twist`
-- raw IMU data - `sensor_msgs/IMU`
+- raw 3D LiDAR data - `sensor_msgs/PointCloud2`
