@@ -3,9 +3,9 @@
     <arg name="gui" default="true" />
     <arg name="gpu" default="false" />
     <!-- set the starting pose according to the world -->
-    <arg name="x_pos" default="4.5" />
-    <arg name="y_pos" default="3.5" />
-    <arg name="yaw" default="-1.57" />
+    <arg name="x_pos" default="0.0" />
+    <arg name="y_pos" default="0.0" />
+    <arg name="yaw" default="0.0" />
 
 
     <!-- launch the world -->
