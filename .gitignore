@@ -10,3 +10,5 @@ data/
 *~
 # the navigation package that I did not write
 taurob_navigation/
+# build folders
+build/
