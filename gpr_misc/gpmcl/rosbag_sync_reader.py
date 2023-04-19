@@ -83,6 +83,7 @@ class RosbagSyncReader:
                             # callback with synced data if sync was successful
                             if has_all_messages():
                                 callback(buffered_messages, timestamp)
+                                buffered_messages.clear()
 
         except Exception as e:
             print(str(e))
