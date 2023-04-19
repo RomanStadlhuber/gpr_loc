@@ -16,7 +16,6 @@ plotly==5.10.0
 scikit-learn==1.2.0
 gpy==1.10.0
 open3d-cpu==0.17.0
-rosnumpy==0.0.5.2
 tqdm
 
 # linting, formatting and typing
