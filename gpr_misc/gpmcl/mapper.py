@@ -17,6 +17,18 @@ class Feature3D:
     def as_vector(self) -> np.ndarray:
         return self.position
 
+    def covariance(self) -> np.ndarray:
+        # TODO: set a better covariance function based on the feature position
+        dim_f, *_ = np.shape(self.position)
+        dim_sig = dim_f - 3
+        # assumes: covariance is zero for all signatures
+        return np.block(
+            [
+                [np.eye(3), np.zeros((3, dim_sig))],
+                [np.zeros((dim_sig, 3)), np.zeros((dim_sig, dim_sig))],
+            ]
+        )
+
     @staticmethod
     def from_vector(f: np.ndarray) -> "Feature3D":
         return Feature3D(position=f)
@@ -33,13 +45,39 @@ class FeatureMap3D:
     features: List[Feature3D]
     # the frame in which the features are captured
     frame: Optional[str] = None
-    # the underlying feature pointcloud (mostly just for debugging purposes)
-    pcd: Optional[open3d.geometry.PointCloud] = None
 
     def as_matrix(self) -> np.ndarray:
         """Convert the features to a `(DIM_F x N)` map matrix"""
         feature_vectors = list(map(lambda f: f.as_vector(), self.features))
         return np.array(feature_vectors)
+
+    def transform(self, T: np.ndarray) -> "FeatureMap3D":
+        """Generate a new - transformed - feature map based on the current one.
+
+        NOTE: does not do an in-place update because this shouldn't be allowed on a global map.
+        """
+        # get feature matrix
+        M = self.as_matrix().T  # transpose to convert to (dim_f x N)
+
+        R = T[:3, :3]  # get rotation matrix
+        t = T[:3, 3]  # get translation vector
+        dim_f, num_f = np.shape(M)  # get dimension and number of features
+        dim_s = dim_f - 3  # get the dimension of signature
+
+        # transformation matrix of feature position and signature
+        # in homogeneous space, this matrix transforms all positions but keeps the signatures constant
+        A = np.block(
+            [
+                [R, np.zeros((3, dim_s)), t.reshape(-1, 1)],
+                [np.zeros((dim_s, 3)), np.eye(dim_s), np.zeros((dim_s, 1))],
+            ]
+        )
+        # feature matrix in homogeneous coordinates
+        M_h = np.vstack((M, np.ones((1, num_f), dtype=np.float64)))
+        # transform in homegeneous space and extract features
+        M = (A @ M_h)[:dim_f, :].T  # transpone to convert to (N x dim_f)
+
+        return FeatureMap3D.from_matrix(M)
 
     @staticmethod
     def from_matrix(M: np.ndarray) -> "FeatureMap3D":
@@ -53,7 +91,6 @@ class FeatureMap3D:
     def from_pcd(pcd: open3d.geometry.PointCloud) -> "FeatureMap3D":
         M = np.asarray(pcd.points, dtype=np.float64)
         feature_map = FeatureMap3D.from_matrix(M)
-        feature_map.pcd = pcd
         return feature_map
 
 
