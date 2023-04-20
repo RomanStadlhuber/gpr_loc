@@ -35,6 +35,27 @@ class Feature3D:
 
 
 @dataclass
+class FeatureToLandmarkCorrespondence3D:
+    """Unambiguous wrapper for feature-to-landmark correspondences.
+
+    Use this instead of a tuple to keep things clear.
+    Also, this does not use the features themselves as they might be in different frames
+    """
+
+    idx_landmark: int
+    idx_feature: int
+
+
+@dataclass
+class CorrespondenceSearchResults3D:
+    """Contains both the matched correspondencies as well as outliers."""
+
+    landmark_outlier_idxs: List[int]
+    feature_outlier_idxs: List[int]
+    correspondences: List[FeatureToLandmarkCorrespondence3D]
+
+
+@dataclass
 class FeatureMap3D:
     """A wrapper for representation of 3D feature maps.
 
@@ -45,6 +66,10 @@ class FeatureMap3D:
     features: List[Feature3D]
     # the frame in which the features are captured
     frame: Optional[str] = None
+
+    def at(self, idx: int) -> Feature3D:
+        """Get the feature at the desired index"""
+        return self.features[idx]
 
     def as_matrix(self) -> np.ndarray:
         """Convert the features to a `(DIM_F x N)` map matrix"""
@@ -99,6 +124,14 @@ class Mapper(ABC):
 
     @abstractmethod
     def detect_features(self, pcd: open3d.geometry.PointCloud) -> FeatureMap3D:
+        """Detect 3D features as they are used by the mapper implementation."""
+        pass
+
+    @abstractmethod
+    def correspondence_search(
+        self, observed_features: FeatureMap3D
+    ) -> CorrespondenceSearchResults3D:
+        """Perform correspondence search between the observed features and the global map landmarks."""
         pass
 
 
@@ -129,9 +162,17 @@ class ISS3DMapperConfig:
 class ISS3DMapper(Mapper):
     """Mapper based on 3D Intrinsic Shape Signatures."""
 
-    def __init__(self, config: Optional[ISS3DMapperConfig] = None) -> None:
+    def __init__(
+        self,
+        config: Optional[ISS3DMapperConfig] = None,
+        initial_guess_pose: np.ndarray = np.eye(4),
+    ) -> None:
         # use default configuration if none was provided
         self.config = config or ISS3DMapperConfig()
+        # initialize the global map
+        self.map = FeatureMap3D(features=[], frame="map")
+        # set the initial guess pose (required for global map)
+        self.T0 = initial_guess_pose
 
     def detect_features(self, pcd: open3d.geometry.PointCloud) -> FeatureMap3D:
         """Detect and filter ISS3D features in the input point cloud."""
@@ -145,6 +186,9 @@ class ISS3DMapper(Mapper):
             min_neighbors=self.config.min_neighbor_count,
         )
         return FeatureMap3D.from_pcd(pcd_keypoints)
+
+    def correspondence_search(self, observed_features: FeatureMap3D):
+        pass
 
     def __filter_for_LOAM_features(self, features: FeatureMap3D) -> FeatureMap3D:
         """Filter a feature map according to LOAM conventions.
