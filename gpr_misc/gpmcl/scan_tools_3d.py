@@ -3,6 +3,7 @@ from rosbags.typesys.types import (
     sensor_msgs__msg__PointField as PointField,
     std_msgs__msg__Header as Header,
 )
+from typing import Optional
 import numpy as np
 import ros_numpy
 import sensor_msgs.msg
@@ -28,8 +29,14 @@ class ScanTools3D:
         )
 
     @staticmethod
-    def scan_msg_to_open3d_pcd(msg: PointCloud2) -> open3d.geometry.PointCloud:
-        """convert a rosbags `PointCloud2` message to an Open3D `PointCloud` object"""
+    def scan_msg_to_open3d_pcd(
+        msg: PointCloud2,
+        scan_tf: Optional[np.ndarray] = None,
+    ) -> open3d.geometry.PointCloud:
+        """convert a rosbags `PointCloud2` message to an Open3D `PointCloud` object
+
+        Optionally, use `scan_tf` (4x4 transformation) to transform the point cloud into the desired frame.
+        """
         # convert message to numpy array
         # TODO: make this work
         ros_msg = ScanTools3D.__to_rospcd(msg)
@@ -42,6 +49,8 @@ class ScanTools3D:
         pcd = open3d.geometry.PointCloud(
             points=open3d.cpu.pybind.utility.Vector3dVector(points)
         )
+        if scan_tf is not None:
+            pcd.transform(scan_tf)
         return pcd
 
     @staticmethod
