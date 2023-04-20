@@ -1,4 +1,5 @@
 from gpmcl.scan_tools_3d import ScanTools3D
+from gpmcl.mapper import ISS3DMapper
 from gpmcl.localization_scenario import (
     LocalizationScenario,
     LocalizationScenarioConfig,
@@ -23,13 +24,16 @@ class GPMCLPipeline(LocalizationPipeline):
     """
 
     def __init__(self) -> None:
-        super().__init__()
+        self.mapper = ISS3DMapper()
 
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
         pcd = ScanTools3D.scan_msg_to_open3d_pcd(synced_msgs.scan_3d)
+        print(f"[{timestamp}]: Got PCD with {np.shape(np.asarray(pcd.points))} points.")
         # visualize the point cloud
-        ScanTools3D.visualize_pcd(pcd)
-        print(f"[{timestamp}]: Got PCD with {np.shape(np.asarray(pcd.points))} points!")
+        # ScanTools3D.visualize_pcd(pcd)
+        local_feature_map = self.mapper.detect_features(pcd)
+        print(f"[{timestamp}]: Detected {len(local_feature_map.features)} features.")
+        # detect features
 
 
 if __name__ == "__main__":
