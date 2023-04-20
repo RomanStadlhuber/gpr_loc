@@ -38,9 +38,12 @@ class ScanTools3D:
         pcd_msg.point_step = msg.point_step
         pcd_msg.row_step = msg.row_step
         pcd_msg.data = msg.data
+        pcd_msg.width = msg.width
+        pcd_msg.height = msg.height
         # convert point fields
         point_fields = list(map(ScanTools3D.__to_ros_point_field, msg.fields))
         pcd_msg.fields = point_fields
+        return pcd_msg
 
     @staticmethod
     def __to_ros_point_field(point_field: PointField) -> sensor_msgs.msg.PointField:
