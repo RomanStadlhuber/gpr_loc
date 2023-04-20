@@ -176,6 +176,8 @@ class ISS3DMapper(Mapper):
 
     def detect_features(self, pcd: open3d.geometry.PointCloud) -> FeatureMap3D:
         """Detect and filter ISS3D features in the input point cloud."""
+        # TODO: downsampling of point cloud
+
         # obtain a pointcloud with the detected features
         pcd_keypoints = open3d.geometry.keypoint.compute_iss_keypoints(
             input=pcd,
@@ -187,7 +189,33 @@ class ISS3DMapper(Mapper):
         )
         return FeatureMap3D.from_pcd(pcd_keypoints)
 
-    def correspondence_search(self, observed_features: FeatureMap3D):
+    def correspondence_search(self, observed_features: FeatureMap3D, pose: np.ndarray):
+        """Perform correspondence search at the current frame"""
+        # TODO: implement mahalanobis distance minimizer search
+        R = pose[:3, :3]
+        t = pose[:3, 3].reshape(-1, 1)  # reshape to column vector i.e. (3x1)
+        # invert the pose
+        T_inv = np.block(
+            [
+                [R.T, R.T @ -t],
+                [np.zeros((3, 1)), 1.0],
+            ]
+        )
+        # transform the map into the local frame
+        # NOTE: this turns the landmarks into observations!
+        local_map = self.map.transform(T_inv)
+        # block matrix containing the estimated observations
+        Z_est = local_map.as_matrix()
+
+        # find correspondences for each observation
+        # for k, f_k in observed_features.features:
+
+        # TODO:
+        # repeat observed feature until it matches shape of the matrix Z_est
+        # repeat observed feature covariance (use f_k.covariance()) until there are as many blocks as observations
+        # compute block equation
+        # find row with lowest value -> this is the estimated correspondence for that feature
+
         pass
 
     def __filter_for_LOAM_features(self, features: FeatureMap3D) -> FeatureMap3D:
