@@ -148,10 +148,12 @@ class ISS3DMapperConfig:
     Setting `nms_radius` to `0.0` disables NMS alltogether.
     """
 
+    # voxel size used when downsampling the pcd
+    downsampling_voxel_size: float = 0.15
     # the radius to consider features
     mapping_radius: float = 12.0  # [m]
     # non-maxima suppression radius (zero means no NMS is applied)
-    nms_radius: float = 2.5  # [m]
+    nms_radius: float = 1.5  # [m]
     # max ratio between eigenvalues 1 and 2 (lower is more conservative)
     ratio_eigs_1_2: float = 0.65
     # max ratio between eigenvalues 2 and 3 (lower is more conservative)
@@ -177,11 +179,13 @@ class ISS3DMapper(Mapper):
 
     def detect_features(self, pcd: open3d.geometry.PointCloud) -> FeatureMap3D:
         """Detect and filter ISS3D features in the input point cloud."""
-        # TODO: downsampling of point cloud
-
+        # downsampling to obtain more robust features
+        downsampled_pcd = pcd.voxel_down_sample(
+            voxel_size=self.config.downsampling_voxel_size
+        )
         # obtain a pointcloud with the detected features
         pcd_keypoints = open3d.geometry.keypoint.compute_iss_keypoints(
-            input=pcd,
+            input=downsampled_pcd,
             salient_radius=self.config.mapping_radius,
             non_max_radius=self.config.nms_radius,
             gamma_21=self.config.ratio_eigs_1_2,
