@@ -18,6 +18,7 @@ class Feature3D:
         return self.position
 
     def covariance(self) -> np.ndarray:
+        """Get the covariance matrix associated with a feature."""
         # TODO: set a better covariance function based on the feature position
         dim_f, *_ = np.shape(self.position)
         dim_sig = dim_f - 3
@@ -129,7 +130,7 @@ class Mapper(ABC):
 
     @abstractmethod
     def correspondence_search(
-        self, observed_features: FeatureMap3D
+        self, observed_features: FeatureMap3D, pose: np.ndarray
     ) -> CorrespondenceSearchResults3D:
         """Perform correspondence search between the observed features and the global map landmarks."""
         pass
@@ -189,7 +190,9 @@ class ISS3DMapper(Mapper):
         )
         return FeatureMap3D.from_pcd(pcd_keypoints)
 
-    def correspondence_search(self, observed_features: FeatureMap3D, pose: np.ndarray):
+    def correspondence_search(
+        self, observed_features: FeatureMap3D, pose: np.ndarray
+    ) -> CorrespondenceSearchResults3D:
         """Perform correspondence search at the current frame"""
         # TODO: implement mahalanobis distance minimizer search
         R = pose[:3, :3]
@@ -206,17 +209,63 @@ class ISS3DMapper(Mapper):
         local_map = self.map.transform(T_inv)
         # block matrix containing the estimated observations
         Z_est = local_map.as_matrix()
+        n_landmarks, *_ = np.shape(Z_est)
+        n_features = len(observed_features.features)
+        # book-keeping vector for correspondences
+        # 0 means "no correspondence yet"
+        # k > 0 means "a correspondence to feature k'
+        # -1 means "invalid due to ambiguity"
+        Cs = np.zeros((n_landmarks))
 
         # find correspondences for each observation
-        # for k, f_k in observed_features.features:
+        for k, f_k in enumerate(observed_features.features):
+            Z_k = np.repeat([f_k.as_vector()], repeats=n_landmarks, axis=0)
+            # covariance block matrix
+            S = np.array(
+                list(map(lambda z_est: z_est.covariance(), local_map.features))
+            )
+            # vector of mahalanobis distances
+            delta: np.ndarray = (Z_k - Z_est) @ S @ (Z_k - Z_est).T
+            # correspondence for feature k given all landmarks
+            c_k = np.argmin(delta, axis=0)
+            # set all ambiguous landmarks to be invalid matches
+            Cs = np.where(Cs == k, -1, Cs)
+            # set the landmark at index "c_k" to correspond to feature k
+            if not Cs[c_k] == -1:
+                Cs[c_k] = k
 
-        # TODO:
-        # repeat observed feature until it matches shape of the matrix Z_est
-        # repeat observed feature covariance (use f_k.covariance()) until there are as many blocks as observations
-        # compute block equation
-        # find row with lowest value -> this is the estimated correspondence for that feature
+        # generate correspondences from bookkeeping vector
+        correspondences = list(
+            map(
+                # convert enumeration of (idx_l, idx_f) into correspondence
+                lambda en: FeatureToLandmarkCorrespondence3D(
+                    idx_landmark=en[0],
+                    idx_feature=en[1],
+                ),
+                filter(
+                    # filter for all landmarks with unambigous correspondences
+                    lambda k: k > 0,
+                    Cs,
+                ),
+            )
+        )
+        # all indices of unmatched or ambiguous landmarks
+        idxs_landmark_outliers = [i for i in range(n_landmarks) if Cs[i] <= 0]
+        # to find the outliers, we must fist find the inliers
+        idxs_feature_inliers = [k for k in range(n_features) if Cs[k] > 0]
+        # all indices of unmatched or ambigous features
+        idxs_feature_outliers = [
+            k for k in range(n_features) if k not in idxs_feature_inliers
+        ]
 
-        pass
+        # pack the resutls into the wrapper
+        search_results = CorrespondenceSearchResults3D(
+            landmark_outlier_idxs=idxs_landmark_outliers,
+            feature_outlier_idxs=idxs_feature_outliers,
+            correspondences=correspondences,
+        )
+
+        return search_results
 
     def __filter_for_LOAM_features(self, features: FeatureMap3D) -> FeatureMap3D:
         """Filter a feature map according to LOAM conventions.
