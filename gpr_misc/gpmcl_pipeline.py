@@ -33,7 +33,15 @@ class GPMCLPipeline(LocalizationPipeline):
         # ScanTools3D.visualize_pcd(pcd)
         local_feature_map = self.mapper.detect_features(pcd)
         print(f"[{timestamp}]: Detected {len(local_feature_map.features)} features.")
-        _ = local_feature_map.transform(T=np.eye(4))
+        # TODO: predict
+        predicted_pose = np.eye(4)
+        correspondences = self.mapper.correspondence_search(
+            local_feature_map, predicted_pose
+        )
+        # TODO: update
+        updated_pose = np.eye(4)
+        self.mapper.update(local_feature_map, updated_pose, correspondences)
+        print(f"[{timestamp}]: Map now has {len(self.mapper.map.features)} landmarks.")
 
         # detect features
 
