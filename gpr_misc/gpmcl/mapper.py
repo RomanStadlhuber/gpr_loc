@@ -135,6 +135,16 @@ class Mapper(ABC):
         """Perform correspondence search between the observed features and the global map landmarks."""
         pass
 
+    @abstractmethod
+    def update(
+        self,
+        observed_features: FeatureMap3D,
+        pose: np.ndarray,
+        correspondences: CorrespondenceSearchResults3D,
+    ) -> None:
+        """Update the map based on the mappers internal criteria."""
+        pass
+
 
 @dataclass
 class ISS3DMapperConfig:
@@ -270,6 +280,59 @@ class ISS3DMapper(Mapper):
         )
 
         return search_results
+
+    def update(
+        self,
+        observed_features: FeatureMap3D,
+        pose: np.ndarray,
+        correspondences: CorrespondenceSearchResults3D,
+    ) -> None:
+        # at first, all features need to be transformed into the map frame
+        features_in_map_frame = observed_features.transform(pose)
+
+        # --- if the map is empty, add all features ---
+        # region
+        if len(self.map.features) == 0:
+            self.map.features = features_in_map_frame.features
+            return
+        # endregion
+
+        # TODO: implement an N-times unobserved tracker for landmarks!
+        # --- only keep landmarks that have been re-matched ---
+        # region
+        inlier_features = [
+            feature
+            for idx, feature in enumerate(self.map.features)
+            if idx not in correspondences.landmark_outlier_idxs
+        ]
+        self.map.features = inlier_features
+        # endregion
+
+        # --- add all previously unseen features ---
+        # region
+        # keep all observed features that were previously unseen i.e. not in the map
+        features_previously_unseen = [
+            feature
+            for idx, feature in enumerate(features_in_map_frame.features)
+            if idx in correspondences.feature_outlier_idxs
+        ]
+        self.map.features.extend(features_previously_unseen)
+        # endregion
+
+        # --- keep only features within the mapping range ---
+        # region
+        pose_position = pose[:3, 3]
+        # keep only features that are within bounds
+        features_in_bounds = [
+            feature
+            for feature in self.map.features
+            if np.linalg.norm(feature.position - pose_position)
+            <= self.config.mapping_radius
+        ]
+        self.map.features = features_in_bounds
+        # endregion
+
+        return
 
     def __filter_for_LOAM_features(self, features: FeatureMap3D) -> FeatureMap3D:
         """Filter a feature map according to LOAM conventions.
