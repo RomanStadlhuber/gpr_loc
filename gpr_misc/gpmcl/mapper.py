@@ -208,6 +208,14 @@ class ISS3DMapper(Mapper):
         self, observed_features: FeatureMap3D, pose: np.ndarray
     ) -> CorrespondenceSearchResults3D:
         """Perform correspondence search at the current frame"""
+
+        if len(self.map.features) == 0:
+            return CorrespondenceSearchResults3D(
+                feature_outlier_idxs=list(range(len(observed_features.features))),
+                landmark_outlier_idxs=[],
+                correspondences=[],
+            )
+
         # TODO: implement mahalanobis distance minimizer search
         R = pose[:3, :3]
         t = pose[:3, 3].reshape(-1, 1)  # reshape to column vector i.e. (3x1)
@@ -215,7 +223,7 @@ class ISS3DMapper(Mapper):
         T_inv = np.block(
             [
                 [R.T, R.T @ -t],
-                [np.zeros((3, 1)), 1.0],
+                [np.zeros((1, 3)), 1.0],
             ]
         )
         # transform the map into the local frame
@@ -238,8 +246,14 @@ class ISS3DMapper(Mapper):
             S = np.array(
                 list(map(lambda z_est: z_est.covariance(), local_map.features))
             )
+
+            rows, cols, count = np.shape(S)
+            S = S.reshape(count * rows, cols)
+            delta_Z = Z_k - Z_est
+            rows, cols = np.shape(delta_Z)
+            delta_Z_rhs = np.reshape(delta_Z, (rows * cols, 1))
             # vector of mahalanobis distances
-            delta: np.ndarray = (Z_k - Z_est) @ S @ (Z_k - Z_est).T
+            delta: np.ndarray = delta_Z @ (S.T @ delta_Z_rhs)
             # correspondence for feature k given all landmarks
             c_k = np.argmin(delta, axis=0)
             # set all ambiguous landmarks to be invalid matches
