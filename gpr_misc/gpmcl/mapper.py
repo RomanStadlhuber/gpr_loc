@@ -130,9 +130,7 @@ class Mapper(ABC):
         pass
 
     @abstractmethod
-    def correspondence_search(
-        self, observed_features: FeatureMap3D, pose: np.ndarray
-    ) -> CorrespondenceSearchResults3D:
+    def correspondence_search(self, observed_features: FeatureMap3D, pose: np.ndarray) -> CorrespondenceSearchResults3D:
         """Perform correspondence search between the observed features and the global map landmarks."""
         pass
 
@@ -156,7 +154,7 @@ class ISS3DMapperConfig:
     Also allos to set a non-maxima suppression radius.
     However, this heavily reduces the number of detected features and setting
     a low radius is encouraged.
-    Setting `nms_radius` to `0.0` disables NMS alltogether.
+    Setting `nms_radius` to `0` disables NMS alltogether.
     """
 
     # voxel size used when downsampling the pcd
@@ -191,9 +189,7 @@ class ISS3DMapper(Mapper):
     def detect_features(self, pcd: open3d.geometry.PointCloud) -> FeatureMap3D:
         """Detect and filter ISS3D features in the input point cloud."""
         # downsampling to obtain more robust features
-        downsampled_pcd = pcd.voxel_down_sample(
-            voxel_size=self.config.downsampling_voxel_size
-        )
+        downsampled_pcd = pcd.voxel_down_sample(voxel_size=self.config.downsampling_voxel_size)
         # obtain a pointcloud with the detected features
         pcd_keypoints = open3d.geometry.keypoint.compute_iss_keypoints(
             input=downsampled_pcd,
@@ -203,11 +199,11 @@ class ISS3DMapper(Mapper):
             gamma_32=self.config.ratio_eigs_2_3,
             min_neighbors=self.config.min_neighbor_count,
         )
-        return FeatureMap3D.from_pcd(pcd_keypoints)
+        iss_features = FeatureMap3D.from_pcd(pcd_keypoints)
+        loam_features = self.__filter_for_LOAM_features(iss_features)
+        return loam_features
 
-    def correspondence_search(
-        self, observed_features: FeatureMap3D, pose: np.ndarray
-    ) -> CorrespondenceSearchResults3D:
+    def correspondence_search(self, observed_features: FeatureMap3D, pose: np.ndarray) -> CorrespondenceSearchResults3D:
         """Perform correspondence search at the current frame"""
 
         if len(self.map.features) == 0:
@@ -262,15 +258,15 @@ class ISS3DMapper(Mapper):
         # type cast book-keeping array to integers
         Cs = Cs.astype("int8")
         # generate correspondences from bookkeeping vector
-        correspondences = [FeatureToLandmarkCorrespondence3D(idx_landmark=i, idx_feature=k) for i, k in enumerate(Cs) if k >= 0]
+        correspondences = [
+            FeatureToLandmarkCorrespondence3D(idx_landmark=i, idx_feature=k) for i, k in enumerate(Cs) if k >= 0
+        ]
         # all indices of unmatched or ambiguous landmarks
         idxs_landmark_outliers = [i for i in range(n_landmarks) if Cs[i] < 0]
         # to find the outliers, we must fist find the inliers
         idxs_feature_inliers = [k for k in range(n_landmarks) if Cs[k] >= 0]
         # all indices of unmatched or ambigous features
-        idxs_feature_outliers = [
-            k for k in range(n_features) if k not in idxs_feature_inliers
-        ]
+        idxs_feature_outliers = [k for k in range(n_features) if k not in idxs_feature_inliers]
 
         # pack the resutls into the wrapper
         search_results = CorrespondenceSearchResults3D(
@@ -301,9 +297,7 @@ class ISS3DMapper(Mapper):
         # --- only keep landmarks that have been re-matched ---
         # region
         inlier_features = [
-            feature
-            for idx, feature in enumerate(self.map.features)
-            if idx not in correspondences.landmark_outlier_idxs
+            feature for idx, feature in enumerate(self.map.features) if idx not in correspondences.landmark_outlier_idxs
         ]
         self.map.features = inlier_features
         # endregion
@@ -326,17 +320,17 @@ class ISS3DMapper(Mapper):
         features_in_bounds = [
             feature
             for feature in self.map.features
-            if np.linalg.norm(feature.position - pose_position)
-            <= self.config.mapping_radius
+            if np.linalg.norm(feature.position - pose_position) <= self.config.mapping_radius
         ]
         self.map.features = features_in_bounds
         # endregion
 
         return
 
-    def get_observation_likelihoods(self, observed_features:FeatureMap3D, pose: np.ndarray, correspondences: CorrespondenceSearchResults3D) -> np.ndarray:
+    def get_observation_likelihoods(
+        self, observed_features: FeatureMap3D, pose: np.ndarray, correspondences: CorrespondenceSearchResults3D
+    ) -> np.ndarray:
         """Compute the likelihood for all corresponding observations"""
-
 
         R = pose[:3, :3]
         t = pose[:3, 3].reshape(-1, 1)  # reshape to column vector i.e. (3x1)
@@ -348,7 +342,7 @@ class ISS3DMapper(Mapper):
             ]
         )
         # transform the map into the local frame
-        # NOTE: this turns the landmarks into observations!
+        # NOTE: this maps the landmarks into the observation space!
         local_map = self.map.transform(T_inv)
 
         def likelihood(corresopndence: FeatureToLandmarkCorrespondence3D) -> float:
@@ -357,19 +351,38 @@ class ISS3DMapper(Mapper):
             z_est = local_map.features[corresopndence.idx_landmark].as_vector()
             S = observed_features.features[corresopndence.idx_feature].covariance()
             # normal distribution using covariance
-            N = scipy.stats.multivariate_normal(cov= S)
+            N = scipy.stats.multivariate_normal(cov=S)
             l = np.log(N.pdf(z - z_est))
             return l
 
         return np.array(list(map(likelihood, correspondences.correspondences)))
-            
-
 
     def __filter_for_LOAM_features(self, features: FeatureMap3D) -> FeatureMap3D:
         """Filter a feature map according to LOAM conventions.
 
         That is, divide the map into quadrants and only select the six most salient features.
         """
+        iss_keypoints = features.as_matrix()
 
-        # TODO: apply LOAM filtering
-        return features
+        q1 = iss_keypoints[np.where(((iss_keypoints[:, 0] >= 0) & (iss_keypoints[:, 1] >= 0)))]  # +x & +y
+        q2 = iss_keypoints[np.where(((iss_keypoints[:, 0] < 0) & (iss_keypoints[:, 1] >= 0)))]  # -x & +y
+        q3 = iss_keypoints[np.where(((iss_keypoints[:, 0] < 0) & (iss_keypoints[:, 1] < 0)))]  # -x & -y
+        q4 = iss_keypoints[np.where(((iss_keypoints[:, 0] >= 0) & (iss_keypoints[:, 1] < 0)))]  # +x & -y
+
+        qs = (q1, q2, q3, q4)
+
+        out_keypoints = np.empty((0, 3), dtype=np.float64)
+
+        for q in qs:
+            num_keypoints, *_ = np.shape(q)
+            if num_keypoints > 6:
+                # sort points from closest to farthest distance
+                distances = np.linalg.norm(q, axis=1)  # TODO: use saliency instead
+                sorted_indices = np.argsort(distances)
+                sorted_points = q[sorted_indices]
+                # select the six closest points
+                out_keypoints = np.vstack((out_keypoints, sorted_points[:6]))
+            else:
+                out_keypoints = np.vstack((out_keypoints, q))
+
+        return FeatureMap3D.from_matrix(out_keypoints)
