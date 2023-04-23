@@ -6,8 +6,23 @@ This package includes the code that is used to develop the gaussian process regr
 
 Install the latest version of pip. This is **required** in order to install the required version of Open3D.
 
-```
+```bash
 pip install --upgrade pip
+```
+
+### Installing all Dependencies
+
+Install the virtualenv module, then create a virtual environment, upgrade PIP and install all dependencies.
+
+```bash
+# create and load venv
+sudo apt install -y -q python3-virtualenv
+python3 -m venv .venv
+source .venv/bin/activate
+# update to latest PIP
+pip install --upgrade pip
+# install dependencies
+pip install -r requirements.txt
 ```
 
 ## Generating Datasets from Rosbags
