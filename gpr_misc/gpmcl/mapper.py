@@ -15,7 +15,7 @@ class Feature3D:
     position: np.ndarray  # (x, y, z) position of the feature
 
     def as_vector(self) -> np.ndarray:
-        return self.position
+        return np.array(self.position)
 
     def covariance(self) -> np.ndarray:
         """Get the covariance matrix associated with a feature."""
@@ -237,7 +237,7 @@ class ISS3DMapper(Mapper):
         # 0 means "no correspondence yet"
         # k > 0 means "a correspondence to feature k'
         # -1 means "invalid due to ambiguity"
-        Cs = np.zeros((n_landmarks))
+        Cs = -1 * np.ones((n_landmarks))
 
         # find correspondences for each observation
         for k, f_k in enumerate(observed_features.features):
@@ -254,30 +254,19 @@ class ISS3DMapper(Mapper):
             # correspondence for feature k given all landmarks
             c_k = np.argmin(deltas)
             # set all ambiguous landmarks to be invalid matches
-            Cs = np.where(Cs == k, -1, Cs)
+            Cs = np.where(Cs == k, -2, Cs)
             # set the landmark at index "c_k" to correspond to feature k
-            if not Cs[c_k] == -1:
+            if not Cs[c_k] == -2:
                 Cs[c_k] = k
 
+        # type cast book-keeping array to integers
+        Cs = Cs.astype("int8")
         # generate correspondences from bookkeeping vector
-        correspondences = list(
-            map(
-                # convert enumeration of (idx_l, idx_f) into correspondence
-                lambda en: FeatureToLandmarkCorrespondence3D(
-                    idx_landmark=en[0],
-                    idx_feature=en[1],
-                ),
-                filter(
-                    # filter for all landmarks with unambigous correspondences
-                    lambda k: k > 0,
-                    Cs,
-                ),
-            )
-        )
+        correspondences = [FeatureToLandmarkCorrespondence3D(idx_landmark=i, idx_feature=k) for i, k in enumerate(Cs) if k >= 0]
         # all indices of unmatched or ambiguous landmarks
-        idxs_landmark_outliers = [i for i in range(n_landmarks) if Cs[i] <= 0]
+        idxs_landmark_outliers = [i for i in range(n_landmarks) if Cs[i] < 0]
         # to find the outliers, we must fist find the inliers
-        idxs_feature_inliers = [k for k in range(n_features) if Cs[k] > 0]
+        idxs_feature_inliers = [k for k in range(n_landmarks) if Cs[k] >= 0]
         # all indices of unmatched or ambigous features
         idxs_feature_outliers = [
             k for k in range(n_features) if k not in idxs_feature_inliers
