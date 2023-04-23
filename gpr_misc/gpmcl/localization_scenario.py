@@ -50,10 +50,12 @@ class LocalizationPipeline(ABC):
 class LocalizationScenarioConfig:
     """Configuration wrapper for localization scenario"""
 
-    bag_path: pathlib.Path
-    topic_odom_est: str
-    topic_scan_3d: str
-    localization_pipeline: LocalizationPipeline
+    bag_path: pathlib.Path # path to the input rosbag
+    topic_odom_est: str # name of the odometry estimates topic
+    topic_scan_3d: str # name of the laser scan topic
+    localization_pipeline: LocalizationPipeline # the pipeline used for inference
+    topic_odom_groundtruth: Optional[str] = None # optional name of the ground truth topic
+    bag_sync_period: float  = 0.1 # max. elapsed period in [sec.] to consider messages synchronized
 
 
 class LocalizationScenario:
@@ -71,6 +73,7 @@ class LocalizationScenario:
         rosbag_sync_reader.spin(
             topics=set([self.config.topic_odom_est, self.config.topic_scan_3d]),
             callback=self.__message_callback,
+            grace_period_secs=self.config.bag_sync_period
         )
 
     def __message_callback(
