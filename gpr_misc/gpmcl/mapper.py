@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Optional
 import numpy as np
+import scipy.stats
 import open3d
 
 
@@ -216,7 +217,6 @@ class ISS3DMapper(Mapper):
                 correspondences=[],
             )
 
-        # TODO: implement mahalanobis distance minimizer search
         R = pose[:3, :3]
         t = pose[:3, 3].reshape(-1, 1)  # reshape to column vector i.e. (3x1)
         # invert the pose
@@ -333,6 +333,37 @@ class ISS3DMapper(Mapper):
         # endregion
 
         return
+
+    def get_observation_likelihoods(self, observed_features:FeatureMap3D, pose: np.ndarray, correspondences: CorrespondenceSearchResults3D) -> np.ndarray:
+        """Compute the likelihood for all corresponding observations"""
+
+
+        R = pose[:3, :3]
+        t = pose[:3, 3].reshape(-1, 1)  # reshape to column vector i.e. (3x1)
+        # invert the pose
+        T_inv = np.block(
+            [
+                [R.T, R.T @ -t],
+                [np.zeros((1, 3)), 1.0],
+            ]
+        )
+        # transform the map into the local frame
+        # NOTE: this turns the landmarks into observations!
+        local_map = self.map.transform(T_inv)
+
+        def likelihood(corresopndence: FeatureToLandmarkCorrespondence3D) -> float:
+            """Compute the likelihood for an individual correspondence."""
+            z = observed_features.features[corresopndence.idx_feature].as_vector()
+            z_est = local_map.features[corresopndence.idx_landmark].as_vector()
+            S = observed_features.features[corresopndence.idx_feature].covariance()
+            # normal distribution using covariance
+            N = scipy.stats.multivariate_normal(cov= S)
+            l = np.log(N.pdf(z - z_est))
+            return l
+
+        return np.array(list(map(likelihood, correspondences.correspondences)))
+            
+
 
     def __filter_for_LOAM_features(self, features: FeatureMap3D) -> FeatureMap3D:
         """Filter a feature map according to LOAM conventions.
