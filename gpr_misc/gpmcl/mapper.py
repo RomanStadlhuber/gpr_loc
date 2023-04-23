@@ -241,21 +241,18 @@ class ISS3DMapper(Mapper):
 
         # find correspondences for each observation
         for k, f_k in enumerate(observed_features.features):
-            Z_k = np.repeat([f_k.as_vector()], repeats=n_landmarks, axis=0)
-            # covariance block matrix
-            S = np.array(
-                list(map(lambda z_est: z_est.covariance(), local_map.features))
-            )
 
-            rows, cols, count = np.shape(S)
-            S = S.reshape(count * rows, cols)
-            delta_Z = Z_k - Z_est
-            rows, cols = np.shape(delta_Z)
-            delta_Z_rhs = np.reshape(delta_Z, (rows * cols, 1))
-            # vector of mahalanobis distances
-            delta: np.ndarray = delta_Z @ (S.T @ delta_Z_rhs)
+            def mahalanobis_distance(estimated_feature: Feature3D) -> float:
+                """Compute the mahalanobis distance of an estimated feature to the current observation."""
+                z_k = f_k.as_vector()
+                z_est = estimated_feature.as_vector()
+                S = estimated_feature.covariance()
+                delta = z_k - z_est
+                return delta.T @ S @ delta
+
+            deltas = np.array(list(map(mahalanobis_distance, local_map.features)))
             # correspondence for feature k given all landmarks
-            c_k = np.argmin(delta, axis=0)
+            c_k = np.argmin(deltas)
             # set all ambiguous landmarks to be invalid matches
             Cs = np.where(Cs == k, -1, Cs)
             # set the landmark at index "c_k" to correspond to feature k
