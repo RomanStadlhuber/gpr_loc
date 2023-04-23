@@ -27,7 +27,10 @@ class LocalizationSyncMessage(SyncMessage):
 
     @staticmethod
     def from_dict(d: Dict) -> Optional["LocalizationSyncMessage"]:
-        if LocalizationSyncMessage.topic_odom_est not in d.keys() or LocalizationSyncMessage.topic_scan_3d not in d.keys():
+        if (
+            LocalizationSyncMessage.topic_odom_est not in d.keys()
+            or LocalizationSyncMessage.topic_scan_3d not in d.keys()
+        ):
             return None
         else:
             return LocalizationSyncMessage(
@@ -67,7 +70,11 @@ class LocalizationScenario:
     def spin_bag(self) -> None:
         """Perform localization on the bag."""
         rosbag_sync_reader = RosbagSyncReader(self.config.bag_path)
-        rosbag_sync_reader.spin(topics=set([self.config.topic_odom_est, self.config.topic_scan_3d]), callback=self.__message_callback, grace_period_secs=self.config.bag_sync_period)
+        rosbag_sync_reader.spin(
+            topics=set([self.config.topic_odom_est, self.config.topic_scan_3d]),
+            callback=self.__message_callback,
+            grace_period_secs=self.config.bag_sync_period,
+        )
 
     def __message_callback(self, synced_messages: Optional[Dict], timestamp: Optional[int]) -> None:
         """Convert a synced message dictionary to a localization message and run inference."""
