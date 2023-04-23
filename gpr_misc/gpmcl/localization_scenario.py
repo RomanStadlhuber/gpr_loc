@@ -27,10 +27,7 @@ class LocalizationSyncMessage(SyncMessage):
 
     @staticmethod
     def from_dict(d: Dict) -> Optional["LocalizationSyncMessage"]:
-        if (
-            LocalizationSyncMessage.topic_odom_est not in d.keys()
-            or LocalizationSyncMessage.topic_scan_3d not in d.keys()
-        ):
+        if LocalizationSyncMessage.topic_odom_est not in d.keys() or LocalizationSyncMessage.topic_scan_3d not in d.keys():
             return None
         else:
             return LocalizationSyncMessage(
@@ -50,12 +47,12 @@ class LocalizationPipeline(ABC):
 class LocalizationScenarioConfig:
     """Configuration wrapper for localization scenario"""
 
-    bag_path: pathlib.Path # path to the input rosbag
-    topic_odom_est: str # name of the odometry estimates topic
-    topic_scan_3d: str # name of the laser scan topic
-    localization_pipeline: LocalizationPipeline # the pipeline used for inference
-    topic_odom_groundtruth: Optional[str] = None # optional name of the ground truth topic
-    bag_sync_period: float  = 0.1 # max. elapsed period in [sec.] to consider messages synchronized
+    bag_path: pathlib.Path  # path to the input rosbag
+    topic_odom_est: str  # name of the odometry estimates topic
+    topic_scan_3d: str  # name of the laser scan topic
+    localization_pipeline: LocalizationPipeline  # the pipeline used for inference
+    topic_odom_groundtruth: Optional[str] = None  # optional name of the ground truth topic
+    bag_sync_period: float = 0.1  # max. elapsed period in [sec.] to consider messages synchronized
 
 
 class LocalizationScenario:
@@ -70,15 +67,9 @@ class LocalizationScenario:
     def spin_bag(self) -> None:
         """Perform localization on the bag."""
         rosbag_sync_reader = RosbagSyncReader(self.config.bag_path)
-        rosbag_sync_reader.spin(
-            topics=set([self.config.topic_odom_est, self.config.topic_scan_3d]),
-            callback=self.__message_callback,
-            grace_period_secs=self.config.bag_sync_period
-        )
+        rosbag_sync_reader.spin(topics=set([self.config.topic_odom_est, self.config.topic_scan_3d]), callback=self.__message_callback, grace_period_secs=self.config.bag_sync_period)
 
-    def __message_callback(
-        self, synced_messages: Optional[Dict], timestamp: Optional[int]
-    ) -> None:
+    def __message_callback(self, synced_messages: Optional[Dict], timestamp: Optional[int]) -> None:
         """Convert a synced message dictionary to a localization message and run inference."""
         # skip proesssing if sync failed
         if synced_messages is None or timestamp is None:
@@ -88,6 +79,4 @@ class LocalizationScenario:
         if localization_sync_message is None:
             return
         # run localization inference
-        self.config.localization_pipeline.inference(
-            localization_sync_message, timestamp
-        )
+        self.config.localization_pipeline.inference(localization_sync_message, timestamp)

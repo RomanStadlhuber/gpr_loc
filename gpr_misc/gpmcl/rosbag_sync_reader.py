@@ -36,9 +36,7 @@ class RosbagSyncReader:
         """
 
         if not self.bag_path.exists() or not self.bag_path.is_file():
-            raise FileNotFoundError(
-                f"{self.bag_path} doesn't exist or is not a rosbag."
-            )
+            raise FileNotFoundError(f"{self.bag_path} doesn't exist or is not a rosbag.")
 
         try:
             with Reader(self.bag_path) as reader:
@@ -62,9 +60,7 @@ class RosbagSyncReader:
 
                     if has_no_messages():
                         sync_start = timestamp
-                        msg = deserialize_cdr(
-                            ros1_to_cdr(rawdata, connection.msgtype), connection.msgtype
-                        )
+                        msg = deserialize_cdr(ros1_to_cdr(rawdata, connection.msgtype), connection.msgtype)
                         buffered_messages[connection.topic] = msg
                     else:
                         time_delta = timestamp - sync_start
