@@ -2,7 +2,8 @@ from rosbags.typesys.types import nav_msgs__msg__Odometry as Odometry
 from scipy.spatial.transform import Rotation
 from gpmcl.mapper import FeatureMap3D, Mapper
 from gpmcl.regression import GPRegression
-from typing import Optional, Tuple
+from dataclasses import dataclass
+from typing import Optional
 import numpy as np
 
 
@@ -67,20 +68,26 @@ class Pose2D:
         return np.array([x, y, theta], dtype=np.float64)
 
 
+@dataclass
+class ParticleFilterConfig:
+    initial_guess_pose: Pose2D
+    particle_count: int
+    process_covariance_R: np.ndarray
+    observation_covariance_Q: np.ndarray
+
+
 class ParticleFilter:
-    def __init__(
-        self, T0: Pose2D, M: int, R: np.ndarray, Q: np.ndarray, mapper: Mapper, process_regressor: GPRegression
-    ) -> None:
-        self.M = M  # number of particles to track
-        self.R = R  # process covariance
-        self.Q = Q  # observation covariance
+    def __init__(self, config: ParticleFilterConfig, mapper: Mapper, process_regressor: GPRegression) -> None:
+        self.M = config.particle_count  # number of particles to track
+        self.R = config.process_covariance_R  # process covariance
+        self.Q = config.observation_covariance_Q  # observation covariance
         # sample the initial states
         # an N x 3 array representing the particles as twists
-        self.Xs = self.__sample_multivariate_normal(T0)
+        self.Xs = self.__sample_multivariate_normal(config.initial_guess_pose)
         # the last pose deltas as twists, required for GP inference
-        self.dX_last = np.zeros((M, 3), dtype=np.float64)
+        self.dX_last = np.zeros((self.M, 3), dtype=np.float64)
         # the particle weights
-        self.w = (1 / M) * np.ones(self.M, dtype=np.float64)  # normalized
+        self.w = (1 / self.M) * np.ones(self.M, dtype=np.float64)  # normalized
         # the gaussian process of the motion model
         self.GP_p = process_regressor
         # the mapper
