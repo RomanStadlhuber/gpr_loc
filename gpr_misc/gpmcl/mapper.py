@@ -156,6 +156,11 @@ class Mapper(ABC):
         """Get the pose of the map in the global reference frame"""
         pass
 
+    @abstractmethod
+    def get_map(self) -> FeatureMap3D:
+        """Get the latest state of the (global) map."""
+        pass
+
 
 @dataclass
 class ISS3DMapperConfig:
@@ -371,6 +376,9 @@ class ISS3DMapper(Mapper):
 
     def T_map(self) -> np.ndarray:
         return self.T0
+
+    def get_map(self) -> FeatureMap3D:
+        return self.map
 
     def __filter_for_LOAM_features(self, features: FeatureMap3D) -> FeatureMap3D:
         """Filter a feature map according to LOAM conventions.
