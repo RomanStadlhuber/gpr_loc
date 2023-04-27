@@ -92,6 +92,8 @@ class ParticleFilter:
         self.GP_p = process_regressor
         # the mapper
         self.mapper = mapper
+        # the posterior pose
+        self.posterior_pose = config.initial_guess_pose
 
     def predict(self, U: Odometry) -> None:
         # --- compute features used for GP regression ---
@@ -178,3 +180,8 @@ class ParticleFilter:
         # the particle states
         Xs = np.random.default_rng().multivariate_normal(x0, self.R, (self.M, 3))
         return Xs
+
+    def __compute_posterior_pose(self) -> None:
+        """Compute the posterior"""
+        # TODO: based on weights and particles, compute the single posterior pose
+        pass
