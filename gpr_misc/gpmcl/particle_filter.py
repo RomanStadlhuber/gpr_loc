@@ -87,6 +87,9 @@ class ParticleFilter:
         self.GP_p = process_regressor
 
     def predict(self, U: Odometry) -> None:
+        # --- compute features used for GP regression ---
+        # NOTE: this uses the same logic as is done in dataset generation!
+        # region
         x = U.pose.pose.position.x
         y = U.pose.pose.position.y
         rotation = Rotation.from_quat(
@@ -117,7 +120,8 @@ class ParticleFilter:
             y_delta = T_delta[1, 2]
             return np.array([x_delta, y_delta, yaw_delta])
 
-        # N x 3 array of estimated motion
+        # endregion
+        # N x 3 array of estimated motion (referred to as "control commands" in GPBayes paper)
         dX_est = np.array(list(map(get_estimated_delta_x, self.Xs)))
         # predict the next states from GP regression of the process model
         X_predicted = self.GP_p.predict(self.Xs, dX_last=self.dX_last, dU=dX_est)
