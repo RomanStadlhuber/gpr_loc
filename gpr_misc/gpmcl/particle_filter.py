@@ -1,6 +1,7 @@
 from rosbags.typesys.types import nav_msgs__msg__Odometry as Odometry
 from scipy.spatial.transform import Rotation
 from gpmcl.mapper import FeatureMap3D
+from gpmcl.regression import GPRegression
 from dataclasses import dataclass
 from typing import Optional
 import numpy as np
@@ -74,15 +75,16 @@ class FeaturesAndMap:
 
 
 class ParticleFilter:
-    def __init__(self, T0: Pose2D, N: int, R: np.ndarray, Q: np.ndarray) -> None:
-        self.N = N
-        self.R = R
-        self.Q = Q
+    def __init__(self, T0: Pose2D, M: int, R: np.ndarray, Q: np.ndarray, process_regressor: GPRegression) -> None:
+        self.M = M  # number of particles to track
+        self.R = R  # process covariance
+        self.Q = Q  # observation covariance
         # sample the initial states
         # an N x 3 array representing the particles as twists
         self.Xs = self.__sample_multivariate_normal(T0)
         # the last pose deltas as twists, required for GP inference
-        self.dX_last = np.zeros((N, 3), dtype=np.float64)
+        self.dX_last = np.zeros((M, 3), dtype=np.float64)
+        self.GP_p = process_regressor
 
     def predict(self, U: Odometry) -> None:
         x = U.pose.pose.position.x
@@ -117,10 +119,9 @@ class ParticleFilter:
 
         # N x 3 array of estimated motion
         dX_est = np.array(list(map(get_estimated_delta_x, self.Xs)))
-        # GP inference features
-        X = np.hstack((self.dX_last, dX_est))
-        # TODO: run GP inference in bulk and apply to each particle
-
+        # predict the next states from GP regression of the process model
+        X_predicted = self.GP_p.predict(self.Xs, dX_last=self.dX_last, dU=dX_est)
+        self.Xs = X_predicted
         pass
 
     def update(self, Z: FeaturesAndMap) -> None:
@@ -137,5 +138,5 @@ class ParticleFilter:
         """
         x0 = X0.as_twist()
         # the particle states
-        Xs = np.random.default_rng().multivariate_normal(x0, self.R, (self.N, 3))
+        Xs = np.random.default_rng().multivariate_normal(x0, self.R, (self.M, 3))
         return Xs
