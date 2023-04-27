@@ -144,6 +144,18 @@ class Mapper(ABC):
         """Update the map based on the mappers internal criteria."""
         pass
 
+    @abstractmethod
+    def get_observation_likelihoods(
+        self, observed_features: FeatureMap3D, pose: np.ndarray, correspondences: CorrespondenceSearchResults3D
+    ) -> np.ndarray:
+        """Compute the likelihood for all corresponding observations"""
+        pass
+
+    @abstractmethod
+    def T_map(self) -> np.ndarray:
+        """Get the pose of the map in the global reference frame"""
+        pass
+
 
 @dataclass
 class ISS3DMapperConfig:
@@ -356,6 +368,9 @@ class ISS3DMapper(Mapper):
             return l
 
         return np.array(list(map(likelihood, correspondences.correspondences)))
+
+    def T_map(self) -> np.ndarray:
+        return self.T0
 
     def __filter_for_LOAM_features(self, features: FeatureMap3D) -> FeatureMap3D:
         """Filter a feature map according to LOAM conventions.
