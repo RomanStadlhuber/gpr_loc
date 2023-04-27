@@ -1,6 +1,6 @@
 from helper_types import GPDataset, LabelledModel
 from dataclasses import dataclass
-from typing import List
+from typing import List, NamedTuple
 import pandas as pd
 import numpy as np
 import pathlib
@@ -20,6 +20,11 @@ class GPRegressionConfig:
     labels_dU: List[str]
 
 
+class Prediction(NamedTuple):
+    predicted: np.ndarray
+    change: np.ndarray
+
+
 class GPRegression:
     def __init__(self, config: GPRegressionConfig) -> None:
         self.config = config
@@ -36,7 +41,7 @@ class GPRegression:
             sparse=config.is_sparse,
         )
 
-    def predict(self, X: np.ndarray, dX_last: np.ndarray, dU: np.ndarray) -> np.ndarray:
+    def predict(self, X: np.ndarray, dX_last: np.ndarray, dU: np.ndarray) -> Prediction:
         """Predict the next state(s).
 
         Convert the input data into a `helper_types.GPDataset`.
@@ -58,7 +63,9 @@ class GPRegression:
         D_pred = self.__regression(D_in)
         dX_pred = D_pred.labels.to_numpy()
         # add the predicted state change to the current state
-        return X + dX_pred
+        X_pred = X + dX_pred
+        # return both the predicted state and the change
+        return Prediction(predicted=X_pred, change=dX_pred)
 
     def __regression(self, D_test: GPDataset) -> GPDataset:
         """Perform predicton on a dataset without labels.
