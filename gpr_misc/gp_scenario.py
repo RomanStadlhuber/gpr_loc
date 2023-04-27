@@ -1,15 +1,9 @@
 from typing import Optional, Iterable, List, Union
-from helper_types import GPDataset, GPModel
+from helper_types import GPDataset, GPModel, LabelledModel
 from dataclasses import dataclass
 import pandas as pd
 import pathlib
 import GPy
-
-
-@dataclass
-class LabelledModel:
-    label: str
-    model: Union[GPy.models.GPRegression, GPy.models.SparseGPRegression]
 
 
 class GPScenario:
@@ -54,17 +48,13 @@ class GPScenario:
             self.train_feature_scaler,
             self.train_label_scaler,
         ) = self.D_train.standard_scale()
-        self.D_test = (
-            GPDataset.load(dataset_folder=self.test_dir) if self.test_dir else None
-        )
+        self.D_test = GPDataset.load(dataset_folder=self.test_dir) if self.test_dir else None
         # scale the test dataset if it exists
         (
             self.test_feature_scaler,
             self.test_label_scaler,
         ) = (
-            self.D_test.standard_scale(
-                scalers=(self.train_feature_scaler, self.train_label_scaler)
-            )
+            self.D_test.standard_scale(scalers=(self.train_feature_scaler, self.train_label_scaler))
             if self.D_test
             else (None, None)
         )
@@ -90,9 +80,7 @@ class GPScenario:
             )
 
         # the relative number of samples (between 0 and 1) or nothing
-        self.sparsity = (
-            sparsity if sparsity and 0 < sparsity <= num_datapoints else None
-        )
+        self.sparsity = sparsity if sparsity and 0 < sparsity <= num_datapoints else None
 
         if inspect_only:
             return
@@ -106,9 +94,7 @@ class GPScenario:
         """load all datasets from a list of directories"""
         for dir in dirs:
             if not dir.exists() or not dir.is_dir():
-                raise FileExistsError(
-                    f"The dataset directory '{str(dir)}' does not exist."
-                )
+                raise FileExistsError(f"The dataset directory '{str(dir)}' does not exist.")
         # load all datasets from the subdirectories
         datasets = [GPDataset.load(d) for d in dirs]
         return datasets
@@ -127,18 +113,14 @@ class GPScenario:
         for label in self.labels:
             Y = self.D_train.get_Y(label)
             # define the kernel function for the GP
-            rbf_kernel = GPy.kern.RBF(
-                input_dim=dim, variance=1.0, lengthscale=1.0, ARD=True
-            )
+            rbf_kernel = GPy.kern.RBF(input_dim=dim, variance=1.0, lengthscale=1.0, ARD=True)
             if self.sparsity is not None:
                 print(f"Constructing a sparse GP with {self.sparsity} inducing inputs.")
             # build the model
             model = (
                 GPy.models.GPRegression(X, Y, kernel=rbf_kernel)
                 if self.sparsity is None
-                else GPy.models.SparseGPRegression(
-                    X, Y, kernel=rbf_kernel, num_inducing=self.sparsity
-                )
+                else GPy.models.SparseGPRegression(X, Y, kernel=rbf_kernel, num_inducing=self.sparsity)
             )
             if messages:
                 # print information about the model
@@ -147,11 +129,7 @@ class GPScenario:
                 print(f"Beginning model optimization for label {label}...")
             model.optimize(messages=messages)
             models.append(LabelledModel(label, model))
-            if (
-                export_directory
-                and export_directory.exists()
-                and export_directory.is_dir()
-            ):
+            if export_directory and export_directory.exists() and export_directory.is_dir():
                 # NOTE: it is paramount that this filename is equal to the label column
                 model_metadata = GPModel(name=label, parameters=model.param_array)
                 model_metadata.save(export_directory)
@@ -162,23 +140,18 @@ class GPScenario:
     def load_kernels(self) -> None:
         """Load all kernels from the kernel directory"""
         # skip if there aren't any kernels to load
-        if (
-            self.kernel_dir is None
-            or not self.kernel_dir.exists()
-            or not self.kernel_dir.is_dir()
-        ):
+        if self.kernel_dir is None or not self.kernel_dir.exists() or not self.kernel_dir.is_dir():
             return
 
         X = self.D_train.get_X()
+        # TODO: unify this interface!
         kernel_files = [x for x in self.kernel_dir.iterdir() if x.suffix == ".npy"]
         models: List[GPy.Model] = []
         for kernel_file in kernel_files:
             label = kernel_file.name.split(".npy")[0].replace("--", "/")
             Y = self.D_train.get_Y(label)
             # load a dense or sparse regression model (based on the constructors parameter)
-            model = GPModel.load_regression_model(
-                kernel_file, X, Y, sparse=self.load_sparse
-            )
+            model = GPModel.load_regression_model(kernel_file, X, Y, sparse=self.load_sparse)
             models.append(LabelledModel(label, model))
         # update the models used for regression
         self.models = models

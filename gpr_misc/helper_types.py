@@ -44,12 +44,7 @@ class GPDataset:
             features_dir = dataset_folder.joinpath(f"{file_prefix_name}_features.csv")
             labels_dir = dataset_folder.joinpath(f"{file_prefix_name}_labels.csv")
 
-            if (
-                features_dir.exists()
-                and features_dir.is_file()
-                and labels_dir.exists()
-                and labels_dir.is_file()
-            ):
+            if features_dir.exists() and features_dir.is_file() and labels_dir.exists() and labels_dir.is_file():
                 name = name or file_prefix_name
                 features = pd.read_csv(features_dir, index_col=0)
                 labels = pd.read_csv(labels_dir, index_col=0)
@@ -62,17 +57,9 @@ class GPDataset:
                 """
                 )
         else:
-            feature_files = [
-                x
-                for x in dataset_folder.iterdir()
-                if x.is_file() and "features.csv" in x.name
-            ]
+            feature_files = [x for x in dataset_folder.iterdir() if x.is_file() and "features.csv" in x.name]
 
-            label_files = [
-                x
-                for x in dataset_folder.iterdir()
-                if x.is_file() and "labels.csv" in x.name
-            ]
+            label_files = [x for x in dataset_folder.iterdir() if x.is_file() and "labels.csv" in x.name]
             # check that the directory only contains one dataset
             if len(feature_files) != len(label_files) != 1:
                 raise FileNotFoundError(
@@ -84,9 +71,7 @@ class GPDataset:
             # load the dataset from the directory
             feature_df = pd.read_csv(feature_files[0], index_col=0)
             label_df = pd.read_csv(label_files[0], index_col=0)
-            return GPDataset(
-                name=name or dataset_folder.name, features=feature_df, labels=label_df
-            )
+            return GPDataset(name=name or dataset_folder.name, features=feature_df, labels=label_df)
 
     @staticmethod
     def join(others: Iterable["GPDataset"], name: str = "joined") -> "GPDataset":
@@ -105,12 +90,8 @@ class GPDataset:
 
     def export(self, folder: pathlib.Path, dataset_name: str) -> None:
         """export the dataset features and labels to CSV files"""
-        self.features.to_csv(
-            pathlib.Path.joinpath(folder, f"{self.name}__{dataset_name}_features.csv")
-        )
-        self.labels.to_csv(
-            pathlib.Path.joinpath(folder, f"{self.name}__{dataset_name}_labels.csv")
-        )
+        self.features.to_csv(pathlib.Path.joinpath(folder, f"{self.name}__{dataset_name}_features.csv"))
+        self.labels.to_csv(pathlib.Path.joinpath(folder, f"{self.name}__{dataset_name}_labels.csv"))
 
     def standard_scale(
         self, scalers: Optional[Tuple[StandardScaler, StandardScaler]] = None
@@ -124,12 +105,8 @@ class GPDataset:
         """
         feature_scaler = StandardScaler() if scalers is None else scalers[0]
         label_scaler = StandardScaler() if scalers is None else scalers[1]
-        self.features[self.features.columns] = feature_scaler.fit_transform(
-            self.features[self.features.columns]
-        )
-        self.labels[self.labels.columns] = label_scaler.fit_transform(
-            self.labels[self.labels.columns]
-        )
+        self.features[self.features.columns] = feature_scaler.fit_transform(self.features[self.features.columns])
+        self.labels[self.labels.columns] = label_scaler.fit_transform(self.labels[self.labels.columns])
         # return the fitted scaler
         return (feature_scaler, label_scaler)
 
@@ -145,12 +122,9 @@ class GPDataset:
         self.features[self.features.columns] = fitted_feature_scaler.inverse_transform(
             self.features[self.features.columns]
         )
-        self.labels[self.labels.columns] = fitted_label_scaler.inverse_transform(
-            self.labels[self.labels.columns]
-        )
+        self.labels[self.labels.columns] = fitted_label_scaler.inverse_transform(self.labels[self.labels.columns])
 
     def print_info(self) -> None:
-
         rows, *_ = self.features.shape
 
         print(
@@ -204,9 +178,7 @@ class GPModel:
         m_load = (
             GPy.models.GPRegression(X, Y, initialize=False, kernel=rbf_kernel)
             if not sparse
-            else GPy.models.SparseGPRegression(
-                X, Y, initialize=False, kernel=rbf_kernel
-            )
+            else GPy.models.SparseGPRegression(X, Y, initialize=False, kernel=rbf_kernel)
         )
         m_load.update_model(False)
         m_load.initialize_parameter()
@@ -221,6 +193,41 @@ class GPModel:
 To load a sparse model, pass the optional parameter 'sparse = True' to GPModel.load_regression_model.
             """
             )
+
+
+@dataclass
+class LabelledModel:
+    """A wrapper class for associating a `GPy.Model` with a feature label."""
+
+    label: str
+    model: Union[GPy.models.GPRegression, GPy.models.SparseGPRegression]
+
+    @staticmethod
+    def load_labelled_models(model_dir: pathlib.Path, D_train: GPDataset, sparse: bool) -> List["LabelledModel"]:
+        """Load multiple labelled models form a directory.
+
+        Allows to load both dense and sparse models.
+
+        This functions requires the training data in order to load models using `GPy`.
+        Please NOTE that the training data labels and model labels need to be the same!
+        """
+
+        if not model_dir.exists() or not model_dir.is_dir():
+            raise Exception(f"Provided model_dir '{model_dir}' does not exist or is not a path!")
+
+        # load the feature matrix
+        X = D_train.get_X()
+
+        kernel_files = [x for x in model_dir.iterdir() if x.suffix == ".npy"]
+        models: List[LabelledModel] = []
+        for kernel_file in kernel_files:
+            label = kernel_file.name.split(".npy")[0].replace("--", "/")
+            Y = D_train.get_Y(label)
+            # load a dense or sparse regression model (based on the constructors parameter)
+            model = GPModel.load_regression_model(kernel_file, X, Y, sparse=sparse)
+            models.append(LabelledModel(label, model))
+
+        return models
 
 
 # function typing used to encode messages into GPR feature vectors
