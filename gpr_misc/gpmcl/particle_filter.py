@@ -1,9 +1,8 @@
 from rosbags.typesys.types import nav_msgs__msg__Odometry as Odometry
 from scipy.spatial.transform import Rotation
-from gpmcl.mapper import FeatureMap3D
+from gpmcl.mapper import FeatureMap3D, Mapper
 from gpmcl.regression import GPRegression
-from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
 import numpy as np
 
 
@@ -68,14 +67,10 @@ class Pose2D:
         return np.array([x, y, theta], dtype=np.float64)
 
 
-@dataclass
-class FeaturesAndMap:
-    observed_features: FeatureMap3D
-    map: FeatureMap3D
-
-
 class ParticleFilter:
-    def __init__(self, T0: Pose2D, M: int, R: np.ndarray, Q: np.ndarray, process_regressor: GPRegression) -> None:
+    def __init__(
+        self, T0: Pose2D, M: int, R: np.ndarray, Q: np.ndarray, mapper: Mapper, process_regressor: GPRegression
+    ) -> None:
         self.M = M  # number of particles to track
         self.R = R  # process covariance
         self.Q = Q  # observation covariance
@@ -84,7 +79,12 @@ class ParticleFilter:
         self.Xs = self.__sample_multivariate_normal(T0)
         # the last pose deltas as twists, required for GP inference
         self.dX_last = np.zeros((M, 3), dtype=np.float64)
+        # the particle weights
+        self.w = (1 / M) * np.ones(self.M, dtype=np.float64)  # normalized
+        # the gaussian process of the motion model
         self.GP_p = process_regressor
+        # the mapper
+        self.mapper = mapper
 
     def predict(self, U: Odometry) -> None:
         # --- compute features used for GP regression ---
@@ -124,15 +124,42 @@ class ParticleFilter:
         # N x 3 array of estimated motion (referred to as "control commands" in GPBayes paper)
         dX_est = np.array(list(map(get_estimated_delta_x, self.Xs)))
         # predict the next states from GP regression of the process model
-        X_predicted = self.GP_p.predict(self.Xs, dX_last=self.dX_last, dU=dX_est)
+        X_predicted, dX = self.GP_p.predict(self.Xs, dX_last=self.dX_last, dU=dX_est)
+        # update both the particles and their last state changes
+        self.dX_last = dX
         self.Xs = X_predicted
-        pass
 
-    def update(self, Z: FeaturesAndMap) -> None:
-        # TODO: how to incorporate landmark measurements?!
+    def update(self, Z: FeatureMap3D) -> None:
+        """Update the particle states using observed landmarks.
 
-        # TODO: don't forget to update self.dX_last!!
-        pass
+        ### Parameters
+        `Z` - The observed features.
+        `mapper` - An instance of `gpmcl.mapper.Mapper` used for updating particle states.
+        """
+
+        # TODO: should this function directly use the raw PCD instead?
+        # otherwise the mapper needs to be accessed externally...
+
+        def get_particle_weight(x: np.ndarray) -> float:
+            predicted_pose = Pose2D.from_twist(x)
+            correspondences = self.mapper.correspondence_search(
+                observed_features=Z,
+                pose=predicted_pose.T,
+            )
+            # the likelihoods for all feature-landmark correspondences
+            likelihoods = self.mapper.get_observation_likelihoods(
+                observed_features=Z,
+                pose=predicted_pose.T,
+                correspondences=correspondences,
+            )
+            return likelihoods.sum()
+
+        # update the weights for each particle
+        self.w = np.array(list(map(get_particle_weight, self.Xs)))
+        # re-normalize the weights based on the new likelihood sum
+        self.w = 1 / (np.sum(self.w)) * self.w
+
+        # TODO: resample particles
 
     def __sample_multivariate_normal(self, X0: Pose2D) -> np.ndarray:
         """Sample particles from a multivariate normal.
