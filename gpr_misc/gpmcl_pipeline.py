@@ -45,10 +45,10 @@ class GPMCLPipeline(LocalizationPipeline):
         # ScanTools3D.visualize_pcd(pcd)
         local_feature_map = self.pf.mapper.detect_features(pcd)
         print(f"[{timestamp}]: Detected {len(local_feature_map.features)} features.")
-        # TODO: predict
+        # compute the prior by sampling from the GP
         self.pf.predict(U=synced_msgs.odom_est)
+        # compute the posterior by incorporating map
         self.pf.update(Z=local_feature_map)
-        # TODO: update
         updated_pose = self.pf.posterior_pose
         correspondences = self.pf.mapper.correspondence_search(local_feature_map, self.pf.posterior_pose.T)
         self.pf.mapper.update(local_feature_map, updated_pose.T, correspondences)
