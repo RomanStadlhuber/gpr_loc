@@ -106,7 +106,10 @@ class GPDataset:
         feature_scaler = StandardScaler() if scalers is None else scalers[0]
         label_scaler = StandardScaler() if scalers is None else scalers[1]
         self.features[self.features.columns] = feature_scaler.fit_transform(self.features[self.features.columns])
-        self.labels[self.labels.columns] = label_scaler.fit_transform(self.labels[self.labels.columns])
+        # only apply scaling to features if it exists
+        self.labels[self.labels.columns] = (
+            label_scaler.fit_transform(self.labels[self.labels.columns]) if not self.labels.empty else self.labels
+        )
         # return the fitted scaler
         return (feature_scaler, label_scaler)
 

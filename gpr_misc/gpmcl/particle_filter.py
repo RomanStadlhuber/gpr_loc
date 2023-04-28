@@ -9,7 +9,7 @@ import numpy as np
 
 class Pose2D:
     def __init__(self, T0: Optional[np.ndarray] = None) -> None:
-        self.T = T0 or np.eye(3)
+        self.T = T0 if T0 is not None else np.eye(3)
 
     def as_twist(self) -> np.ndarray:
         """Convert this pose to a global twist"""
@@ -30,7 +30,9 @@ class Pose2D:
     @staticmethod
     def twist_to_pose(twist: np.ndarray) -> np.ndarray:
         """Converts a 3-dimensional twist vector to a 2D affine transformation."""
-        x, y, w = twist
+        x = twist[0]
+        y = twist[1]
+        w = twist[2]
         T = np.array(
             [
                 [np.cos(w), -np.sin(w), x],
@@ -49,9 +51,7 @@ class Pose2D:
         T_inv = np.block(
             [
                 [R.T, -R.T @ t],
-                [
-                    [0, 0, 1],
-                ],
+                [0, 0, 1],
             ]
         )
         return T_inv
@@ -87,7 +87,7 @@ class ParticleFilter:
         # the last pose deltas as twists, required for GP inference
         self.dX_last = np.zeros((self.M, 3), dtype=np.float64)
         # the particle weights
-        self.w = (1 / self.M) * np.ones(self.M, dtype=np.float64)  # normalized
+        self.ws = (1 / self.M) * np.ones(self.M, dtype=np.float64)  # normalized
         # the gaussian process of the motion model
         self.GP_p = process_regressor
         # the mapper
@@ -137,6 +137,8 @@ class ParticleFilter:
         # update both the particles and their last state changes
         self.dX_last = dX
         self.Xs = X_predicted
+        # set posterior
+        self.posterior_pose = self.mean()
 
     def update(self, Z: FeatureMap3D) -> None:
         """Update the particle states using observed landmarks.
@@ -164,11 +166,20 @@ class ParticleFilter:
             return likelihoods.sum()
 
         # update the weights for each particle
-        self.w = np.array(list(map(get_particle_weight, self.Xs)))
-        # re-normalize the weights based on the new likelihood sum
-        self.w = 1 / (np.sum(self.w)) * self.w
-
+        if len(self.mapper.get_map().features) > 0:
+            self.ws = np.array(list(map(get_particle_weight, self.Xs)))
+            # re-normalize the weights based on the new likelihood sum
+            self.ws = 1 / (np.sum(self.ws)) * self.ws
         # TODO: resample particles
+        # set posterior
+        self.posterior_pose = self.mean()
+
+    def mean(self) -> Pose2D:
+        """Compute the mean state as pose object."""
+        # get the mean particle state as twist
+        x_mu = self.__compute_mean_from_sample_points()
+        # convert to pose object and return
+        return Pose2D.from_twist(x_mu)
 
     def __sample_multivariate_normal(self, X0: Pose2D) -> np.ndarray:
         """Sample particles from a multivariate normal.
@@ -178,10 +189,10 @@ class ParticleFilter:
         """
         x0 = X0.as_twist()
         # the particle states
-        Xs = np.random.default_rng().multivariate_normal(x0, self.R, (self.M, 3))
+        Xs = np.random.default_rng().multivariate_normal(x0, self.R, (self.M,))
         return Xs
 
-    def __compute_posterior_pose(self) -> None:
+    def __compute_mean_from_sample_points(self) -> np.ndarray:
         """Compute the posterior"""
         # TODO: based on weights and particles, compute the single posterior pose
-        pass
+        return np.average(self.Xs, weights=self.ws, axis=0)

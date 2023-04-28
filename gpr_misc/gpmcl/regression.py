@@ -11,7 +11,7 @@ class GPRegressionConfig:
     # the path to the directory holding the models
     model_dir: pathlib.Path
     # the path to the models training data (required for loading)
-    train_data_path: pathlib.Path
+    training_data_dirs: List[pathlib.Path]
     # if the regression uses a sparse GP
     is_sparse: bool
     # labels (in order) for last state change data
@@ -29,7 +29,8 @@ class GPRegression:
     def __init__(self, config: GPRegressionConfig) -> None:
         self.config = config
         # load the training dataset (required for loading the model from GPy)
-        self.D_train = GPDataset.load(config.train_data_path)
+        Ds = [GPDataset.load(dir) for dir in config.training_data_dirs]
+        self.D_train = GPDataset.join(Ds)
         (
             self.train_feature_scaler,
             self.train_label_scaler,
@@ -59,6 +60,8 @@ class GPRegression:
         df_X_in = df_dX_last.join(df_dU)
         df_Y = pd.DataFrame()  # empty label dataset (not needed)
         D_in = GPDataset(name="anonymous (GPMCL test dataset)", features=df_X_in, labels=df_Y)
+        # standard-scale the dataset for regression
+        D_in.standard_scale((self.train_feature_scaler, self.train_label_scaler))
         # perform regression on the dataset
         D_pred = self.__regression(D_in)
         dX_pred = D_pred.labels.to_numpy()

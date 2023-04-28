@@ -49,8 +49,8 @@ class GPMCLPipeline(LocalizationPipeline):
         self.pf.predict(U=synced_msgs.odom_est)
         # compute the posterior by incorporating map
         self.pf.update(Z=local_feature_map)
-        updated_pose = self.pf.posterior_pose
-        correspondences = self.pf.mapper.correspondence_search(local_feature_map, self.pf.posterior_pose.T)
+        updated_pose = self.pf.mean()
+        correspondences = self.pf.mapper.correspondence_search(local_feature_map, self.pf.mean().T)
         self.pf.mapper.update(local_feature_map, updated_pose.T, correspondences)
         print(f"[{timestamp}]: Map now has {len(self.pf.mapper.get_map().features)} landmarks.")
 
@@ -61,7 +61,7 @@ class GPMCLPipeline(LocalizationPipeline):
         R = 0.5 * np.eye(3, dtype=np.float64)
         Q = 0.2 * np.eye(3, dtype=np.float64)
         M = 50
-        T0 = Pose2D.from_twist(np.zeros(3))
+        T0 = Pose2D.from_twist(np.zeros((3)))
         return ParticleFilterConfig(
             particle_count=M,
             process_covariance_R=R,
@@ -76,10 +76,18 @@ class GPMCLPipeline(LocalizationPipeline):
     def __get_process_gp(self) -> GPRegression:
         # TODO: fill-in, later load from YAML
         gp_config = GPRegressionConfig(
-            model_dir=pathlib.Path(""),
-            train_data_path=pathlib.Path(""),
-            labels_dX_last=["", "", ""],
-            labels_dU=["", "", ""],
+            model_dir=pathlib.Path("data/models/dense_ARD"),
+            training_data_dirs=[pathlib.Path("data/process_train_ccw"), pathlib.Path("data/process_train_cw")],
+            labels_dX_last=[
+                "delta2d.x (/ground_truth/odom)",
+                "delta2d.y (/ground_truth/odom)",
+                "delta2d.z (/ground_truth/odom)",
+            ],
+            labels_dU=[
+                "delta2d.x (/odom)",
+                "delta2d.y (/odom)",
+                "delta2d.z (/odom)",
+            ],
             is_sparse=False,
         )
         gp = GPRegression(gp_config)

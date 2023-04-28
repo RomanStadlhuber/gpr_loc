@@ -83,8 +83,21 @@ class FeatureMap3D:
 
         NOTE: does not do an in-place update because this shouldn't be allowed on a global map.
         """
+        if len(self.features) == 0:
+            return self
         # get feature matrix
         M = self.as_matrix().T  # transpose to convert to (dim_f x N)
+        # safeguard for 3x3 transform matrices (i.e. affine 2d transforms)
+        if np.shape(T) == (3, 3):
+            R = T[:2, :2]
+            t = T[:2, 2].reshape(-1, 1)
+            T = np.block(
+                [
+                    [R, np.zeros((2, 1)), t],
+                    [np.array([0, 0, 1, 0])],
+                    [np.array([0, 0, 0, 1])],
+                ]
+            )
 
         R = T[:3, :3]  # get rotation matrix
         t = T[:3, 3]  # get translation vector
@@ -230,8 +243,21 @@ class ISS3DMapper(Mapper):
                 correspondences=[],
             )
 
-        R = pose[:3, :3]
-        t = pose[:3, 3].reshape(-1, 1)  # reshape to column vector i.e. (3x1)
+        T = pose
+        # safeguard if transform is 2D, i.e. 3x3
+        if np.shape(pose) == (3, 3):
+            R = pose[:2, :2]
+            t = pose[:2, 2].reshape(-1, 1)
+            T = np.block(
+                [
+                    [R, np.zeros((2, 1)), t],
+                    [np.array([0, 0, 1, 0])],
+                    [np.array([0, 0, 0, 1])],
+                ]
+            )
+
+        R = T[:3, :3]
+        t = T[:3, 3].reshape(-1, 1)  # reshape to column vector i.e. (3x1)
         # invert the pose
         T_inv = np.block(
             [
@@ -300,6 +326,19 @@ class ISS3DMapper(Mapper):
         pose: np.ndarray,
         correspondences: CorrespondenceSearchResults3D,
     ) -> None:
+        T = pose
+        # safeguard if transform is 2D, i.e. 3x3
+        if np.shape(pose) == (3, 3):
+            R = pose[:2, :2]
+            t = pose[:2, 2].reshape(-1, 1)
+            T = np.block(
+                [
+                    [R, np.zeros((2, 1)), t],
+                    [np.array([0, 0, 1, 0])],
+                    [np.array([0, 0, 0, 1])],
+                ]
+            )
+
         # at first, all features need to be transformed into the map frame
         features_in_map_frame = observed_features.transform(pose)
 
@@ -332,7 +371,7 @@ class ISS3DMapper(Mapper):
 
         # --- keep only features within the mapping range ---
         # region
-        pose_position = pose[:3, 3]
+        pose_position = T[:3, 3]
         # keep only features that are within bounds
         features_in_bounds = [
             feature
@@ -349,8 +388,21 @@ class ISS3DMapper(Mapper):
     ) -> np.ndarray:
         """Compute the likelihood for all corresponding observations"""
 
-        R = pose[:3, :3]
-        t = pose[:3, 3].reshape(-1, 1)  # reshape to column vector i.e. (3x1)
+        T = pose
+
+        if np.shape(pose) == (3, 3):
+            R = pose[:2, :2]
+            t = pose[:2, 2].reshape(-1, 1)
+            T = np.block(
+                [
+                    [R, np.zeros((2, 1)), t],
+                    [np.array([0, 0, 1, 0])],
+                    [np.array([0, 0, 0, 1])],
+                ]
+            )
+
+        R = T[:3, :3]
+        t = T[:3, 3].reshape(-1, 1)  # reshape to column vector i.e. (3x1)
         # invert the pose
         T_inv = np.block(
             [
