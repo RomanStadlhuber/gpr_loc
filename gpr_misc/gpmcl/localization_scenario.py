@@ -45,6 +45,11 @@ class LocalizationPipeline(ABC):
         """The inference step of a localization pipeline."""
         pass
 
+    @abstractmethod
+    def evaluate(self) -> None:
+        """Evaluate the results of the localization process."""
+        pass
+
 
 @dataclass
 class LocalizationScenarioConfig:

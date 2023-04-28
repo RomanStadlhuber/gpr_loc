@@ -12,7 +12,7 @@ from gpmcl.particle_filter import (
     Pose2D,
 )
 from gpmcl.regression import GPRegression, GPRegressionConfig
-from typing import Optional
+from typing import Optional, List
 import numpy as np
 import pathlib
 
@@ -37,6 +37,7 @@ class GPMCLPipeline(LocalizationPipeline):
         pf_config = self.__get_pf_config()
         # instantiate the particle filter
         self.pf = ParticleFilter(config=pf_config, mapper=mapper, process_regressor=GP_process)
+        self.trajectory: List[np.ndarray] = []
 
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
         pcd = ScanTools3D.scan_msg_to_open3d_pcd(synced_msgs.scan_3d)
@@ -49,18 +50,27 @@ class GPMCLPipeline(LocalizationPipeline):
         self.pf.predict(U=synced_msgs.odom_est)
         # compute the posterior by incorporating map
         self.pf.update(Z=local_feature_map)
-        updated_pose = self.pf.mean()
+        updated_pose = self.pf.mean().T
         correspondences = self.pf.mapper.correspondence_search(local_feature_map, self.pf.mean().T)
-        self.pf.mapper.update(local_feature_map, updated_pose.T, correspondences)
+        self.pf.mapper.update(local_feature_map, updated_pose, correspondences)
         print(f"[{timestamp}]: Map now has {len(self.pf.mapper.get_map().features)} landmarks.")
+        # append posterior to trajectory
+        self.trajectory.append(updated_pose)
 
-        # detect features
+    def evaluate(self) -> None:
+        initial_pose, *_, last_pose = self.trajectory
+
+        x_init = Pose2D.pose_to_twist(initial_pose)
+        x_last = Pose2D.pose_to_twist(last_pose)
+
+        print(f"Initial pose (x, y, theta): {x_init}")
+        print(f"Last pose (x, y, theta): {x_last}")
 
     def __get_pf_config(self) -> ParticleFilterConfig:
         # TODO: load from YAML
         R = 0.5 * np.eye(3, dtype=np.float64)
         Q = 0.2 * np.eye(3, dtype=np.float64)
-        M = 50
+        M = 5
         T0 = Pose2D.from_twist(np.zeros((3)))
         return ParticleFilterConfig(
             particle_count=M,
