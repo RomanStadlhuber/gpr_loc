@@ -12,28 +12,42 @@ import pathlib
 class LocalizationSyncMessage(SyncMessage):
     """A wrapper for synchronized localization in GPMCL"""
 
+    topic_odom_groundtruth: Optional[str] = ""
     topic_odom_est: str = ""
     topic_scan_3d: str = ""
 
-    def __init__(self, odom_est: Odometry, scan_3d: PointCloud2) -> None:
+    def __init__(self, odom_est: Odometry, scan_3d: PointCloud2, groundtruth: Optional[Odometry] = None) -> None:
+        self.groundtruth = groundtruth
         self.odom_est = odom_est
         self.scan_3d = scan_3d
         super().__init__()
 
     @staticmethod
-    def set_topics(topic_odom_est: str, topic_scan_3d: str) -> None:
+    def set_topics(topic_odom_est: str, topic_scan_3d: str, topic_odom_groundtruth: Optional[str] = None) -> None:
+        LocalizationSyncMessage.topic_odom_groundtruth = topic_odom_groundtruth
         LocalizationSyncMessage.topic_odom_est = topic_odom_est
         LocalizationSyncMessage.topic_scan_3d = topic_scan_3d
 
     @staticmethod
     def from_dict(d: Dict) -> Optional["LocalizationSyncMessage"]:
+        # groundtruth is required but not present?
+        groundtruth_not_present = (
+            LocalizationSyncMessage.topic_odom_groundtruth is not None
+            and LocalizationSyncMessage.topic_odom_groundtruth not in d.keys()
+        )
+
         if (
             LocalizationSyncMessage.topic_odom_est not in d.keys()
             or LocalizationSyncMessage.topic_scan_3d not in d.keys()
+            or groundtruth_not_present
         ):
             return None
         else:
+            # should collect groundtruth?
+            gt = LocalizationSyncMessage.topic_odom_groundtruth is not None
+            # construct the message from dictionary
             return LocalizationSyncMessage(
+                groundtruth=d[LocalizationSyncMessage.topic_odom_groundtruth] if gt else None,
                 odom_est=d[LocalizationSyncMessage.topic_odom_est],
                 scan_3d=d[LocalizationSyncMessage.topic_scan_3d],
             )
@@ -68,6 +82,7 @@ class LocalizationScenario:
         self.config = config
         # set the desired topics of the Sync Message
         LocalizationSyncMessage.set_topics(
+            topic_odom_groundtruth=config.topic_odom_groundtruth,
             topic_odom_est=config.topic_odom_est,
             topic_scan_3d=config.topic_scan_3d,
         )
@@ -75,8 +90,13 @@ class LocalizationScenario:
     def spin_bag(self) -> None:
         """Perform localization on the bag."""
         rosbag_sync_reader = RosbagSyncReader(self.config.bag_path)
+        # set of topic names the bag is searched for
+        topic_names = set([self.config.topic_odom_est, self.config.topic_scan_3d])
+        # add the ground truth topic if it exists
+        if self.config.topic_odom_groundtruth is not None:
+            topic_names.add(self.config.topic_odom_groundtruth)
         rosbag_sync_reader.spin(
-            topics=set([self.config.topic_odom_est, self.config.topic_scan_3d]),
+            topics=topic_names,
             callback=self.__message_callback,
             grace_period_secs=self.config.bag_sync_period,
         )

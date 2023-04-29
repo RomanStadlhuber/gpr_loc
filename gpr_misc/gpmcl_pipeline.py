@@ -68,10 +68,10 @@ class GPMCLPipeline(LocalizationPipeline):
 
     def __get_pf_config(self) -> ParticleFilterConfig:
         # TODO: load from YAML
-        R = 0.5 * np.eye(3, dtype=np.float64)
-        Q = 0.2 * np.eye(3, dtype=np.float64)
+        R = 0.2 * np.eye(3, dtype=np.float64)
+        Q = 0.1 * np.eye(3, dtype=np.float64)
         M = 5
-        T0 = Pose2D.from_twist(np.zeros((3)))
+        T0 = Pose2D.from_twist(np.array([9.417, 9.783, 2.49978]))
         return ParticleFilterConfig(
             particle_count=M,
             process_covariance_R=R,
@@ -112,6 +112,7 @@ if __name__ == "__main__":
         bag_path=pathlib.Path("./bags/explore.bag"),  # TODO: make this configurable
         topic_odom_est="/odom",
         topic_scan_3d="/velodyne_points",
+        topic_odom_groundtruth="/ground_truth/odom",
         localization_pipeline=pipeline,
     )
     # instantiate the scenario
