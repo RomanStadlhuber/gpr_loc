@@ -75,6 +75,19 @@ class LocalizationScenarioConfig:
     topic_odom_groundtruth: Optional[str] = None  # optional name of the ground truth topic
     bag_sync_period: float = 0.1  # max. elapsed period in [sec.] to consider messages synchronized
 
+    @staticmethod
+    def from_config(config: Dict) -> "LocalizationScenarioConfig":
+        """Load configuration from a `PyYAML.load` config document."""
+        scen_config: Dict = config["scenario"]
+        return LocalizationScenarioConfig(
+            bag_path=scen_config["bag_path"],
+            topic_odom_est=scen_config["topic_odom_est"],
+            # load with get to retain None value
+            topic_odom_groundtruth=scen_config.get("topic_odom_groundtruth"),
+            topic_scan_3d=scen_config["topic_scan_3d"],
+            bag_sync_period=scen_config["bag_sync_beriod"],
+        )
+
 
 class LocalizationScenario:
     def __init__(self, config: LocalizationScenarioConfig, pipeline: LocalizationPipeline) -> None:

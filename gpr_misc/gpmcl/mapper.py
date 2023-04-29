@@ -1,6 +1,6 @@
+from typing import List, Optional, Dict
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional
 import numpy as np
 import scipy.stats
 import open3d
@@ -199,6 +199,19 @@ class ISS3DMapperConfig:
     ratio_eigs_2_3: float = 0.65
     # minumum number of supporting points to consider a feature
     min_neighbor_count: int = 5
+
+    @staticmethod
+    def from_config(config: Dict) -> "ISS3DMapperConfig":
+        """Load configuration from a `PyYAML.load` config document."""
+        mapper_conf = config["iss3d_mapper"]
+        return ISS3DMapperConfig(
+            downsampling_voxel_size=mapper_conf["downsampling_voxel_size"],
+            mapping_radius=mapper_conf["mapping_radius"],
+            nms_radius=mapper_conf["nms_radius"],
+            ratio_eigs_1_2=mapper_conf["ratio_eigs_1_2"],
+            ratio_eigs_2_3=mapper_conf["ratio_eigs_2_3"],
+            min_neighbor_count=mapper_conf["min_neighbor_count"],
+        )
 
 
 class ISS3DMapper(Mapper):

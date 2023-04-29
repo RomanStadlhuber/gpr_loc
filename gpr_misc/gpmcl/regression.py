@@ -1,6 +1,6 @@
 from helper_types import GPDataset, LabelledModel
+from typing import List, NamedTuple, Dict
 from dataclasses import dataclass
-from typing import List, NamedTuple
 import pandas as pd
 import numpy as np
 import pathlib
@@ -18,6 +18,23 @@ class GPRegressionConfig:
     labels_dX_last: List[str]
     # labels (in order) for estimated state change "control command"
     labels_dU: List[str]
+
+    @staticmethod
+    def from_config(config: Dict, key: str) -> "GPRegressionConfig":
+        """Load configuration from a `PyYAML.load` config document.
+
+        Key is the name of the config object, namely either
+        - `"process_gp"` or
+        - `"observation_gp"`
+        """
+        gp_conf: Dict = config[key]
+        return GPRegressionConfig(
+            model_dir=pathlib.Path(gp_conf["model_dir"]),
+            training_data_dirs=[pathlib.Path(d) for d in gp_conf["training_data_dirs"]],
+            is_sparse=gp_conf["is_sparse"],
+            labels_dX_last=gp_conf["labels_dX_last"],
+            labels_dU=gp_conf["labels_dU"],
+        )
 
 
 class Prediction(NamedTuple):

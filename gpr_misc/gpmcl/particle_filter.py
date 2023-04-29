@@ -4,7 +4,7 @@ from scipy.spatial.transform import Rotation
 from gpmcl.mapper import FeatureMap3D, Mapper
 from gpmcl.regression import GPRegression
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict
 import numpy as np
 
 
@@ -75,6 +75,17 @@ class ParticleFilterConfig:
     particle_count: int
     process_covariance_R: np.ndarray
     observation_covariance_Q: np.ndarray
+
+    @staticmethod
+    def from_config(config: Dict) -> "ParticleFilterConfig":
+        """Load configuration from a `PyYAML.load` config document."""
+        pf_conf: Dict = config["particle_filter"]
+        return ParticleFilterConfig(
+            initial_guess_pose=Pose2D.from_twist(np.array(pf_conf["initial_guess_pose"])),
+            particle_count=pf_conf["particle_count"],
+            process_covariance_R=np.reshape(pf_conf["process_covariance_R"], (3, 3)),
+            observation_covariance_Q=np.reshape(pf_conf["observation_covariance_Q"], (3, 3)),
+        )
 
 
 class ParticleFilter:
