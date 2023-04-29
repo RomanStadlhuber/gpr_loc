@@ -138,7 +138,7 @@ class ParticleFilter:
         # update both the particles and their last state changes
         self.dX_last = dX
         self.Xs = X_predicted
-        # set posterior
+        # set posterior (as prior)
         self.posterior_pose = self.mean()
 
     def update(self, Z: FeatureMap3D) -> None:
@@ -174,7 +174,8 @@ class ParticleFilter:
 
         # update the weights for each particle
         if len(self.mapper.get_map().features) > 0:
-            self.ws += np.array(list(map(get_particle_weight, self.Xs)))
+            # do not incorporate posterior likelihood (see GP Bayes Filters paper, Table 1)
+            self.ws = np.array(list(map(get_particle_weight, self.Xs)))
             # re-normalize the weights based on the new likelihood sum
             self.ws = 1 / (np.sum(self.ws)) * self.ws
         # compute effective weight (see eq. 18 in https://www.mdpi.com/1424-8220/21/2/438)
