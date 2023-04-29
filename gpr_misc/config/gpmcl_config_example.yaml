@@ -1,0 +1,42 @@
+# the filter configuration
+particle_filter: # class ParticleFilterConfig
+  initial_guess_pose: [0, 0, 0] # [x, y, theta]
+  particle_count: 50
+  process_covariance_R: [
+    0.2, 0, 0,
+    0, 0.2, 0,
+    0, 0, 0.2,
+  ]
+  observation_covariance_Q: [
+    0.1, 0, 0,
+    0, 0.1, 0,
+    0, 0, 0.1,
+  ]
+# the mapper configuration
+iss3d_mapper: # class ISS3DMapperConfig
+  downsampling_voxel_size: 0.05 # [m^3] cannot be 0
+  mapping_radius: 12.0 # [m], cannot be 0
+  nms_radius: 1.5 # [m], can be 0
+  ratio_eigs_1_2: 0.65 # ISS3D saliency factor 1
+  ratio_eigs_2_3: 0.65 # ISS3D saliency factor 2
+  min_neighbor_count: 5 # req. neighbors to consider a feature
+process_gp: # class GPRegressionConfig
+  model_dir: "/path/to/model/dir"
+  training_data_dirs: # ALL the datasets used in training
+    - "/path/to/data_1"
+    - "/path/to/data_2"
+  is_sparse: False # whether or not the GP is sparse
+  labels_dX_last: # labels used for the last state change
+    - "delta2d.x (/ground_truth/odom)"
+    - "delta2d.y (/ground_truth/odom)"
+    - "delta2d.yaw (/ground_truth/odom)"
+  labels_dU: # labels used for the estimated state change
+    - "delta2d.x (/odom)"
+    - "delta2d.y (/odom)"
+    - "delta2d.yaw (/odom)"
+scenario: # class LocalizationScenarioConfig
+  bag_path: "/path/to/rosbag"
+  topic_odom_est: "/odom" # estimated odometry
+  topic_scan_3d: "/velodyne_points" # 3D scan
+  topic_odom_groundtruth: "/ground_truth/odom"
+  bag_sync_period: 0.1 # [sec.]
