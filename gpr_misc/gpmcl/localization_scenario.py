@@ -80,12 +80,12 @@ class LocalizationScenarioConfig:
         """Load configuration from a `PyYAML.load` config document."""
         scen_config: Dict = config["scenario"]
         return LocalizationScenarioConfig(
-            bag_path=scen_config["bag_path"],
+            bag_path=pathlib.Path(scen_config["bag_path"]),
             topic_odom_est=scen_config["topic_odom_est"],
             # load with get to retain None value
             topic_odom_groundtruth=scen_config.get("topic_odom_groundtruth"),
             topic_scan_3d=scen_config["topic_scan_3d"],
-            bag_sync_period=scen_config["bag_sync_beriod"],
+            bag_sync_period=scen_config["bag_sync_period"],
         )
 
 

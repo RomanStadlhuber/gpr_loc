@@ -12,10 +12,11 @@ from gpmcl.particle_filter import (
     Pose2D,
 )
 from gpmcl.regression import GPRegression, GPRegressionConfig
-from typing import Optional, List
+from typing import Optional, List, Dict
 import numpy as np
+import argparse
 import pathlib
-
+import yaml
 
 # TODO:
 # the pipeline will later use the following modules
@@ -30,11 +31,11 @@ class GPMCLPipeline(LocalizationPipeline):
     Uses a Gaussian Process Particle Filter (GP-PF).
     """
 
-    def __init__(self) -> None:
-        mapper_config = self.__get_mapper_config()
+    def __init__(self, config: Dict) -> None:
+        mapper_config = self.__get_mapper_config(config)
         mapper = ISS3DMapper(mapper_config)
-        GP_process = self.__get_process_gp()
-        pf_config = self.__get_pf_config()
+        GP_process = self.__get_process_gp(config)
+        pf_config = self.__get_pf_config(config)
         # instantiate the particle filter
         self.pf = ParticleFilter(config=pf_config, mapper=mapper, process_regressor=GP_process)
         self.trajectory: List[np.ndarray] = []
@@ -66,54 +67,38 @@ class GPMCLPipeline(LocalizationPipeline):
         print(f"Initial pose (x, y, theta): {x_init}")
         print(f"Last pose (x, y, theta): {x_last}")
 
-    def __get_pf_config(self) -> ParticleFilterConfig:
-        # TODO: load from YAML
-        R = 0.2 * np.eye(3, dtype=np.float64)
-        Q = 0.1 * np.eye(3, dtype=np.float64)
-        M = 20
-        T0 = Pose2D.from_twist(np.array([9.417, 9.783, 2.49978]))
-        return ParticleFilterConfig(
-            particle_count=M,
-            process_covariance_R=R,
-            observation_covariance_Q=Q,
-            initial_guess_pose=T0,
-        )
+    def __get_pf_config(self, config: Dict) -> ParticleFilterConfig:
+        return ParticleFilterConfig.from_config(config)
 
-    def __get_mapper_config(self) -> Optional[ISS3DMapperConfig]:
-        # TODO: load from YAML
-        return None
+    def __get_mapper_config(self, config: Dict) -> Optional[ISS3DMapperConfig]:
+        return ISS3DMapperConfig.from_config(config)
 
-    def __get_process_gp(self) -> GPRegression:
-        # TODO: fill-in, later load from YAML
-        gp_config = GPRegressionConfig(
-            model_dir=pathlib.Path("data/models/dense_ARD"),
-            training_data_dirs=[pathlib.Path("data/process_train_ccw"), pathlib.Path("data/process_train_cw")],
-            labels_dX_last=[
-                "delta2d.x (/ground_truth/odom)",
-                "delta2d.y (/ground_truth/odom)",
-                "delta2d.z (/ground_truth/odom)",
-            ],
-            labels_dU=[
-                "delta2d.x (/odom)",
-                "delta2d.y (/odom)",
-                "delta2d.z (/odom)",
-            ],
-            is_sparse=False,
-        )
+    def __get_process_gp(self, config: Dict) -> GPRegression:
+        # load the process GP from the config
+        gp_config = GPRegressionConfig.from_config(config=config, key="process_gp")
         gp = GPRegression(gp_config)
         return gp
 
 
+arg_parser = argparse.ArgumentParser(
+    prog="gpmcl_pipeline", description="Perform localization using gaussian process regression"
+)
+
+arg_parser.add_argument(
+    "config_path",
+    metavar="Path to the configuration YAML file.",
+    type=str,
+)
+
 if __name__ == "__main__":
+    args = arg_parser.parse_args()
+    config_path = pathlib.Path(args.config_path)
+    config_file = open(config_path)
+    config = yaml.safe_load(config_file)
     # instantiate the pipeline
-    pipeline = GPMCLPipeline()
+    pipeline = GPMCLPipeline(config)
     # configure the scenario
-    scenario_config = LocalizationScenarioConfig(
-        bag_path=pathlib.Path("./bags/explore.bag"),  # TODO: make this configurable
-        topic_odom_est="/odom",
-        topic_scan_3d="/velodyne_points",
-        topic_odom_groundtruth="/ground_truth/odom",
-    )
+    scenario_config = LocalizationScenarioConfig.from_config(config)
     # instantiate the scenario
     localization_scenario = LocalizationScenario(config=scenario_config, pipeline=pipeline)
     # run localization inference
