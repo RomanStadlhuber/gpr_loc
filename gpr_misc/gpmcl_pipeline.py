@@ -113,9 +113,8 @@ if __name__ == "__main__":
         topic_odom_est="/odom",
         topic_scan_3d="/velodyne_points",
         topic_odom_groundtruth="/ground_truth/odom",
-        localization_pipeline=pipeline,
     )
     # instantiate the scenario
-    localization_scenario = LocalizationScenario(config=scenario_config)
+    localization_scenario = LocalizationScenario(config=scenario_config, pipeline=pipeline)
     # run localization inference
     localization_scenario.spin_bag()

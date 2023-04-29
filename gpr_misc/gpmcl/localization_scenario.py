@@ -72,14 +72,14 @@ class LocalizationScenarioConfig:
     bag_path: pathlib.Path  # path to the input rosbag
     topic_odom_est: str  # name of the odometry estimates topic
     topic_scan_3d: str  # name of the laser scan topic
-    localization_pipeline: LocalizationPipeline  # the pipeline used for inference
     topic_odom_groundtruth: Optional[str] = None  # optional name of the ground truth topic
     bag_sync_period: float = 0.1  # max. elapsed period in [sec.] to consider messages synchronized
 
 
 class LocalizationScenario:
-    def __init__(self, config: LocalizationScenarioConfig) -> None:
+    def __init__(self, config: LocalizationScenarioConfig, pipeline: LocalizationPipeline) -> None:
         self.config = config
+        self.localization_pipeline = pipeline
         # set the desired topics of the Sync Message
         LocalizationSyncMessage.set_topics(
             topic_odom_groundtruth=config.topic_odom_groundtruth,
@@ -111,4 +111,4 @@ class LocalizationScenario:
         if localization_sync_message is None:
             return
         # run localization inference
-        self.config.localization_pipeline.inference(localization_sync_message, timestamp)
+        self.localization_pipeline.inference(localization_sync_message, timestamp)
