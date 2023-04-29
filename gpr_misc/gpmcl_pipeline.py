@@ -32,17 +32,25 @@ class GPMCLPipeline(LocalizationPipeline):
     """
 
     def __init__(self, config: Dict) -> None:
-        mapper_config = self.__get_mapper_config(config)
-        mapper = ISS3DMapper(mapper_config)
-        GP_process = self.__get_process_gp(config)
-        pf_config = self.__get_pf_config(config)
-        # instantiate the particle filter
-        self.pf = ParticleFilter(config=pf_config, mapper=mapper, process_regressor=GP_process)
+        self.config = config  # dict containing the pipeline configuration
         self.trajectory: List[np.ndarray] = []
+
+    def initialize(self, synced_msgs: LocalizationSyncMessage) -> None:
+        mapper_config = self.__get_mapper_config(self.config)
+        mapper = ISS3DMapper(mapper_config)
+        GP_process = self.__get_process_gp(self.config)
+        pf_config = self.__get_pf_config(self.config)
+        # instantiate the particle filter
+        self.pf = ParticleFilter(
+            config=pf_config,
+            mapper=mapper,
+            process_regressor=GP_process,
+            initial_ground_truth=synced_msgs.groundtruth,
+            initial_odom_estimate=synced_msgs.odom_est,
+        )
 
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
         pcd = ScanTools3D.scan_msg_to_open3d_pcd(synced_msgs.scan_3d)
-        print(f"[{timestamp}]: Got PCD with {np.shape(np.asarray(pcd.points))} points.")
         # visualize the point cloud
         # ScanTools3D.visualize_pcd(pcd)
         local_feature_map = self.pf.mapper.detect_features(pcd)
@@ -51,12 +59,16 @@ class GPMCLPipeline(LocalizationPipeline):
         self.pf.predict(U=synced_msgs.odom_est)
         # compute the posterior by incorporating map
         self.pf.update(Z=local_feature_map)
-        updated_pose = self.pf.mean().T
+        T_updated = self.pf.mean().T
         correspondences = self.pf.mapper.correspondence_search(local_feature_map, self.pf.mean().T)
-        self.pf.mapper.update(local_feature_map, updated_pose, correspondences)
+        self.pf.mapper.update(local_feature_map, T_updated, correspondences)
         print(f"[{timestamp}]: Map now has {len(self.pf.mapper.get_map().features)} landmarks.")
         # append posterior to trajectory
-        self.trajectory.append(updated_pose)
+        self.trajectory.append(T_updated)
+        if synced_msgs.groundtruth:
+            delta_T_error = Pose2D.from_odometry(synced_msgs.groundtruth).inv() @ T_updated
+            error_norm = np.linalg.norm(Pose2D(delta_T_error).as_twist())
+            print(f"[{timestamp}]: Pose error is: {error_norm}")
 
     def evaluate(self) -> None:
         initial_pose, *_, last_pose = self.trajectory

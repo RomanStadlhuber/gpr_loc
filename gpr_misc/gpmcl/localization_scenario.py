@@ -55,6 +55,10 @@ class LocalizationSyncMessage(SyncMessage):
 
 class LocalizationPipeline(ABC):
     @abstractmethod
+    def initialize(self, initial_msg: LocalizationSyncMessage) -> None:
+        """Initialize the Pipeline"""
+
+    @abstractmethod
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
         """The inference step of a localization pipeline."""
         pass
@@ -99,6 +103,7 @@ class LocalizationScenario:
             topic_odom_est=config.topic_odom_est,
             topic_scan_3d=config.topic_scan_3d,
         )
+        self.pipeline_initialized = False
 
     def spin_bag(self) -> None:
         """Perform localization on the bag."""
@@ -124,4 +129,8 @@ class LocalizationScenario:
         if localization_sync_message is None:
             return
         # run localization inference
-        self.localization_pipeline.inference(localization_sync_message, timestamp)
+        if not self.pipeline_initialized:
+            self.localization_pipeline.initialize(localization_sync_message)
+            self.pipeline_initialized = True
+        else:
+            self.localization_pipeline.inference(localization_sync_message, timestamp)

@@ -29,6 +29,7 @@ class RosbagSyncReader:
         topics: Set,
         callback: Callable[[Optional[Dict], Optional[int]], None],
         grace_period_secs: float = 1e-10,
+        initialize: bool = False,  # whether or not to only sync the first messages
     ):
         """Synchronize a set of topics.
 
@@ -80,6 +81,8 @@ class RosbagSyncReader:
                             if has_all_messages():
                                 callback(buffered_messages, timestamp)
                                 buffered_messages.clear()
+                                if initialize:  # end loop if only used for initialization
+                                    break
 
         except Exception as e:
             print(str(e))

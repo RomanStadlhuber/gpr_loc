@@ -1,6 +1,5 @@
 # the filter configuration
 particle_filter: # class ParticleFilterConfig
-  initial_guess_pose: [0, 0, 0] # [x, y, theta]
   particle_count: 50
   process_covariance_R: [
     0.2, 0, 0,

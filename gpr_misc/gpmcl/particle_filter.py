@@ -68,10 +68,27 @@ class Pose2D:
         theta = np.arctan2(sin, cos)
         return np.array([x, y, theta], dtype=np.float64)
 
+    @staticmethod
+    def from_odometry(odom: Odometry) -> "Pose2D":
+        """Compute a 2D pose from a `nav_msgs/Odometry` message."""
+        x = odom.pose.pose.position.x
+        y = odom.pose.pose.position.y
+        rotation = Rotation.from_quat(
+            [
+                odom.pose.pose.orientation.x,
+                odom.pose.pose.orientation.y,
+                odom.pose.pose.orientation.z,
+                odom.pose.pose.orientation.w,
+            ]
+        )
+        theta, *_ = rotation.as_euler("zyx", degrees=False)
+
+        u = np.array([x, y, theta], dtype=np.float64)
+        return Pose2D.from_twist(u)
+
 
 @dataclass
 class ParticleFilterConfig:
-    initial_guess_pose: Pose2D
     particle_count: int
     process_covariance_R: np.ndarray
     observation_covariance_Q: np.ndarray
@@ -81,7 +98,6 @@ class ParticleFilterConfig:
         """Load configuration from a `PyYAML.load` config document."""
         pf_conf: Dict = config["particle_filter"]
         return ParticleFilterConfig(
-            initial_guess_pose=Pose2D.from_twist(np.array(pf_conf["initial_guess_pose"])),
             particle_count=pf_conf["particle_count"],
             process_covariance_R=np.reshape(pf_conf["process_covariance_R"], (3, 3)),
             observation_covariance_Q=np.reshape(pf_conf["observation_covariance_Q"], (3, 3)),
@@ -89,13 +105,25 @@ class ParticleFilterConfig:
 
 
 class ParticleFilter:
-    def __init__(self, config: ParticleFilterConfig, mapper: Mapper, process_regressor: GPRegression) -> None:
+    def __init__(
+        self,
+        config: ParticleFilterConfig,
+        mapper: Mapper,
+        process_regressor: GPRegression,
+        initial_ground_truth: Optional[Odometry] = None,
+        initial_odom_estimate: Optional[Odometry] = None,
+    ) -> None:
+        # the posterior is the initial guess pose
+        self.posterior_pose = Pose2D.from_odometry(initial_ground_truth) if initial_ground_truth else Pose2D()
+        # the last odometry estimate is used to compute deltas
+        self.U_last = Pose2D.from_odometry(initial_odom_estimate) if initial_odom_estimate else Pose2D()
+        # initialize the hyperparameters
         self.M = config.particle_count  # number of particles to track
         self.R = config.process_covariance_R  # process covariance
         self.Q = config.observation_covariance_Q  # observation covariance
         # sample the initial states
         # an N x 3 array representing the particles as twists
-        self.Xs = self.__sample_multivariate_normal(config.initial_guess_pose)
+        self.Xs = self.__sample_multivariate_normal(self.posterior_pose)
         # the last pose deltas as twists, required for GP inference
         self.dX_last = np.zeros((self.M, 3), dtype=np.float64)
         # the particle weights
@@ -104,48 +132,11 @@ class ParticleFilter:
         self.GP_p = process_regressor
         # the mapper
         self.mapper = mapper
-        # the posterior pose
-        self.posterior_pose = config.initial_guess_pose
 
     def predict(self, U: Odometry) -> None:
-        # --- compute features used for GP regression ---
-        # NOTE: this uses the same logic as is done in dataset generation!
-        # region
-        x = U.pose.pose.position.x
-        y = U.pose.pose.position.y
-        rotation = Rotation.from_quat(
-            [
-                U.pose.pose.orientation.x,
-                U.pose.pose.orientation.y,
-                U.pose.pose.orientation.z,
-                U.pose.pose.orientation.w,
-            ]
-        )
-        theta, *_ = rotation.as_euler("zyx", degrees=False)
-
-        u = np.array([x, y, theta], dtype=np.float64)
-        X_est = Pose2D.from_twist(u)
-
-        def get_estimated_delta_x(x: np.ndarray) -> np.ndarray:
-            # inverse affine transform of current pose
-            T_x_inv = Pose2D.from_twist(x).inv()
-            # affine transform of estimated pose
-            T_est = X_est.T
-            # estimated delta motion
-            T_delta = T_x_inv @ T_est
-            # compute the 2D rotation frmm the y and x components of the R mat using atan2d
-            sin_yaw = T_delta[1, 0]
-            cos_yaw = T_delta[0, 0]
-            yaw_delta = np.arctan2(sin_yaw, cos_yaw)  # x = atan2d(y=sin(x), x=cos(x))
-            x_delta = T_delta[0, 2]
-            y_delta = T_delta[1, 2]
-            return np.array([x_delta, y_delta, yaw_delta])
-
-        # endregion
-        # N x 3 array of estimated motion (referred to as "control commands" in GPBayes paper)
-        dX_est = np.array(list(map(get_estimated_delta_x, self.Xs)))
+        dU = self.__compute_dU(U)
         # predict the next states from GP regression of the process model
-        X_predicted, dX = self.GP_p.predict(self.Xs, dX_last=self.dX_last, dU=dX_est)
+        X_predicted, dX = self.GP_p.predict(self.Xs, dX_last=self.dX_last, dU=dU)
         # update both the particles and their last state changes
         self.dX_last = dX
         self.Xs = X_predicted
@@ -215,6 +206,19 @@ class ParticleFilter:
         # the particle states
         Xs = np.random.default_rng().multivariate_normal(x0, self.R, (self.M,))
         return Xs
+
+    def __compute_dU(self, U: Odometry) -> np.ndarray:
+        """Computes the estimated motion `dU` which is an input to the process GP."""
+        X_est = Pose2D.from_odometry(U)
+        # estimated delta transformation "dU"
+        T_delta_u = self.U_last.inv() @ X_est.T
+        delta_u = Pose2D(T_delta_u).as_twist()
+        self.U_last = X_est
+        w = np.random.default_rng().multivariate_normal(np.zeros(3), self.R, self.M)
+        # repeat the estimated motion and add gaussian white noise to spread the particles
+        dU = np.repeat([delta_u], self.M, axis=0) + w
+        # return the estimated odome
+        return dU
 
     def __compute_mean_from_sample_points(self) -> np.ndarray:
         """Compute the posterior"""
