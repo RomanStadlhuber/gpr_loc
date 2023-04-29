@@ -227,3 +227,16 @@ True
 #### Misceral Information
 
 Internally, the provided datasets are standard-scaled before training and rescaled upon inference. **Do not provide standard-scaled datasets on your own**, as the regression utility will store the scalers when loading the datasets and use them to rescale once inference is complete.
+
+
+## Running the Localization Pipeline (GPMCL)
+
+The **G**aussan **P**process **M**onte **C**arlo **L**ocalization pipeline uses the pre-trained GPs defined above in conjunction with a 3D Laser Scanner (`sensor_msgs/PointCloud2`) to localize a mobile robot in the plane.
+
+Given a pre-trained GPs for both the process- and optionally the observation model, a localization pipeline can be run on a ROS1 bag file.
+
+```bash
+python3 gpmcl_pipeline.py path/to/config.yaml
+```
+
+Where `/path/to/config.yaml` points to a file containing the necessary configuration for the pipeline. See `./config/gpmcl_config_example.yaml` for the required format.
