@@ -1,4 +1,5 @@
 from rosbags.typesys.types import nav_msgs__msg__Odometry as Odometry
+from filterpy.monte_carlo import systematic_resample
 from scipy.spatial.transform import Rotation
 from gpmcl.mapper import FeatureMap3D, Mapper
 from gpmcl.regression import GPRegression
@@ -152,6 +153,12 @@ class ParticleFilter:
         # otherwise the mapper needs to be accessed externally...
 
         def get_particle_weight(x: np.ndarray) -> float:
+            """Compute log-likelihood for a particle state.
+
+            Uses the currently observed features and the gobal map.
+            Comutes log-likelihood either from a Gaussian PDF or a
+            Gaussian Process based on the filters configuration.
+            """
             predicted_pose = Pose2D.from_twist(x)
             correspondences = self.mapper.correspondence_search(
                 observed_features=Z,
@@ -167,10 +174,15 @@ class ParticleFilter:
 
         # update the weights for each particle
         if len(self.mapper.get_map().features) > 0:
-            self.ws = np.array(list(map(get_particle_weight, self.Xs)))
+            self.ws += np.array(list(map(get_particle_weight, self.Xs)))
             # re-normalize the weights based on the new likelihood sum
             self.ws = 1 / (np.sum(self.ws)) * self.ws
-        # TODO: resample particles
+        # compute effective weight (see eq. 18 in https://www.mdpi.com/1424-8220/21/2/438)
+        N_eff = 1 / np.sum(np.square(self.ws))
+        # resample the particles if the effective weights drops below half of the particles
+        # again, see the link to the publication above
+        if N_eff < (self.M / 2):
+            self.__resample()
         # set posterior
         self.posterior_pose = self.mean()
 
@@ -196,3 +208,18 @@ class ParticleFilter:
         """Compute the posterior"""
         # TODO: based on weights and particles, compute the single posterior pose
         return np.average(self.Xs, weights=self.ws, axis=0)
+
+    def __resample(self) -> None:
+        """Resample the particles representing the state.
+
+        Uses `filterpy.monte_carlo.systematic_resample`."""
+        idxs_resampled = systematic_resample(self.ws)
+        # number of partiles resampled (largely a safeguard)
+        M, *_ = np.shape(idxs_resampled)
+        Xs_resampled = self.Xs[idxs_resampled]  # resample the particle states
+        dX_last_resampled = self.dX_last[idxs_resampled]  # resample the last state changes
+        # evenly redistribute weights among all particles
+        ws_resapmled = np.repeat(1 / M, M)
+        self.M = M
+        self.Xs = Xs_resampled
+        self.ws = ws_resapmled
