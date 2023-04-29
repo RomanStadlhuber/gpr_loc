@@ -70,7 +70,7 @@ class GPMCLPipeline(LocalizationPipeline):
         # TODO: load from YAML
         R = 0.2 * np.eye(3, dtype=np.float64)
         Q = 0.1 * np.eye(3, dtype=np.float64)
-        M = 5
+        M = 20
         T0 = Pose2D.from_twist(np.array([9.417, 9.783, 2.49978]))
         return ParticleFilterConfig(
             particle_count=M,
