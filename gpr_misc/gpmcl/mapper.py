@@ -199,6 +199,8 @@ class ISS3DMapperConfig:
     ratio_eigs_2_3: float = 0.65
     # minumum number of supporting points to consider a feature
     min_neighbor_count: int = 5
+    # uppder bound for considering a correspondnce
+    max_feature_distance: float = 0.1  # [m]
 
     @staticmethod
     def from_config(config: Dict) -> "ISS3DMapperConfig":
@@ -211,6 +213,7 @@ class ISS3DMapperConfig:
             ratio_eigs_1_2=mapper_conf["ratio_eigs_1_2"],
             ratio_eigs_2_3=mapper_conf["ratio_eigs_2_3"],
             min_neighbor_count=mapper_conf["min_neighbor_count"],
+            max_feature_distance=mapper_conf["max_feature_distance"],
         )
 
 
@@ -305,11 +308,12 @@ class ISS3DMapper(Mapper):
             deltas = np.array(list(map(mahalanobis_distance, local_map.features)))
             # correspondence for feature k given all landmarks
             c_k = np.argmin(deltas)
-            # set all ambiguous landmarks to be invalid matches
-            Cs = np.where(Cs == k, -2, Cs)
-            # set the landmark at index "c_k" to correspond to feature k
-            if not Cs[c_k] == -2:
-                Cs[c_k] = k
+            if deltas[c_k] <= self.config.max_feature_distance:
+                # set all ambiguous landmarks to be invalid matches
+                Cs = np.where(Cs == k, -2, Cs)
+                # set the landmark at index "c_k" to correspond to feature k
+                if not Cs[c_k] == -2:
+                    Cs[c_k] = k
 
         # type cast book-keeping array to integers
         Cs = Cs.astype("int8")
