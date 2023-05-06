@@ -60,7 +60,7 @@ class GPMCLPipeline(LocalizationPipeline):
         # compute the posterior by incorporating map
         self.pf.update(Z=local_feature_map)
         T_updated = self.pf.mean().T
-        correspondences = self.pf.mapper.correspondence_search(local_feature_map, self.pf.mean().T)
+        correspondences = self.pf.mapper.correspondence_search(local_feature_map, T_updated)
         self.pf.mapper.update(local_feature_map, T_updated, correspondences)
         print(f"[{timestamp}]: Map now has {len(self.pf.mapper.get_map().features)} landmarks.")
         # append posterior to trajectory
@@ -69,10 +69,17 @@ class GPMCLPipeline(LocalizationPipeline):
             delta_T_error = Pose2D.from_odometry(synced_msgs.groundtruth).inv() @ T_updated
             error_norm = np.linalg.norm(Pose2D(delta_T_error).as_twist()[:2])
             print(f"[{timestamp}]: Pose error is: {error_norm}")
+        # PCD of the latest features in the updated pose frame
+        feature_pcd = local_feature_map.transform(T_updated).as_pcd()
+        idxs_feature_inliers = list(map(lambda c: c.idx_feature, correspondences.correspondences))
+        feature_inlier_pcd = feature_pcd.select_by_index(idxs_feature_inliers)
+        idxs_feature_outliers = correspondences.feature_outlier_idxs
+        feature_outlier_pcd = feature_pcd.select_by_index(idxs_feature_outliers)
         ScanTools3D.visualize_scene(
-            scan_pcd=pcd,
+            scan_pcd=pcd.transform(self.pf.mean().as_t3d()),
             map_pcd=self.pf.mapper.get_map().as_pcd(),
-            feature_pcd=local_feature_map.as_pcd(),
+            feature_inlier_pcd=feature_inlier_pcd,
+            feature_outlier_pcd=feature_outlier_pcd,
         )
 
     def evaluate(self) -> None:
