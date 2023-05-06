@@ -4,6 +4,7 @@ from rosbags.typesys.types import (
     sensor_msgs__msg__Imu as Imu,
     geometry_msgs__msg__Twist as Twist,
     nav_msgs__msg__Odometry as Odometry,
+    sensor_msgs__msg__PointCloud2 as PointCloud2,
 )
 from typing import List, Optional, Tuple, Any
 from scipy.spatial.transform import Rotation
@@ -63,10 +64,15 @@ def __encode_twist(msg: Twist, topic: str) -> List[GPFeature]:
     )
 
 
+def __encode_pcd(msg: PointCloud2, topic: str) -> List[GPFeature]:
+    return __to_gp_features([("del", 0.0)])
+
+
 ENCODER_MAP = {
     Imu.__msgtype__: __encode_imu,
     Twist.__msgtype__: __encode_twist,
     Odometry.__msgtype__: __encode_odometry,
+    PointCloud2.__msgtype__: __encode_pcd,
 }
 
 

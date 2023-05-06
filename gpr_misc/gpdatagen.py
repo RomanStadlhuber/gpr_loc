@@ -21,9 +21,7 @@ arg_parser.add_argument(
     help="Topics to use as GP input features",
     nargs="+",  # at least one, arbitrarly many and throws error if none supplied
 )
-arg_parser.add_argument(
-    "--label", dest="label_topics", required=True, type=str, nargs="+"
-)
+arg_parser.add_argument("--label", dest="label_topics", required=True, type=str, nargs="+")
 arg_parser.add_argument("--bag", dest="bagfile_path", required=True, type=str)
 arg_parser.add_argument(
     "-o",
@@ -75,11 +73,7 @@ if __name__ == "__main__":
     compute_deltas: bool = args.deltas or False
     # create the postprocessor
     # TODO: make this code adaptive by adding a flag for the postprocessor name
-    proc = (
-        OdomDeltaPostprocessor(odom_topics={"/ground_truth/odom", "/odom"})
-        if compute_deltas
-        else None
-    )
+    proc = OdomDeltaPostprocessor(odom_topics={"/ground_truth/odom", "/odom"}) if compute_deltas else None
     # encode the rosbag
     reader = RosbagEncoder(bagfile_path=rosbag_path)
     dataset = reader.encode_bag(
@@ -89,5 +83,7 @@ if __name__ == "__main__":
         postproc=proc,
     )
     if dataset is not None:
+        if not out_dir.exists():
+            out_dir.mkdir()
         dataset.export(out_dir, dataset_name)
         print("generated datasets successfully")

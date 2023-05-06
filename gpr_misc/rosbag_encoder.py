@@ -32,7 +32,6 @@ class RosbagEncoder:
 
         try:
             with Reader(self.bagfile_path) as reader:
-
                 dataset_feature_df: Optional[pd.DataFrame] = None
                 dataset_label_df: Optional[pd.DataFrame] = None
 
@@ -49,16 +48,13 @@ class RosbagEncoder:
                     return set(buffered_labels.keys()) == set(label_topics)
 
                 for connection, _, rawdata in reader.messages():
-
                     # encode and buffer feature messages
                     if connection.topic in feature_topics and not has_all_features():
                         # obtain encoder and check if it exists
                         encoder_fn = get_encoder(connection.msgtype)
                         if encoder_fn is None:
                             continue
-                        msg = deserialize_cdr(
-                            ros1_to_cdr(rawdata, connection.msgtype), connection.msgtype
-                        )
+                        msg = deserialize_cdr(ros1_to_cdr(rawdata, connection.msgtype), connection.msgtype)
                         # buffer the feature
                         features = encoder_fn(msg, connection.topic)
                         buffered_features[connection.topic] = features
@@ -67,13 +63,10 @@ class RosbagEncoder:
 
                     # encode label message
                     if connection.topic in label_topics and has_all_features():
-
                         encoder_fn = get_encoder(connection.msgtype)
                         if encoder_fn is None:
                             continue
-                        msg = deserialize_cdr(
-                            ros1_to_cdr(rawdata, connection.msgtype), connection.msgtype
-                        )
+                        msg = deserialize_cdr(ros1_to_cdr(rawdata, connection.msgtype), connection.msgtype)
                         label = encoder_fn(msg, connection.topic)
                         buffered_labels[connection.topic] = label
 
@@ -82,18 +75,12 @@ class RosbagEncoder:
                     if has_all_features() and has_all_labels():
                         # flatten all features and labels of this iteration into single lists
                         flat_features: List[GPFeature] = [
-                            feature
-                            for features in buffered_features.values()
-                            for feature in features
+                            feature for features in buffered_features.values() for feature in features
                         ]
-                        feature_names: List[str] = [
-                            feature.column_name for feature in flat_features
-                        ]
+                        feature_names: List[str] = [feature.column_name for feature in flat_features]
                         feature_values = [feature.value for feature in flat_features]
                         flat_labels: List[GPFeature] = [
-                            label
-                            for labels in buffered_labels.values()
-                            for label in labels
+                            label for labels in buffered_labels.values() for label in labels
                         ]
                         label_names = [label.column_name for label in flat_labels]
                         label_values = [label.value for label in flat_labels]
@@ -113,9 +100,7 @@ class RosbagEncoder:
                         if dataset_feature_df is None:
                             dataset_feature_df = feature_df
                         else:
-                            dataset_feature_df = pd.concat(
-                                [dataset_feature_df, feature_df]
-                            )
+                            dataset_feature_df = pd.concat([dataset_feature_df, feature_df])
 
                         # append to dataset labels
                         if dataset_label_df is None:
@@ -130,10 +115,13 @@ class RosbagEncoder:
 
                 bag_name = self.bagfile_path.name.split(".")[0]
 
+                # remove all columns with the tag "del"
+                if dataset_feature_df is not None:
+                    cols_to_delete = [colname for colname in dataset_feature_df.columns if "del" in colname]
+                    dataset_feature_df.drop(columns=cols_to_delete, inplace=True)
                 # after done iterating the rosbag
-                dataset = GPDataset(
-                    name=bag_name, features=dataset_feature_df, labels=dataset_label_df
-                )
+                dataset = GPDataset(name=bag_name, features=dataset_feature_df, labels=dataset_label_df)
+
                 # apply postprocessing logic if provided
                 if postproc is not None:
                     return postproc.postprocess_dataset(dataset)
@@ -153,9 +141,7 @@ class RosbagEncoder:
                 idx = 0
                 for connection, _, rawdata in reader.messages():
                     if connection.topic == odom_topic:
-                        msg: Odometry = deserialize_cdr(
-                            ros1_to_cdr(rawdata, connection.msgtype), connection.msgtype
-                        )
+                        msg: Odometry = deserialize_cdr(ros1_to_cdr(rawdata, connection.msgtype), connection.msgtype)
                         pos_df.loc[idx] = [
                             msg.pose.pose.position.x,
                             msg.pose.pose.position.y,
