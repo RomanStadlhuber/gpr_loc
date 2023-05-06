@@ -19,6 +19,7 @@ iss3d_mapper: # class ISS3DMapperConfig
   ratio_eigs_1_2: 0.65 # ISS3D saliency factor 1
   ratio_eigs_2_3: 0.65 # ISS3D saliency factor 2
   min_neighbor_count: 5 # req. neighbors to consider a feature
+  max_feature_distance: 0.05 # max. distance to consider matches
 process_gp: # class GPRegressionConfig
   model_dir: "/path/to/model/dir"
   training_data_dirs: # ALL the datasets used in training
