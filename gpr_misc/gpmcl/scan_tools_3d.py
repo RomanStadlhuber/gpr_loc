@@ -42,13 +42,13 @@ class ScanTools3D:
         pcds = [scan_pcd, map_pcd, feature_inlier_pcd]
         if feature_outlier_pcd is not None:
             ScanTools3D.__set_pcd_color(feature_outlier_pcd, np.array([1.0, 0, 0]))  # red
-            pcds.append(feature_outlier_pcd)
+            pcds = [scan_pcd, feature_outlier_pcd, map_pcd, feature_inlier_pcd]
         open3d.visualization.draw_geometries(
             pcds,
             front=[-0.86620647140619078, -0.23940427344046508, 0.43860226031391952],
-            lookat=[-1.9334621429443359, 5.630396842956543, 0.42972373962402344],
-            up=[0.31166516566442265, 0.42724517318096378, 0.84872044072529351],
-            zoom=0.49999999999999978,
+            lookat=[5.5199312311289148, -7.983294179212173, 7.7187918904921293],
+            up=[0, 0, 1],
+            zoom=0.1799999999999996,
         )
 
     @staticmethod

@@ -31,9 +31,10 @@ class GPMCLPipeline(LocalizationPipeline):
     Uses a Gaussian Process Particle Filter (GP-PF).
     """
 
-    def __init__(self, config: Dict) -> None:
+    def __init__(self, config: Dict, debug_visualize: bool = False) -> None:
         self.config = config  # dict containing the pipeline configuration
         self.trajectory: List[np.ndarray] = []
+        self.debug_visualize = debug_visualize
 
     def initialize(self, synced_msgs: LocalizationSyncMessage) -> None:
         mapper_config = self.__get_mapper_config(self.config)
@@ -70,17 +71,18 @@ class GPMCLPipeline(LocalizationPipeline):
             error_norm = np.linalg.norm(Pose2D(delta_T_error).as_twist()[:2])
             print(f"[{timestamp}]: Pose error is: {error_norm}")
         # PCD of the latest features in the updated pose frame
-        feature_pcd = local_feature_map.transform(T_updated).as_pcd()
-        idxs_feature_inliers = list(map(lambda c: c.idx_feature, correspondences.correspondences))
-        feature_inlier_pcd = feature_pcd.select_by_index(idxs_feature_inliers)
-        idxs_feature_outliers = correspondences.feature_outlier_idxs
-        feature_outlier_pcd = feature_pcd.select_by_index(idxs_feature_outliers)
-        ScanTools3D.visualize_scene(
-            scan_pcd=pcd.transform(self.pf.mean().as_t3d()),
-            map_pcd=self.pf.mapper.get_map().as_pcd(),
-            feature_inlier_pcd=feature_inlier_pcd,
-            feature_outlier_pcd=feature_outlier_pcd,
-        )
+        if self.debug_visualize:
+            feature_pcd = local_feature_map.transform(T_updated).as_pcd()
+            idxs_feature_inliers = list(map(lambda c: c.idx_feature, correspondences.correspondences))
+            feature_inlier_pcd = feature_pcd.select_by_index(idxs_feature_inliers)
+            idxs_feature_outliers = correspondences.feature_outlier_idxs
+            feature_outlier_pcd = feature_pcd.select_by_index(idxs_feature_outliers)
+            ScanTools3D.visualize_scene(
+                scan_pcd=pcd.transform(self.pf.mean().as_t3d()),
+                map_pcd=self.pf.mapper.get_map().as_pcd(),
+                feature_inlier_pcd=feature_inlier_pcd,
+                feature_outlier_pcd=feature_outlier_pcd,
+            )
 
     def evaluate(self) -> None:
         initial_pose, *_, last_pose = self.trajectory
@@ -114,13 +116,25 @@ arg_parser.add_argument(
     type=str,
 )
 
+arg_parser.add_argument(
+    "-d",
+    "--dbg_vis",
+    dest="debug_visualize",
+    required=False,
+    # metavar="Visualize the point cloud, features and landmarks for debugging.",
+    # help="Set this flag if the map and correspondences + outliers should be visualized at each step.",
+    default=False,
+    action="store_true",
+)
+
 if __name__ == "__main__":
     args = arg_parser.parse_args()
     config_path = pathlib.Path(args.config_path)
     config_file = open(config_path)
     config = yaml.safe_load(config_file)
+    dbg_vis = args.debug_visualize
     # instantiate the pipeline
-    pipeline = GPMCLPipeline(config)
+    pipeline = GPMCLPipeline(config, debug_visualize=dbg_vis)
     # configure the scenario
     scenario_config = LocalizationScenarioConfig.from_config(config)
     # instantiate the scenario
