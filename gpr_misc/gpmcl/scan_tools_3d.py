@@ -32,14 +32,19 @@ class ScanTools3D:
     def visualize_scene(
         scan_pcd: open3d.geometry.PointCloud,
         map_pcd: open3d.geometry.PointCloud,
-        feature_pcd: open3d.geometry.PointCloud,
+        feature_inlier_pcd: open3d.geometry.PointCloud,
+        feature_outlier_pcd: Optional[open3d.geometry.PointCloud],
     ) -> None:
         # set colors of the output PCDs
         ScanTools3D.__set_pcd_color(scan_pcd, 0.6 * np.ones((3)))  # grey
         ScanTools3D.__set_pcd_color(map_pcd, np.array([0, 0, 1.0]))  # blue
-        ScanTools3D.__set_pcd_color(feature_pcd, np.array([0, 1.0, 0]))  # green
+        ScanTools3D.__set_pcd_color(feature_inlier_pcd, np.array([0, 1.0, 0]))  # green
+        pcds = [scan_pcd, map_pcd, feature_inlier_pcd]
+        if feature_outlier_pcd is not None:
+            ScanTools3D.__set_pcd_color(feature_outlier_pcd, np.array([1.0, 0, 0]))  # red
+            pcds.append(feature_outlier_pcd)
         open3d.visualization.draw_geometries(
-            [scan_pcd, map_pcd, feature_pcd],
+            pcds,
             front=[-0.86620647140619078, -0.23940427344046508, 0.43860226031391952],
             lookat=[-1.9334621429443359, 5.630396842956543, 0.42972373962402344],
             up=[0.31166516566442265, 0.42724517318096378, 0.84872044072529351],
