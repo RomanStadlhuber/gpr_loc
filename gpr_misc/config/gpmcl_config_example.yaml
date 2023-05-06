@@ -34,6 +34,7 @@ process_gp: # class GPRegressionConfig
     - "delta2d.x (/odom)"
     - "delta2d.y (/odom)"
     - "delta2d.yaw (/odom)"
+  dU_first: True # GP accepts <dU, dX> (True) or <dX, dU> (False)
 scenario: # class LocalizationScenarioConfig
   bag_path: "/path/to/rosbag"
   topic_odom_est: "/odom" # estimated odometry
