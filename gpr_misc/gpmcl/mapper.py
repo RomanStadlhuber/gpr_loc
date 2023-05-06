@@ -78,6 +78,12 @@ class FeatureMap3D:
         feature_vectors = list(map(lambda f: f.as_vector(), self.features))
         return np.array(feature_vectors)
 
+    def as_pcd(self) -> open3d.geometry.PointCloud:
+        """Convert the set of features to an `open3d.geometry.PointCloud`."""
+        points = self.as_matrix()
+        pcd = open3d.geometry.PointCloud(points=open3d.cpu.pybind.utility.Vector3dVector(points))
+        return pcd
+
     def transform(self, T: np.ndarray) -> "FeatureMap3D":
         """Generate a new - transformed - feature map based on the current one.
 
