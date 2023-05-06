@@ -3,7 +3,7 @@ from rosbags.typesys.types import (
     sensor_msgs__msg__PointField as PointField,
     std_msgs__msg__Header as Header,
 )
-from typing import Optional
+from typing import Optional, List
 import numpy as np
 import ros_numpy
 import sensor_msgs.msg
@@ -29,6 +29,24 @@ class ScanTools3D:
         )
 
     @staticmethod
+    def visualize_scene(
+        scan_pcd: open3d.geometry.PointCloud,
+        map_pcd: open3d.geometry.PointCloud,
+        feature_pcd: open3d.geometry.PointCloud,
+    ) -> None:
+        # set colors of the output PCDs
+        ScanTools3D.__set_pcd_color(scan_pcd, 0.6 * np.ones((3)))  # grey
+        ScanTools3D.__set_pcd_color(map_pcd, np.array([0, 0, 1.0]))  # blue
+        ScanTools3D.__set_pcd_color(feature_pcd, np.array([0, 1.0, 0]))  # green
+        open3d.visualization.draw_geometries(
+            [scan_pcd, map_pcd, feature_pcd],
+            front=[-0.86620647140619078, -0.23940427344046508, 0.43860226031391952],
+            lookat=[-1.9334621429443359, 5.630396842956543, 0.42972373962402344],
+            up=[0.31166516566442265, 0.42724517318096378, 0.84872044072529351],
+            zoom=0.49999999999999978,
+        )
+
+    @staticmethod
     def scan_msg_to_open3d_pcd(
         msg: PointCloud2,
         scan_tf: Optional[np.ndarray] = None,
@@ -46,9 +64,7 @@ class ScanTools3D:
         points = ScanTools3D.__numpyfied_to_xyz(pcd_intermediate)
         # see: http://www.open3d.org/docs/release/python_api/open3d.geometry.PointCloud.html#open3d.geometry.PointCloud.__init__
         # and: >>> help(open3d.cpu.pybind.utility.Vector3dVector)
-        pcd = open3d.geometry.PointCloud(
-            points=open3d.cpu.pybind.utility.Vector3dVector(points)
-        )
+        pcd = open3d.geometry.PointCloud(points=open3d.cpu.pybind.utility.Vector3dVector(points))
         if scan_tf is not None:
             pcd.transform(scan_tf)
         return pcd
@@ -104,3 +120,44 @@ class ScanTools3D:
             xyz[idx, :] = point
 
         return xyz
+
+    @staticmethod
+    def __set_pcd_color(pcd: open3d.geometry.PointCloud, color: np.ndarray) -> None:
+        """Set the uniform color of points."""
+        points = np.asarray(pcd.points)
+        num_points, *_ = np.shape(points)
+        colors = np.repeat([color], repeats=num_points, axis=0)
+        pcd.colors = open3d.cpu.pybind.utility.Vector3dVector(colors)
+
+
+# class PointCloudVisualizer:
+#     def __init__(self) -> None:
+#         self.vis = open3d.visualization.Visualizer()
+#         self.started = False
+#
+#     def update(self, pcds: List[open3d.geometry.PointCloud]) -> None:
+#         """Update the visualizer with a (consistent) set of point clouds."""
+#         if not self.started:
+#             self.vis.create_window()
+#             self.__add_pcds(pcds)
+#         else:
+#             self.__update_pcds(pcds)
+#         self.__update_window()
+#
+#     def terminate(self) -> None:
+#         self.vis.destroy_window()
+#
+#     def __add_pcds(self, pcds: List[open3d.geometry.PointCloud]) -> None:
+#         """Add an individual PCD to the visualizers window."""
+#         for pcd in pcds:
+#             self.vis.add_geometry(pcd)
+#         self.started = True
+#
+#     def __update_pcds(self, pcds: List[open3d.geometry.PointCloud]) -> None:
+#         """Update an already displayed PCD."""
+#         for pcd in pcds:
+#             self.vis.update_geometry(pcd)
+#
+#     def __update_window(self) -> None:
+#         self.vis.poll_events()
+#         self.vis.update_renderer()
