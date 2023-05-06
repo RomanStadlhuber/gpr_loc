@@ -67,8 +67,13 @@ class GPMCLPipeline(LocalizationPipeline):
         self.trajectory.append(T_updated)
         if synced_msgs.groundtruth:
             delta_T_error = Pose2D.from_odometry(synced_msgs.groundtruth).inv() @ T_updated
-            error_norm = np.linalg.norm(Pose2D(delta_T_error).as_twist())
+            error_norm = np.linalg.norm(Pose2D(delta_T_error).as_twist()[:2])
             print(f"[{timestamp}]: Pose error is: {error_norm}")
+        ScanTools3D.visualize_scene(
+            scan_pcd=pcd,
+            map_pcd=self.pf.mapper.get_map().as_pcd(),
+            feature_pcd=local_feature_map.as_pcd(),
+        )
 
     def evaluate(self) -> None:
         initial_pose, *_, last_pose = self.trajectory
