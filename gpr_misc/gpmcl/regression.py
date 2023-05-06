@@ -18,6 +18,8 @@ class GPRegressionConfig:
     labels_dX_last: List[str]
     # labels (in order) for estimated state change "control command"
     labels_dU: List[str]
+    # whether dU comes before dX <dU, dX> or after <dX, dU>
+    dU_first: bool
 
     @staticmethod
     def from_config(config: Dict, key: str) -> "GPRegressionConfig":
@@ -34,6 +36,7 @@ class GPRegressionConfig:
             is_sparse=gp_conf["is_sparse"],
             labels_dX_last=gp_conf["labels_dX_last"],
             labels_dU=gp_conf["labels_dU"],
+            dU_first=gp_conf["dU_first"],
         )
 
 
@@ -74,7 +77,7 @@ class GPRegression:
         df_dX_last = pd.DataFrame(data=dX_last, columns=self.config.labels_dX_last)
         df_dU = pd.DataFrame(data=dU, columns=self.config.labels_dU)
         # join the datasets to obtain the feature dataset
-        df_X_in = df_dX_last.join(df_dU)
+        df_X_in = df_dU.join(df_dX_last) if self.config.dU_first else df_dX_last.join(df_dU)
         df_Y = pd.DataFrame()  # empty label dataset (not needed)
         D_in = GPDataset(name="anonymous (GPMCL test dataset)", features=df_X_in, labels=df_Y)
         # standard-scale the dataset for regression
