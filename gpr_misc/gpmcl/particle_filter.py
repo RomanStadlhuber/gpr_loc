@@ -166,6 +166,8 @@ class ParticleFilter:
                 observed_features=Z,
                 pose=predicted_pose.T,
             )
+            # TODO: what if 0 correspondences could be found?
+            # TODO: visualize map & feature inliers
             # the likelihoods for all feature-landmark correspondences
             likelihoods = self.mapper.get_observation_likelihoods(
                 observed_features=Z,
