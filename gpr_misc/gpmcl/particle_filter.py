@@ -23,6 +23,19 @@ class Pose2D:
     def inv(self) -> np.ndarray:
         return Pose2D.invert_pose(self.T)
 
+    def as_t3d(self) -> np.ndarray:
+        """Obtain the transform as as 4x4 matrix in 3D space."""
+        R = self.T[:2, :2]
+        t = self.T[:2, 2].reshape(-1, 1)
+        T = np.block(
+            [
+                [R, np.zeros((2, 1)), t],
+                [np.array([0, 0, 1, 0])],
+                [np.array([0, 0, 0, 1])],
+            ]
+        )
+        return T
+
     @staticmethod
     def from_twist(x: np.ndarray) -> "Pose2D":
         T = Pose2D.twist_to_pose(x)
