@@ -41,3 +41,5 @@ scenario: # class LocalizationScenarioConfig
   topic_scan_3d: "/velodyne_points" # 3D scan
   topic_odom_groundtruth: "/ground_truth/odom"
   bag_sync_period: 0.1 # [sec.]
+  # remove this or set to <= 0 to ignore
+  max_iteration_count: 1000 # will end after this many iterations
