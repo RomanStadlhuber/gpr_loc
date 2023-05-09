@@ -30,6 +30,7 @@ class RosbagSyncReader:
         callback: Callable[[Optional[Dict], Optional[int]], None],
         grace_period_secs: float = 1e-10,
         initialize: bool = False,  # whether or not to only sync the first messages
+        max_iterations: int = -1,  # stop after this many iterations
     ):
         """Synchronize a set of topics.
 
@@ -47,6 +48,8 @@ class RosbagSyncReader:
                 buffered_messages: Dict = dict()
                 # the last sync timestamp
                 sync_start = 0
+                # number of passed iterations
+                iter_count = 0
 
                 def has_all_messages() -> bool:
                     return set(buffered_messages.keys()) == topics
@@ -80,6 +83,10 @@ class RosbagSyncReader:
                             # callback with synced data if sync was successful
                             if has_all_messages():
                                 callback(buffered_messages, timestamp)
+                                iter_count += 1
+                                # stop spinning if max. iterations is provided
+                                if max_iterations > 0 and iter_count >= max_iterations:
+                                    break
                                 buffered_messages.clear()
                                 if initialize:  # end loop if only used for initialization
                                     break

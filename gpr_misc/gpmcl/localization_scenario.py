@@ -64,8 +64,8 @@ class LocalizationPipeline(ABC):
         pass
 
     @abstractmethod
-    def evaluate(self) -> None:
-        """Evaluate the results of the localization process."""
+    def export_trajectory(self, out_dir: pathlib.Path) -> None:
+        """Export the estimated trajectory."""
         pass
 
 
@@ -78,6 +78,7 @@ class LocalizationScenarioConfig:
     topic_scan_3d: str  # name of the laser scan topic
     topic_odom_groundtruth: Optional[str] = None  # optional name of the ground truth topic
     bag_sync_period: float = 0.1  # max. elapsed period in [sec.] to consider messages synchronized
+    max_iterations: int = -1  # number of iterations after which the bag stops spinning
 
     @staticmethod
     def from_config(config: Dict) -> "LocalizationScenarioConfig":
@@ -90,6 +91,7 @@ class LocalizationScenarioConfig:
             topic_odom_groundtruth=scen_config.get("topic_odom_groundtruth"),
             topic_scan_3d=scen_config["topic_scan_3d"],
             bag_sync_period=scen_config["bag_sync_period"],
+            max_iterations=scen_config.get("max_iterations") or -1,
         )
 
 
@@ -117,7 +119,12 @@ class LocalizationScenario:
             topics=topic_names,
             callback=self.__message_callback,
             grace_period_secs=self.config.bag_sync_period,
+            max_iterations=self.config.max_iterations,
         )
+
+    def export_metrics(self, out_dir: pathlib.Path) -> None:
+        """Export metrics of the estimation pipeline."""
+        self.localization_pipeline.export_trajectory(out_dir)
 
     def __message_callback(self, synced_messages: Optional[Dict], timestamp: Optional[int]) -> None:
         """Convert a synced message dictionary to a localization message and run inference."""

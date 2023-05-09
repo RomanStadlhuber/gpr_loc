@@ -12,8 +12,9 @@ from gpmcl.particle_filter import (
     Pose2D,
 )
 from gpmcl.regression import GPRegression, GPRegressionConfig
-from typing import Optional, List, Dict
+from typing import Optional, Dict
 import numpy as np
+import pandas as pd
 import argparse
 import pathlib
 import yaml
@@ -33,8 +34,10 @@ class GPMCLPipeline(LocalizationPipeline):
 
     def __init__(self, config: Dict, debug_visualize: bool = False) -> None:
         self.config = config  # dict containing the pipeline configuration
-        self.trajectory: List[np.ndarray] = []
         self.debug_visualize = debug_visualize
+        # the evaluation trajectories
+        self.df_trajectory_estimated = pd.DataFrame(columns=["x", "y", "theta"])
+        self.df_trajectory_groundtruth = pd.DataFrame(columns=["x", "y", "theta"])
 
     def initialize(self, synced_msgs: LocalizationSyncMessage) -> None:
         mapper_config = self.__get_mapper_config(self.config)
@@ -65,11 +68,19 @@ class GPMCLPipeline(LocalizationPipeline):
         self.pf.mapper.update(local_feature_map, T_updated, correspondences)
         print(f"[{timestamp}]: Map now has {len(self.pf.mapper.get_map().features)} landmarks.")
         # append posterior to trajectory
-        self.trajectory.append(T_updated)
         if synced_msgs.groundtruth:
             delta_T_error = Pose2D.from_odometry(synced_msgs.groundtruth).inv() @ T_updated
             error_norm = np.linalg.norm(Pose2D(delta_T_error).as_twist()[:2])
             print(f"[{timestamp}]: Pose error is: {error_norm}")
+        # update the trajectory dataframe
+        self.__update_trajectory(
+            # provide current estimate as twist (x, y, theta)
+            estimate=self.pf.mean().as_twist(),
+            # provide ground truth pose as twist (x, y, theta) if available
+            groundtruth=Pose2D.from_odometry(synced_msgs.groundtruth).as_twist()
+            if synced_msgs.groundtruth is not None
+            else None,
+        )
         # PCD of the latest features in the updated pose frame
         if self.debug_visualize:
             feature_pcd = local_feature_map.transform(T_updated).as_pcd()
@@ -84,14 +95,14 @@ class GPMCLPipeline(LocalizationPipeline):
                 feature_outlier_pcd=feature_outlier_pcd,
             )
 
-    def evaluate(self) -> None:
-        initial_pose, *_, last_pose = self.trajectory
-
-        x_init = Pose2D.pose_to_twist(initial_pose)
-        x_last = Pose2D.pose_to_twist(last_pose)
-
-        print(f"Initial pose (x, y, theta): {x_init}")
-        print(f"Last pose (x, y, theta): {x_last}")
+    def export_trajectory(self, out_dir: pathlib.Path) -> None:
+        # create output directory if it does not exist
+        if not out_dir.exists():
+            out_dir.mkdir()
+        self.df_trajectory_estimated.to_csv(out_dir / "trajectory_estimated.csv")
+        df_rows, *_ = self.df_trajectory_groundtruth.shape
+        if df_rows > 0:
+            self.df_trajectory_groundtruth.to_csv(out_dir / "trajectory_groundtruth.csv")
 
     def __get_pf_config(self, config: Dict) -> ParticleFilterConfig:
         return ParticleFilterConfig.from_config(config)
@@ -104,6 +115,15 @@ class GPMCLPipeline(LocalizationPipeline):
         gp_config = GPRegressionConfig.from_config(config=config, key="process_gp")
         gp = GPRegression(gp_config)
         return gp
+
+    def __update_trajectory(self, estimate: np.ndarray, groundtruth: Optional[np.ndarray] = None) -> None:
+        """Update the dataframes containing the estimated and (optionally) ground truth trajectories."""
+        # the current index is the length of the dataframe
+        idx_trajectory_curr, *_ = self.df_trajectory_estimated.shape
+        self.df_trajectory_estimated.loc[idx_trajectory_curr, :] = estimate
+        # store ground truth if provided
+        if groundtruth is not None:
+            self.df_trajectory_groundtruth.loc[idx_trajectory_curr, :] = groundtruth
 
 
 arg_parser = argparse.ArgumentParser(
@@ -127,12 +147,23 @@ arg_parser.add_argument(
     action="store_true",
 )
 
+arg_parser.add_argument(
+    "-o",
+    "--out_dir",
+    dest="out_dir",
+    metavar="out_dir",
+    type=str,
+    help="Evaluation metrics export directory.",
+    default=".",
+)
+
 if __name__ == "__main__":
     args = arg_parser.parse_args()
     config_path = pathlib.Path(args.config_path)
     config_file = open(config_path)
     config = yaml.safe_load(config_file)
     dbg_vis = args.debug_visualize
+    out_dir = pathlib.Path(args.out_dir)
     # instantiate the pipeline
     pipeline = GPMCLPipeline(config, debug_visualize=dbg_vis)
     # configure the scenario
@@ -141,3 +172,4 @@ if __name__ == "__main__":
     localization_scenario = LocalizationScenario(config=scenario_config, pipeline=pipeline)
     # run localization inference
     localization_scenario.spin_bag()
+    localization_scenario.export_metrics(out_dir)
