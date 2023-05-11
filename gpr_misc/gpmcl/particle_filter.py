@@ -103,18 +103,17 @@ class ParticleFilter:
             )
             return likelihoods.sum()
 
-        # resample the particles if their sum is too low
-        # NOTE: this also accounts for no correspondences found
-        if np.sum(self.ws) <= 1e-5 or np.any(np.isnan(self.ws)):
-            self.ws = 1 / self.M * np.ones(np.shape(self.ws))
-            self.__resample()
-            self.posterior_pose = self.mean()
-            return
-
         # update the weights for each particle
         if len(self.mapper.get_map().features) > 0:
             # do not incorporate posterior likelihood (see GP Bayes Filters paper, Table 1)
             self.ws = np.array(list(map(get_particle_weight, self.Xs)))
+            # resample the particles if their sum is too low
+            # NOTE: this also accounts for no correspondences found
+            if np.sum(self.ws) <= 1e-5 or np.any(np.isnan(self.ws)):
+                self.ws = 1 / self.M * np.ones(np.shape(self.ws))
+                self.__resample()
+                self.posterior_pose = self.mean()
+                return
             # re-normalize the weights based on the new likelihood sum
             self.ws = 1 / (np.sum(self.ws)) * self.ws
         # compute effective weight (see eq. 18 in https://www.mdpi.com/1424-8220/21/2/438)
