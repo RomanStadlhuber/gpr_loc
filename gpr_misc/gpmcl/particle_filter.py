@@ -1,103 +1,11 @@
 from rosbags.typesys.types import nav_msgs__msg__Odometry as Odometry
 from filterpy.monte_carlo import systematic_resample
-from scipy.spatial.transform import Rotation
+from transform import Pose2D
 from gpmcl.mapper import FeatureMap3D, Mapper
 from gpmcl.regression import GPRegression
 from dataclasses import dataclass
 from typing import Optional, Dict
 import numpy as np
-
-
-class Pose2D:
-    def __init__(self, T0: Optional[np.ndarray] = None) -> None:
-        self.T = T0 if T0 is not None else np.eye(3)
-
-    def as_twist(self) -> np.ndarray:
-        """Convert this pose to a global twist"""
-        return Pose2D.pose_to_twist(self.T)
-
-    def perturb(self, u: np.ndarray) -> None:
-        dT = Pose2D.twist_to_pose(u)
-        self.T = dT @ self.T
-
-    def inv(self) -> np.ndarray:
-        return Pose2D.invert_pose(self.T)
-
-    def as_t3d(self) -> np.ndarray:
-        """Obtain the transform as as 4x4 matrix in 3D space."""
-        R = self.T[:2, :2]
-        t = self.T[:2, 2].reshape(-1, 1)
-        T = np.block(
-            [
-                [R, np.zeros((2, 1)), t],
-                [np.array([0, 0, 1, 0])],
-                [np.array([0, 0, 0, 1])],
-            ]
-        )
-        return T
-
-    @staticmethod
-    def from_twist(x: np.ndarray) -> "Pose2D":
-        T = Pose2D.twist_to_pose(x)
-        return Pose2D(T)
-
-    @staticmethod
-    def twist_to_pose(twist: np.ndarray) -> np.ndarray:
-        """Converts a 3-dimensional twist vector to a 2D affine transformation."""
-        x = twist[0]
-        y = twist[1]
-        w = twist[2]
-        T = np.array(
-            [
-                [np.cos(w), -np.sin(w), x],
-                [np.sin(w), np.cos(w), y],
-                [0, 0, 1],
-            ],
-            dtype=np.float64,
-        )
-        return T
-
-    @staticmethod
-    def invert_pose(T: np.ndarray) -> np.ndarray:
-        """Inverts a 2D affine transformation."""
-        R = T[:2, :2]
-        t = np.reshape(T[:2, 2], (-1, 1))
-        T_inv = np.block(
-            [
-                [R.T, -R.T @ t],
-                [0, 0, 1],
-            ]
-        )
-        return T_inv
-
-    @staticmethod
-    def pose_to_twist(T: np.ndarray) -> np.ndarray:
-        """Converts a 2D affine transformation into a twist vector of shape `(x, y, theta)`"""
-        R = T[:2, :2]
-        sin = R[1, 0]
-        cos = R[0, 0]
-        x = T[0, 2]
-        y = T[1, 2]
-        theta = np.arctan2(sin, cos)
-        return np.array([x, y, theta], dtype=np.float64)
-
-    @staticmethod
-    def from_odometry(odom: Odometry) -> "Pose2D":
-        """Compute a 2D pose from a `nav_msgs/Odometry` message."""
-        x = odom.pose.pose.position.x
-        y = odom.pose.pose.position.y
-        rotation = Rotation.from_quat(
-            [
-                odom.pose.pose.orientation.x,
-                odom.pose.pose.orientation.y,
-                odom.pose.pose.orientation.z,
-                odom.pose.pose.orientation.w,
-            ]
-        )
-        theta, *_ = rotation.as_euler("zyx", degrees=False)
-
-        u = np.array([x, y, theta], dtype=np.float64)
-        return Pose2D.from_twist(u)
 
 
 @dataclass
@@ -167,6 +75,12 @@ class ParticleFilter:
         # TODO: should this function directly use the raw PCD instead?
         # otherwise the mapper needs to be accessed externally...
 
+        # skip update if no features or landmarks available
+        if len(Z.features) == 0 or len(self.mapper.get_map().features) == 0:
+            self.__resample()
+            self.posterior_pose = self.mean()
+            return
+
         def get_particle_weight(x: np.ndarray) -> float:
             """Compute log-likelihood for a particle state.
 
@@ -188,6 +102,14 @@ class ParticleFilter:
                 correspondences=correspondences,
             )
             return likelihoods.sum()
+
+        # resample the particles if their sum is too low
+        # NOTE: this also accounts for no correspondences found
+        if np.sum(self.ws) <= 1e-5 or np.any(np.isnan(self.ws)):
+            self.ws = 1 / self.M * np.ones(np.shape(self.ws))
+            self.__resample()
+            self.posterior_pose = self.mean()
+            return
 
         # update the weights for each particle
         if len(self.mapper.get_map().features) > 0:
