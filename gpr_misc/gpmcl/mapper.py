@@ -1,3 +1,4 @@
+from scipy.spatial.transform import Rotation
 from typing import List, Optional, Dict
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -207,11 +208,26 @@ class ISS3DMapperConfig:
     min_neighbor_count: int = 5
     # uppder bound for considering a correspondnce
     max_feature_distance: float = 0.1  # [m]
+    # transform between the 3d scan frame and base_link
+    scan_tf: np.ndarray = np.eye(4)
 
     @staticmethod
     def from_config(config: Dict) -> "ISS3DMapperConfig":
         """Load configuration from a `PyYAML.load` config document."""
         mapper_conf = config["iss3d_mapper"]
+
+        # if exists, convert the scan TF to 3D affine transform matrix
+        scan_tf = np.identity(4, dtype=np.float64)
+        scan_tf_config = mapper_conf.get("scan_tf")
+        if scan_tf_config is not None:
+            # the TF translation
+            t = np.array(scan_tf_config["position"])
+            # quaternion representing the TF rotation
+            q = np.array(scan_tf_config["orientation"])
+            R = Rotation.from_quat(q).as_matrix()
+            scan_tf[:3, :3] = R
+            scan_tf[:3, 3] = t
+
         return ISS3DMapperConfig(
             downsampling_voxel_size=mapper_conf["downsampling_voxel_size"],
             mapping_radius=mapper_conf["mapping_radius"],
@@ -220,6 +236,7 @@ class ISS3DMapperConfig:
             ratio_eigs_2_3=mapper_conf["ratio_eigs_2_3"],
             min_neighbor_count=mapper_conf["min_neighbor_count"],
             max_feature_distance=mapper_conf["max_feature_distance"],
+            scan_tf=scan_tf,
         )
 
 
@@ -242,6 +259,8 @@ class ISS3DMapper(Mapper):
         """Detect and filter ISS3D features in the input point cloud."""
         # downsampling to obtain more robust features
         downsampled_pcd = pcd.voxel_down_sample(voxel_size=self.config.downsampling_voxel_size)
+        # transform the pcd into coordinates of base_link
+        downsampled_pcd = downsampled_pcd.transform(self.config.scan_tf)
         # obtain a pointcloud with the detected features
         pcd_keypoints = open3d.geometry.keypoint.compute_iss_keypoints(
             input=downsampled_pcd,
@@ -445,7 +464,7 @@ class ISS3DMapper(Mapper):
             # normal distribution using covariance
             N = scipy.stats.multivariate_normal(cov=S)
             l = np.log(N.pdf(z - z_est))
-            return l
+            return -1 * l
 
         return np.array(list(map(likelihood, correspondences.correspondences)))
 
