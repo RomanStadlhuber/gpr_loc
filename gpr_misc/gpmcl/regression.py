@@ -1,5 +1,6 @@
 from helper_types import GPDataset, LabelledModel
 from typing import List, NamedTuple, Dict
+from transform import Pose2D
 from dataclasses import dataclass
 import pandas as pd
 import numpy as np
@@ -85,8 +86,22 @@ class GPRegression:
         # perform regression on the dataset
         D_pred = self.__regression(D_in)
         dX_pred = D_pred.labels.to_numpy()
-        # add the predicted state change to the current state
-        X_pred = X + dX_pred
+
+        def apply_control(idx: int) -> np.ndarray:
+            """Apply an local control command to the global state representation.
+
+            Uses the index `idx` to address the correct particle state and control vector.
+            """
+            x_i = X[idx, :]  # global sate of particle i
+            u_i = dX_pred[idx, :]  # local control vector for particle i
+
+            T_x_i = Pose2D.from_twist(x_i)  # convert minimal pose to transform matrix
+            T_x_i.perturb(u_i)  # apply local control command to pose transform
+            return T_x_i.as_twist()  # return the perturbed transform as minimal pose
+
+        # apply the predicted state change to all states
+        M, *_ = X.shape
+        X_pred = np.array(list(map(apply_control, range(M))))
         # return both the predicted state and the change
         return Prediction(predicted=X_pred, change=dX_pred)
 
