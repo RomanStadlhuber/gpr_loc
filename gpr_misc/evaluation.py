@@ -1,4 +1,4 @@
-from plotters import TrajectoryPlotter
+from plotting.plotters import TrajectoryPlotter
 from helper_types import GPDataset
 from scipy.linalg import lstsq
 from sklearn.metrics import mean_squared_error
@@ -26,12 +26,8 @@ class DenseToSparseEvaluation:
         print("--- root mean squared error from GP mean to groundtruth:")
         for label in labels:
             y_true = D_groundtruth.get_Y(label)
-            rmse_dense = mean_squared_error(
-                y_true=y_true, y_pred=D_dense.get_Y(label), squared=False
-            )
-            rmse_sparse = mean_squared_error(
-                y_true=y_true, y_pred=D_sparse.get_Y(label), squared=False
-            )
+            rmse_dense = mean_squared_error(y_true=y_true, y_pred=D_dense.get_Y(label), squared=False)
+            rmse_sparse = mean_squared_error(y_true=y_true, y_pred=D_sparse.get_Y(label), squared=False)
             print(f"| {label} | dense: {rmse_dense} | sparse: {rmse_sparse} |")
 
     def fit_linear_model_dense_sparse(
@@ -81,9 +77,7 @@ Starting evaluation, remark:
             y = D_sparse.get_Y(name).reshape(-1)  # collapse to 1-dim (row-vec)
             # perform linear least squares regression on the (sparse, dense) data
             # https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lstsq.html
-            (slope, _), *_ = lstsq(
-                M, y
-            )  # TODO: it seems that regression outputs are NaN!
+            (slope, _), *_ = lstsq(M, y)  # TODO: it seems that regression outputs are NaN!
             if messages:
                 print(
                     f"""
@@ -187,10 +181,6 @@ if __name__ == "__main__":
     plotter = TrajectoryPlotter(fontsize=20)
     evaluator = DenseToSparseEvaluation(plotter=plotter)
     if fit_linear_model:
-        evaluator.fit_linear_model_dense_sparse(
-            dir_dense=dense_dir, dir_sparse=sparse_dir
-        )
+        evaluator.fit_linear_model_dense_sparse(dir_dense=dense_dir, dir_sparse=sparse_dir)
     if compute_rmse and groundtruth_dir is not None:
-        evaluator.compute_rmse(
-            dir_dense=dense_dir, dir_sparse=sparse_dir, dir_groundtruth=groundtruth_dir
-        )
+        evaluator.compute_rmse(dir_dense=dense_dir, dir_sparse=sparse_dir, dir_groundtruth=groundtruth_dir)

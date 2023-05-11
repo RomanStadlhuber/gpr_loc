@@ -1,11 +1,13 @@
-from plotters import TrajectoryPlotter
-from helper_types import GPDataset
+from plotting.plotters import TrajectoryPlotter
 import plotly.graph_objects as go
-import numpy as np
 import pandas as pd
 import pathlib
 
-if __name__ == "__main__":
+# from helper_types import GPDataset
+# import numpy as np
+
+
+def plot_trajectories() -> None:
     # --- load trajectories from GPDatasets
     # region
 
@@ -37,12 +39,13 @@ if __name__ == "__main__":
     # endregion
 
     # -- load preprocessed trajectiores from GPMCL dataframes (paper no. 2)
+    # region
     pth_trajectory_est = pathlib.Path("data/gpmcl/trajectory/trajectory_estimated.csv")
     pth_trajectory_groundtruth = pathlib.Path("data/gpmcl/trajectory/trajectory_groundtruth.csv")
 
     fig = go.Figure()
     plotter = TrajectoryPlotter(fontsize=18)
-
+    # endregion
     # --- plot trajectiores for paper no. 1
     # region
 
@@ -105,7 +108,7 @@ if __name__ == "__main__":
     # region
     trajectory_estimated = pd.read_csv(pth_trajectory_est)
     trajectory_groundtruth = pd.read_csv(pth_trajectory_groundtruth)
-    color_est = "red"
+    color_est = "orange"
     color_gt = "darkgreen"
     lineplot_est = plotter.line_trace(
         x=trajectory_estimated["x"].to_numpy(),
