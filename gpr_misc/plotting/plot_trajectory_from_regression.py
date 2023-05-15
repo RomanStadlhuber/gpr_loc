@@ -4,17 +4,12 @@ from transform import Pose2D
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
-import pathlib
 
 
 def plot_trajectory_from_regression(
-    pth_trajectory_groundtruth: pathlib.Path,
-    pth_D_eval: pathlib.Path,
+    df_trajectory_groundtruth: pd.DataFrame,
+    D_eval: GPDataset,
 ) -> None:
-    # load the ground truth trajectory
-    df_trajectory_groundtruth = pd.read_csv(pth_trajectory_groundtruth, index_col=0)
-    # load the evaluated dataset (which attempts to regress the ground truth trajectory)
-    D_eval = GPDataset.load(pth_D_eval)
     # obtain the motion chanegs from the regression output
     # is a M x 3  matrix with columns x, y, theta
     motion_deltas = D_eval.labels.to_numpy()
