@@ -19,7 +19,11 @@ iss3d_mapper: # class ISS3DMapperConfig
   ratio_eigs_1_2: 0.65 # ISS3D saliency factor 1
   ratio_eigs_2_3: 0.65 # ISS3D saliency factor 2
   min_neighbor_count: 5 # req. neighbors to consider a feature
-  max_feature_distance: 0.05 # max. distance to consider matches
+  max_feature_distance: 0.15 # max. distance to consider matches
+  max_unobserved_count: 3 # how often a landmark can go unobserved
+  scan_tf: # transformation from the base to 3D-Scan frame
+    position: [0, 0, 0] # 
+    orientation: [0, 0, 0, 1] # unit quaternion
 process_gp: # class GPRegressionConfig
   model_dir: "/path/to/model/dir"
   training_data_dirs: # ALL the datasets used in training

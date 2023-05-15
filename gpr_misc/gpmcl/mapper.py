@@ -85,6 +85,14 @@ class FeatureMap3D:
         pcd = open3d.geometry.PointCloud(points=open3d.cpu.pybind.utility.Vector3dVector(points))
         return pcd
 
+    def remove_at(self, idx: int) -> None:
+        """Remove the landmark at this index.
+
+        Prefer this over `map.features.remove(idx)` due to potential refactorings
+        """
+        if idx >= 0 and idx < len(self.features):
+            del self.features[idx]
+
     def transform(self, T: np.ndarray) -> "FeatureMap3D":
         """Generate a new - transformed - feature map based on the current one.
 
@@ -210,6 +218,8 @@ class ISS3DMapperConfig:
     max_feature_distance: float = 0.1  # [m]
     # transform between the 3d scan frame and base_link
     scan_tf: np.ndarray = np.eye(4)
+    # max number of times a landmark can be unobserved
+    max_unobserved_count: int = 10
 
     @staticmethod
     def from_config(config: Dict) -> "ISS3DMapperConfig":
@@ -237,6 +247,7 @@ class ISS3DMapperConfig:
             min_neighbor_count=mapper_conf["min_neighbor_count"],
             max_feature_distance=mapper_conf["max_feature_distance"],
             scan_tf=scan_tf,
+            max_unobserved_count=mapper_conf.get("max_unobserved_count") or 10,
         )
 
 
@@ -254,6 +265,8 @@ class ISS3DMapper(Mapper):
         self.map = FeatureMap3D(features=[], frame="map")
         # set the initial guess pose (required for global map)
         self.T0 = initial_guess_pose
+        # the number of times that features in the map have been observed
+        self.unobserved_counter = np.array([], dtype=np.int32)
 
     def detect_features(self, pcd: open3d.geometry.PointCloud) -> FeatureMap3D:
         """Detect and filter ISS3D features in the input point cloud."""
@@ -316,7 +329,8 @@ class ISS3DMapper(Mapper):
         # book-keeping vector for correspondences
         # 0 means "no correspondence yet"
         # k > 0 means "a correspondence to feature k'
-        # -1 means "invalid due to ambiguity"
+        # -2 means "invalid due to ambiguity",
+        # -1 means unmatched
         Cs = -1 * np.ones((n_landmarks))
 
         # find correspondences for each observation
@@ -388,16 +402,9 @@ class ISS3DMapper(Mapper):
         # region
         if len(self.map.features) == 0:
             self.map.features = features_in_map_frame.features
+            # initialize the counters for how many times a landmark was previously unobserved
+            self.unobserved_counter = np.zeros((len(observed_features.features)), dtype=np.int32)
             return
-        # endregion
-
-        # TODO: implement an N-times unobserved tracker for landmarks!
-        # --- only keep landmarks that have been re-matched ---
-        # region
-        inlier_features = [
-            feature for idx, feature in enumerate(self.map.features) if idx not in correspondences.landmark_outlier_idxs
-        ]
-        self.map.features = inlier_features
         # endregion
 
         # --- add all previously unseen features ---
@@ -408,19 +415,38 @@ class ISS3DMapper(Mapper):
             for idx, feature in enumerate(features_in_map_frame.features)
             if idx in correspondences.feature_outlier_idxs
         ]
-        self.map.features.extend(features_previously_unseen)
+        if len(features_previously_unseen) > 0:
+            self.map.features.extend(features_previously_unseen)
+            # extend the unobserved counter as well
+            self.unobserved_counter = np.append(
+                self.unobserved_counter, np.zeros(len(features_previously_unseen), dtype=np.int32)
+            )
+        # endregion
+
+        # NOTE: it is important to make use of correspondence idxs BEFORE
+        # removing unobserved and out of range landmarks!
+        # Otherwise, the correspondence indices would be invalid, because
+        # the underlying landmarks have been modified
+        # --- only keep landmarks that have been re-matched ---
+        # region
+        self.unobserved_counter[correspondences.landmark_outlier_idxs] += 1
+        idxs_keep, *_ = np.where(self.unobserved_counter < self.config.max_unobserved_count)
+        # keep only landmarks that have been unobserved less than N times
+        self.map.features = [l for idx, l in enumerate(self.map.features) if idx in idxs_keep]
+        self.unobserved_counter = self.unobserved_counter[idxs_keep]
         # endregion
 
         # --- keep only features within the mapping range ---
         # region
         pose_position = T[:3, 3]
         # keep only features that are within bounds
-        features_in_bounds = [
-            feature
-            for feature in self.map.features
-            if np.linalg.norm(feature.position - pose_position) <= self.config.mapping_radius
+        idxs_in_range = [
+            idx
+            for idx, l in enumerate(self.map.features)
+            if np.linalg.norm(l.position - pose_position) <= self.config.mapping_radius
         ]
-        self.map.features = features_in_bounds
+        self.map.features = [l for idx, l in enumerate(self.map.features) if idx in idxs_in_range]
+        self.unobserved_counter = self.unobserved_counter[idxs_in_range]
         # endregion
 
         return
