@@ -64,7 +64,7 @@ def __encode_twist(msg: Twist, topic: str) -> List[GPFeature]:
     )
 
 
-def __encode_pcd(msg: PointCloud2, topic: str) -> List[GPFeature]:
+def __encode_pcd(_: PointCloud2, __: str) -> List[GPFeature]:
     return __to_gp_features([("del", 0.0)])
 
 
