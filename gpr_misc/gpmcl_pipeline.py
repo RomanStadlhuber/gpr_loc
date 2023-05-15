@@ -38,6 +38,8 @@ class GPMCLPipeline(LocalizationPipeline):
         # the evaluation trajectories
         self.df_trajectory_estimated = pd.DataFrame(columns=["x", "y", "theta"])
         self.df_trajectory_groundtruth = pd.DataFrame(columns=["x", "y", "theta"])
+        # a count used to print the number of iterations already performed by the filter
+        self.debug_iteration_count = 0
 
     def initialize(self, synced_msgs: LocalizationSyncMessage) -> None:
         mapper_config = self.__get_mapper_config(self.config)
@@ -54,9 +56,11 @@ class GPMCLPipeline(LocalizationPipeline):
         )
 
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
+        # increment the iteration counter
+        self.debug_iteration_count += 1
+        print(f"[{timestamp}]: iteration {self.debug_iteration_count}")
+        # actual inference begins here
         pcd = ScanTools3D.scan_msg_to_open3d_pcd(synced_msgs.scan_3d)
-        # visualize the point cloud
-        # ScanTools3D.visualize_pcd(pcd)
         local_feature_map = self.pf.mapper.detect_features(pcd)
         print(f"[{timestamp}]: Detected {len(local_feature_map.features)} features.")
         # compute the prior by sampling from the GP
