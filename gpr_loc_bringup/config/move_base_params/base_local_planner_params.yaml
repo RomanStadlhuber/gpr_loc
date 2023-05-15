@@ -35,12 +35,12 @@ TrajectoryPlannerROS:
   acc_lim_y: 0
 
   #Set the velocity limits of the robot
-  max_vel_x: 0.42
-  min_vel_x: -0.42
-  max_vel_theta: 0.9
-  min_vel_theta: -0.9
+  max_vel_x: 1.25
+  min_vel_x: -0.85
+  max_vel_theta: 0.65
+  min_vel_theta: 0.65
   max_rotational_vel: 1.0
-  min_in_place_vel_theta: 0.1
+  min_in_place_vel_theta: 0.05
   max_in_place_vel_theta: 0.85
 
   #The velocity the robot will command when trying to escape from a stuck situation
@@ -82,23 +82,23 @@ TrajectoryPlannerROS:
 DWAPlannerROS:
 
   # Robot Configuration Parameters - Kobuki
-  max_vel_x: 0.42  # 0.55
-  min_vel_x: -0.42 
+  max_vel_x: 0.85  # 0.55
+  min_vel_x: -0.85 
 
   max_vel_y: 0.0  # diff drive robot
   min_vel_y: 0.0  # diff drive robot
 
-  max_vel_trans: 0.42 # choose slightly less than the base's capability
-  min_vel_trans: -0.42  # this is the min trans velocity when there is negligible rotational velocity
-  trans_stopped_vel: 0.1
+  max_vel_trans: 0.85 # choose slightly less than the base's capability
+  min_vel_trans: -0.85  # this is the min trans velocity when there is negligible rotational velocity
+  trans_stopped_vel: 0.05
 
   # Warning!
   #   do not set min_vel_trans to 0.0 otherwise dwa will always think translational velocities
   #   are non-negligible and small in place rotational velocities will be created.
 
-  max_vel_theta: 0.9  # choose slightly less than the base's capability
-  min_vel_theta: -0.9  # this is the min angular velocity when there is negligible translational velocity
-  theta_stopped_vel: 0.1
+  max_vel_theta: 1.2 # choose slightly less than the base's capability
+  min_vel_theta: -1.2  # this is the min angular velocity when there is negligible translational velocity
+  theta_stopped_vel: 0.005
   
   acc_lim_x: 1.0 
   acc_lim_theta: 2.0
