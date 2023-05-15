@@ -15,7 +15,7 @@ def plot_trajectory_from_regression(
     motion_deltas = D_eval.labels.to_numpy()
     # the starting point of the regression trajectory
     T0 = Pose2D.from_twist(df_trajectory_groundtruth.loc[0, :].to_numpy())
-    df_trajectory_estimated = __compute_trajectory_from_deltas(motion_deltas, T0)
+    df_trajectory_estimated = compute_trajectory_from_deltas(motion_deltas, T0)
     # plot both trajectories
     fig = go.Figure()
     plotter = TrajectoryPlotter(fontsize=10)
@@ -46,7 +46,7 @@ def plot_trajectory_from_regression(
     fig.show()
 
 
-def __compute_trajectory_from_deltas(
+def compute_trajectory_from_deltas(
     motion_deltas: np.ndarray,  # motion deltas in local frame
     T0: Pose2D = Pose2D(),  # initial guess pose
 ) -> pd.DataFrame:
