@@ -158,7 +158,12 @@ class Mapper(ABC):
         pass
 
     @abstractmethod
-    def correspondence_search(self, observed_features: FeatureMap3D, pose: np.ndarray) -> CorrespondenceSearchResults3D:
+    def correspondence_search(
+        self,
+        observed_features: FeatureMap3D,
+        pose: np.ndarray,
+        Q: Optional[np.ndarray] = None,
+    ) -> CorrespondenceSearchResults3D:
         """Perform correspondence search between the observed features and the global map landmarks."""
         pass
 
@@ -174,7 +179,11 @@ class Mapper(ABC):
 
     @abstractmethod
     def get_observation_likelihoods(
-        self, observed_features: FeatureMap3D, pose: np.ndarray, correspondences: CorrespondenceSearchResults3D
+        self,
+        observed_features: FeatureMap3D,
+        pose: np.ndarray,
+        correspondences: CorrespondenceSearchResults3D,
+        Q: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Compute the likelihood for all corresponding observations"""
         pass
@@ -287,7 +296,12 @@ class ISS3DMapper(Mapper):
         loam_features = self.__filter_for_LOAM_features(iss_features)
         return loam_features
 
-    def correspondence_search(self, observed_features: FeatureMap3D, pose: np.ndarray) -> CorrespondenceSearchResults3D:
+    def correspondence_search(
+        self,
+        observed_features: FeatureMap3D,
+        pose: np.ndarray,
+        Q: Optional[np.ndarray] = None,
+    ) -> CorrespondenceSearchResults3D:
         """Perform correspondence search at the current frame"""
 
         if len(self.map.features) == 0:
@@ -340,7 +354,7 @@ class ISS3DMapper(Mapper):
                 """Compute the mahalanobis distance of an estimated feature to the current observation."""
                 z_k = f_k.as_vector()
                 z_est = estimated_feature.as_vector()
-                S = estimated_feature.covariance()
+                S = Q if Q is not None else estimated_feature.covariance()
                 delta = z_k - z_est
                 return delta.T @ S @ delta
 
@@ -452,7 +466,11 @@ class ISS3DMapper(Mapper):
         return
 
     def get_observation_likelihoods(
-        self, observed_features: FeatureMap3D, pose: np.ndarray, correspondences: CorrespondenceSearchResults3D
+        self,
+        observed_features: FeatureMap3D,
+        pose: np.ndarray,
+        correspondences: CorrespondenceSearchResults3D,
+        Q: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Compute the likelihood for all corresponding observations"""
 
@@ -486,7 +504,7 @@ class ISS3DMapper(Mapper):
             """Compute the likelihood for an individual correspondence."""
             z = observed_features.features[corresopndence.idx_feature].as_vector()
             z_est = local_map.features[corresopndence.idx_landmark].as_vector()
-            S = observed_features.features[corresopndence.idx_feature].covariance()
+            S = Q if Q is not None else observed_features.features[corresopndence.idx_feature].covariance()
             # normal distribution using covariance
             N = scipy.stats.multivariate_normal(cov=S)
             l = np.log(N.pdf(z - z_est))
