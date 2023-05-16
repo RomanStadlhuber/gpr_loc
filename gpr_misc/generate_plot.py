@@ -33,9 +33,9 @@ class PaperFigurePlotter:
 
         If there is no alignment issue, there is a problem with the frames
         """
-        D_test = GPDataset.load(pathlib.Path("data/gpmcl/gpmcl_process_test_1"))
+        D_test = GPDataset.load(pathlib.Path("data/gpmcl/gpmcl_process_test_2"))
         df_trajectory_gt = compute_trajectory_from_deltas(D_test.labels.to_numpy())
-        D_eval = GPDataset.load(pathlib.Path("data/gpmcl/gpmcl_process_dense_eval_1"))
+        D_eval = GPDataset.load(pathlib.Path("data/gpmcl/gpmcl_process_dense_eval_2"))
 
         plot_trajectory_from_regression(
             df_trajectory_gt,
@@ -45,8 +45,10 @@ class PaperFigurePlotter:
     def paper_2__compare_trajectories(self) -> None:
         # -- load preprocessed trajectiores from GPMCL dataframes (paper no. 2)
         # region
-        pth_trajectory_est = pathlib.Path("data/gpmcl/trajectory_test_1/trajectory_estimated.csv")
-        pth_trajectory_groundtruth = pathlib.Path("data/gpmcl/trajectory_test_1/trajectory_groundtruth.csv")
+        pth_trajectory_est = pathlib.Path("data/gpmcl/trajectory_test_3/trajectory_estimated.csv")
+        pth_trajectory_groundtruth = pathlib.Path("data/gpmcl/trajectory_test_3/trajectory_groundtruth.csv")
+        pth_particles = pathlib.Path("data/gpmcl/trajectory_test_3/particles.csv")
+        pth_landmarks = pathlib.Path("data/gpmcl/trajectory_test_3/landmarks.csv")
 
         fig = go.Figure()
         plotter = TrajectoryPlotter(fontsize=18)
@@ -55,6 +57,8 @@ class PaperFigurePlotter:
         # region
         trajectory_estimated = pd.read_csv(pth_trajectory_est)
         trajectory_groundtruth = pd.read_csv(pth_trajectory_groundtruth)
+        df_particles = pd.read_csv(pth_particles)
+        df_landmarks = pd.read_csv(pth_landmarks)
         color_est = "orange"
         color_gt = "darkgreen"
         lineplot_est = plotter.line_trace(
@@ -69,6 +73,27 @@ class PaperFigurePlotter:
             color=color_gt,
             name="Groundtruth trajectory",
         )
+        markers_particles = plotter.marker_trace(
+            x=df_particles["x"],
+            y=df_particles["y"],
+            symbol="circle",
+            color="black",
+            marker_size=6,
+            marker_outline_width=1,
+            name="Particles",
+        )
+        markers_landmarks = plotter.marker_trace(
+            x=df_landmarks["x"],
+            y=df_landmarks["y"],
+            symbol="diamond",
+            color="blue",
+            marker_size=10,
+            marker_outline_width=1,
+            name="Landmarks",
+        )
+
+        fig.add_trace(markers_particles)
+        fig.add_trace(markers_landmarks)
         fig.add_trace(lineplot_est)
         fig.add_trace(lineplot_gt)
         plotter.format_figure(
@@ -88,5 +113,5 @@ class PaperFigurePlotter:
 if __name__ == "__main__":
     plotter = PaperFigurePlotter()
     # plotter.paper_2__compare_gp_with_ros()
-    plotter.paper_2__trajectories_from_GPs()
+    # plotter.paper_2__trajectories_from_GPs()
     plotter.paper_2__compare_trajectories()

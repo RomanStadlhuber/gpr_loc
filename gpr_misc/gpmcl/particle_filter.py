@@ -93,15 +93,10 @@ class ParticleFilter:
                 observed_features=Z,
                 pose=predicted_pose.T,
             )
-            # TODO: what if 0 correspondences could be found?
-            # TODO: visualize map & feature inliers
-            # the likelihoods for all feature-landmark correspondences
-            likelihoods = self.mapper.get_observation_likelihoods(
-                observed_features=Z,
-                pose=predicted_pose.T,
-                correspondences=correspondences,
+            likelihood = self.mapper.get_observation_likelihood(
+                observed_features=Z, pose=predicted_pose.T, correspondences=correspondences, Q=self.Q
             )
-            return likelihoods.sum()
+            return likelihood
 
         # update the weights for each particle
         if len(self.mapper.get_map().features) > 0:
@@ -150,9 +145,9 @@ class ParticleFilter:
         T_delta_u = self.U_last.inv() @ X_est.T
         delta_u = Pose2D(T_delta_u).as_twist()
         self.U_last = X_est
-        w = np.random.default_rng().multivariate_normal(np.zeros(3), self.R, self.M)
+        # w = np.random.default_rng().multivariate_normal(np.zeros(3), self.R, self.M)
         # repeat the estimated motion and add gaussian white noise to spread the particles
-        dU = np.repeat([delta_u], self.M, axis=0) + w
+        dU = np.repeat([delta_u], self.M, axis=0)  # + w
         # return the estimated odome
         return dU
 
@@ -175,3 +170,4 @@ class ParticleFilter:
         self.M = M
         self.Xs = Xs_resampled
         self.ws = ws_resapmled
+        self.dX_last = dX_last_resampled

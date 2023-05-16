@@ -178,19 +178,14 @@ class Mapper(ABC):
         pass
 
     @abstractmethod
-    def get_observation_likelihoods(
+    def get_observation_likelihood(
         self,
         observed_features: FeatureMap3D,
         pose: np.ndarray,
         correspondences: CorrespondenceSearchResults3D,
         Q: Optional[np.ndarray] = None,
-    ) -> np.ndarray:
+    ) -> float:
         """Compute the likelihood for all corresponding observations"""
-        pass
-
-    @abstractmethod
-    def T_map(self) -> np.ndarray:
-        """Get the pose of the map in the global reference frame"""
         pass
 
     @abstractmethod
@@ -272,8 +267,6 @@ class ISS3DMapper(Mapper):
         self.config = config or ISS3DMapperConfig()
         # initialize the global map
         self.map = FeatureMap3D(features=[], frame="map")
-        # set the initial guess pose (required for global map)
-        self.T0 = initial_guess_pose
         # the number of times that features in the map have been observed
         self.unobserved_counter = np.array([], dtype=np.int32)
 
@@ -465,17 +458,17 @@ class ISS3DMapper(Mapper):
 
         return
 
-    def get_observation_likelihoods(
+    def get_observation_likelihood(
         self,
         observed_features: FeatureMap3D,
         pose: np.ndarray,
         correspondences: CorrespondenceSearchResults3D,
         Q: Optional[np.ndarray] = None,
-    ) -> np.ndarray:
+    ) -> float:
         """Compute the likelihood for all corresponding observations"""
 
         T = pose
-
+        # fallback for 2D poses
         if np.shape(pose) == (3, 3):
             R = pose[:2, :2]
             t = pose[:2, 2].reshape(-1, 1)
@@ -496,24 +489,23 @@ class ISS3DMapper(Mapper):
                 [np.zeros((1, 3)), 1.0],
             ]
         )
-        # transform the map into the local frame
-        # NOTE: this maps the landmarks into the observation space!
-        local_map = self.map.transform(T_inv)
 
-        def likelihood(corresopndence: FeatureToLandmarkCorrespondence3D) -> float:
-            """Compute the likelihood for an individual correspondence."""
-            z = observed_features.features[corresopndence.idx_feature].as_vector()
-            z_est = local_map.features[corresopndence.idx_landmark].as_vector()
-            S = Q if Q is not None else observed_features.features[corresopndence.idx_feature].covariance()
-            # normal distribution using covariance
-            N = scipy.stats.multivariate_normal(cov=S)
-            l = np.log(N.pdf(z - z_est))
-            return -1 * l
+        if len(correspondences.correspondences) == 0:
+            return 0
 
-        return np.array(list(map(likelihood, correspondences.correspondences)))
-
-    def T_map(self) -> np.ndarray:
-        return self.T0
+        # transform the map into the observation space
+        Z_est = self.map.transform(T_inv).as_matrix()
+        # get all observed features
+        Z = observed_features.as_matrix()
+        # pick the corresponding observations and their estimates
+        idxs_features = list(map(lambda c: c.idx_feature, correspondences.correspondences))
+        Z = Z[idxs_features]
+        idxs_landmarks = list(map(lambda c: c.idx_landmark, correspondences.correspondences))
+        Z_est = Z_est[idxs_landmarks]
+        deltas = Z - Z_est
+        N = scipy.stats.multivariate_normal(mean=np.zeros(3), cov=Q if Q is not None else np.eye(3))
+        likelihood = np.product(N.pdf(deltas))
+        return likelihood
 
     def get_map(self) -> FeatureMap3D:
         return self.map

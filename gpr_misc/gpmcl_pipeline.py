@@ -38,6 +38,8 @@ class GPMCLPipeline(LocalizationPipeline):
         # the evaluation trajectories
         self.df_trajectory_estimated = pd.DataFrame(columns=["x", "y", "theta"])
         self.df_trajectory_groundtruth = pd.DataFrame(columns=["x", "y", "theta"])
+        self.df_particles = pd.DataFrame(columns=["x", "y", "theta"])
+        self.df_landmarks = pd.DataFrame(columns=["x", "y"])
         # a count used to print the number of iterations already performed by the filter
         self.debug_iteration_count = 0
 
@@ -104,6 +106,8 @@ class GPMCLPipeline(LocalizationPipeline):
         if not out_dir.exists():
             out_dir.mkdir()
         self.df_trajectory_estimated.to_csv(out_dir / "trajectory_estimated.csv")
+        self.df_particles.to_csv(out_dir / "particles.csv")
+        self.df_landmarks.to_csv(out_dir / "landmarks.csv")
         df_rows, *_ = self.df_trajectory_groundtruth.shape
         if df_rows > 0:
             self.df_trajectory_groundtruth.to_csv(out_dir / "trajectory_groundtruth.csv")
@@ -125,6 +129,11 @@ class GPMCLPipeline(LocalizationPipeline):
         # the current index is the length of the dataframe
         idx_trajectory_curr, *_ = self.df_trajectory_estimated.shape
         self.df_trajectory_estimated.loc[idx_trajectory_curr, :] = estimate
+        partilces_weighted = np.hstack((self.pf.Xs, self.pf.ws.reshape(-1, 1)))
+        df_particles_curr = pd.DataFrame(columns=["x", "y", "theta", "w"], data=partilces_weighted)
+        self.df_particles = pd.concat((self.df_particles, df_particles_curr), ignore_index=True)
+        df_landmarks_curr = pd.DataFrame(columns=["x", "y"], data=self.pf.mapper.get_map().as_matrix()[:, :2])
+        self.df_landmarks = pd.concat((self.df_landmarks, df_landmarks_curr))
         # store ground truth if provided
         if groundtruth is not None:
             self.df_trajectory_groundtruth.loc[idx_trajectory_curr, :] = groundtruth
