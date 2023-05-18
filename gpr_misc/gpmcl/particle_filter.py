@@ -43,11 +43,13 @@ class ParticleFilter:
         self.Q = config.observation_covariance_Q  # observation covariance
         # sample the initial states
         # an N x 3 array representing the particles as twists
-        self.Xs = self.__sample_multivariate_normal(self.posterior_pose)
+        self.Xs = np.empty((self.M, 3))
+        self.__sample_multivariate_normal(self.posterior_pose)
         # the last pose deltas as twists, required for GP inference
         self.dX_last = np.zeros((self.M, 3), dtype=np.float64)
         # the particle weights
         self.ws = (1 / self.M) * np.ones(self.M, dtype=np.float64)  # normalized
+        self.M_eff = self.M
         # the gaussian process of the motion model
         self.GP_p = process_regressor
         # the mapper
@@ -75,18 +77,23 @@ class ParticleFilter:
             N = scipy.stats.multivariate_normal(mean=np.zeros(3), cov=self.Q)
             pose_gt = Pose2D.from_odometry(ground_truth)
             T_xs = list(map(lambda x: Pose2D.from_twist(x).T, self.Xs))
+            # compute distances between ground truth
+            distances = list(map(lambda T_x: Pose2D(T_x @ pose_gt.inv()).as_twist(), T_xs))
             # likelihoods according to the proposal distribution
-            qs = N.pdf(list(map(lambda T_x: Pose2D(pose_gt.inv() @ T_x).as_twist(), T_xs)))
+            qs = N.pdf(distances)
             # multiply all weights by their likelihoods
             self.ws *= qs
             # add small numerical offset to avoid divide-by-zero
-            self.ws += 1e-10
+            self.ws += 1e-30
             # normalize all weights
             self.ws /= np.sum(self.ws)
         # re-initialize particles if the effective is too low
-        M_eff = 1 / np.sum(np.square(self.ws))
-        if M_eff <= self.M / 2:
-            self.__sample_multivariate_normal(self.mean())
+        self.M_eff = 1 / np.sum(np.square(self.ws))
+        if self.M_eff <= self.M / 2:
+            self.__sample_multivariate_normal(
+                Pose2D.from_odometry(ground_truth) if ground_truth is not None else self.mean()
+            )
+
             return
 
         self.__resample()
@@ -98,16 +105,19 @@ class ParticleFilter:
         # convert to pose object and return
         return Pose2D.from_twist(x_mu)
 
-    def __sample_multivariate_normal(self, X0: Pose2D) -> np.ndarray:
-        """Sample particles from a multivariate normal.
+    def __sample_multivariate_normal(self, X0: Pose2D) -> None:
+        """Sample particles about the desired state.
 
-        Uses the process noise covariance `R`.
-        Returns an `N x DIM` array representing the sampled particles.
+        Samples are drawn with replacement from a multivariate normal using the process
+        covariance `R`.
+
+        Resets all particles to equal weights. Resets `self.dX_last` to all zeros.
         """
         x0 = X0.as_twist()
         # the particle states
-        Xs = np.random.default_rng().multivariate_normal(x0, self.R, (self.M,))
-        return Xs
+        self.Xs = np.random.default_rng().multivariate_normal(x0, self.R, (self.M,))
+        self.ws = 1 / self.M * np.ones(self.M)
+        self.dX_last = np.zeros((self.M, 3), dtype=np.float64)
 
     def __compute_dU(self, U: Odometry) -> np.ndarray:
         """Computes the estimated motion `dU` which is an input to the process GP."""

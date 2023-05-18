@@ -56,12 +56,12 @@ class GPMCLPipeline(LocalizationPipeline):
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
         # increment the iteration counter
         self.debug_iteration_count += 1
-        print(f"[{timestamp}]: iteration {self.debug_iteration_count}")
         # actual inference begins here
         # pcd = ScanTools3D.scan_msg_to_open3d_pcd(synced_msgs.scan_3d)
         # compute the prior by sampling from the GP
         self.pf.predict(U=synced_msgs.odom_est)
         self.pf.update(synced_msgs.groundtruth)
+        print(f"[{timestamp}]: iteration {self.debug_iteration_count}, w_eff: {self.pf.M_eff/self.pf.M}")
         # update the trajectory dataframe
         self.__update_trajectory(
             # provide current estimate as twist (x, y, theta)
