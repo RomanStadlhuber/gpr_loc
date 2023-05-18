@@ -1,11 +1,11 @@
 from rosbags.typesys.types import nav_msgs__msg__Odometry as Odometry
 from filterpy.monte_carlo import systematic_resample
 from transform import Pose2D
-from gpmcl.mapper import FeatureMap3D, Mapper
 from gpmcl.regression import GPRegression
 from dataclasses import dataclass
 from typing import Optional, Dict
 import numpy as np
+import scipy.stats
 
 
 @dataclass
@@ -29,7 +29,6 @@ class ParticleFilter:
     def __init__(
         self,
         config: ParticleFilterConfig,
-        mapper: Mapper,
         process_regressor: GPRegression,
         initial_ground_truth: Optional[Odometry] = None,
         initial_odom_estimate: Optional[Odometry] = None,
@@ -52,7 +51,7 @@ class ParticleFilter:
         # the gaussian process of the motion model
         self.GP_p = process_regressor
         # the mapper
-        self.mapper = mapper
+        # self.mapper = mapper
 
     def predict(self, U: Odometry) -> None:
         dU = self.__compute_dU(U)
@@ -64,61 +63,35 @@ class ParticleFilter:
         # set posterior (as prior)
         self.posterior_pose = self.mean()
 
-    def update(self, Z: FeatureMap3D) -> None:
+    def update(self, ground_truth: Optional[Odometry]) -> None:
         """Update the particle states using observed landmarks.
 
         ### Parameters
         `Z` - The observed features.
         `mapper` - An instance of `gpmcl.mapper.Mapper` used for updating particle states.
         """
-
-        # TODO: should this function directly use the raw PCD instead?
-        # otherwise the mapper needs to be accessed externally...
-
-        # skip update if no features or landmarks available
-        if len(Z.features) == 0 or len(self.mapper.get_map().features) == 0:
-            self.__resample()
-            self.posterior_pose = self.mean()
+        # update the particles if groundtruth is provided
+        if ground_truth is not None:
+            N = scipy.stats.multivariate_normal(mean=np.zeros(3), cov=self.Q)
+            pose_gt = Pose2D.from_odometry(ground_truth)
+            T_xs = list(map(lambda x: Pose2D.from_twist(x).T, self.Xs))
+            # likelihoods according to the proposal distribution
+            qs = N.pdf(list(map(lambda T_x: Pose2D(pose_gt.inv() @ T_x).as_twist(), T_xs)))
+            # multiply all weights by their likelihoods
+            self.ws *= qs
+            # add small numerical offset to avoid divide-by-zero
+            self.ws += 1e-10
+            # normalize all weights
+            self.ws /= np.sum(self.ws)
+        # resample particles with replacement
+        self.__resample()
+        # re-initialize particles if the effective is too low
+        M_eff = 1 / np.sum(np.square(self.ws))
+        if M_eff <= self.M / 2:
+            self.__sample_multivariate_normal(self.mean())
             return
 
-        def get_particle_weight(x: np.ndarray) -> float:
-            """Compute log-likelihood for a particle state.
-
-            Uses the currently observed features and the gobal map.
-            Comutes log-likelihood either from a Gaussian PDF or a
-            Gaussian Process based on the filters configuration.
-            """
-            predicted_pose = Pose2D.from_twist(x)
-            correspondences = self.mapper.correspondence_search(
-                observed_features=Z,
-                pose=predicted_pose.T,
-            )
-            likelihood = self.mapper.get_observation_likelihood(
-                observed_features=Z, pose=predicted_pose.T, correspondences=correspondences, Q=self.Q
-            )
-            return likelihood
-
-        # update the weights for each particle
-        if len(self.mapper.get_map().features) > 0:
-            # do not incorporate posterior likelihood (see GP Bayes Filters paper, Table 1)
-            self.ws = np.array(list(map(get_particle_weight, self.Xs)))
-            # resample the particles if their sum is too low
-            # NOTE: this also accounts for no correspondences found
-            if np.sum(self.ws) <= 1e-5 or np.any(np.isnan(self.ws)):
-                self.ws = 1 / self.M * np.ones(np.shape(self.ws))
-                self.__resample()
-                self.posterior_pose = self.mean()
-                return
-            # re-normalize the weights based on the new likelihood sum
-            self.ws = 1 / (np.sum(self.ws)) * self.ws
-        # compute effective weight (see eq. 18 in https://www.mdpi.com/1424-8220/21/2/438)
-        N_eff = 1 / np.sum(np.square(self.ws))
-        # resample the particles if the effective weights drops below half of the particles
-        # again, see the link to the publication above
-        if N_eff < (self.M / 2):
-            self.__resample()
-        # set posterior
-        self.posterior_pose = self.mean()
+        self.__resample()
 
     def mean(self) -> Pose2D:
         """Compute the mean state as pose object."""

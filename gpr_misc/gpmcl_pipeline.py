@@ -1,5 +1,4 @@
-from gpmcl.scan_tools_3d import ScanTools3D
-from gpmcl.mapper import ISS3DMapper, ISS3DMapperConfig
+# from gpmcl.scan_tools_3d import ScanTools3D
 from gpmcl.localization_scenario import (
     LocalizationScenario,
     LocalizationScenarioConfig,
@@ -44,14 +43,11 @@ class GPMCLPipeline(LocalizationPipeline):
         self.debug_iteration_count = 0
 
     def initialize(self, synced_msgs: LocalizationSyncMessage) -> None:
-        mapper_config = self.__get_mapper_config(self.config)
-        mapper = ISS3DMapper(mapper_config)
         GP_process = self.__get_process_gp(self.config)
         pf_config = self.__get_pf_config(self.config)
         # instantiate the particle filter
         self.pf = ParticleFilter(
             config=pf_config,
-            mapper=mapper,
             process_regressor=GP_process,
             initial_ground_truth=synced_msgs.groundtruth,
             initial_odom_estimate=synced_msgs.odom_est,
@@ -62,22 +58,10 @@ class GPMCLPipeline(LocalizationPipeline):
         self.debug_iteration_count += 1
         print(f"[{timestamp}]: iteration {self.debug_iteration_count}")
         # actual inference begins here
-        pcd = ScanTools3D.scan_msg_to_open3d_pcd(synced_msgs.scan_3d)
-        local_feature_map = self.pf.mapper.detect_features(pcd)
-        print(f"[{timestamp}]: Detected {len(local_feature_map.features)} features.")
+        # pcd = ScanTools3D.scan_msg_to_open3d_pcd(synced_msgs.scan_3d)
         # compute the prior by sampling from the GP
         self.pf.predict(U=synced_msgs.odom_est)
-        # compute the posterior by incorporating map
-        self.pf.update(Z=local_feature_map)
-        T_updated = self.pf.mean().T
-        correspondences = self.pf.mapper.correspondence_search(local_feature_map, T_updated)
-        self.pf.mapper.update(local_feature_map, T_updated, correspondences)
-        print(f"[{timestamp}]: Map now has {len(self.pf.mapper.get_map().features)} landmarks.")
-        # append posterior to trajectory
-        if synced_msgs.groundtruth:
-            delta_T_error = Pose2D.from_odometry(synced_msgs.groundtruth).inv() @ T_updated
-            error_norm = np.linalg.norm(Pose2D(delta_T_error).as_twist()[:2])
-            print(f"[{timestamp}]: Pose error is: {error_norm}")
+        self.pf.update(synced_msgs.groundtruth)
         # update the trajectory dataframe
         self.__update_trajectory(
             # provide current estimate as twist (x, y, theta)
@@ -87,19 +71,6 @@ class GPMCLPipeline(LocalizationPipeline):
             if synced_msgs.groundtruth is not None
             else None,
         )
-        # PCD of the latest features in the updated pose frame
-        if self.debug_visualize:
-            feature_pcd = local_feature_map.transform(T_updated).as_pcd()
-            idxs_feature_inliers = list(map(lambda c: c.idx_feature, correspondences.correspondences))
-            feature_inlier_pcd = feature_pcd.select_by_index(idxs_feature_inliers)
-            idxs_feature_outliers = correspondences.feature_outlier_idxs
-            feature_outlier_pcd = feature_pcd.select_by_index(idxs_feature_outliers)
-            ScanTools3D.visualize_scene(
-                scan_pcd=pcd.transform(self.pf.mean().as_t3d()),
-                map_pcd=self.pf.mapper.get_map().as_pcd(),
-                feature_inlier_pcd=feature_inlier_pcd,
-                feature_outlier_pcd=feature_outlier_pcd,
-            )
 
     def export_trajectory(self, out_dir: pathlib.Path) -> None:
         # create output directory if it does not exist
@@ -115,9 +86,6 @@ class GPMCLPipeline(LocalizationPipeline):
     def __get_pf_config(self, config: Dict) -> ParticleFilterConfig:
         return ParticleFilterConfig.from_config(config)
 
-    def __get_mapper_config(self, config: Dict) -> Optional[ISS3DMapperConfig]:
-        return ISS3DMapperConfig.from_config(config)
-
     def __get_process_gp(self, config: Dict) -> GPRegression:
         # load the process GP from the config
         gp_config = GPRegressionConfig.from_config(config=config, key="process_gp")
@@ -132,8 +100,8 @@ class GPMCLPipeline(LocalizationPipeline):
         partilces_weighted = np.hstack((self.pf.Xs, self.pf.ws.reshape(-1, 1)))
         df_particles_curr = pd.DataFrame(columns=["x", "y", "theta", "w"], data=partilces_weighted)
         self.df_particles = pd.concat((self.df_particles, df_particles_curr), ignore_index=True)
-        df_landmarks_curr = pd.DataFrame(columns=["x", "y"], data=self.pf.mapper.get_map().as_matrix()[:, :2])
-        self.df_landmarks = pd.concat((self.df_landmarks, df_landmarks_curr))
+        # df_landmarks_curr = pd.DataFrame(columns=["x", "y"], data=self.pf.mapper.get_map().as_matrix()[:, :2])
+        # self.df_landmarks = pd.concat((self.df_landmarks, df_landmarks_curr))
         # store ground truth if provided
         if groundtruth is not None:
             self.df_trajectory_groundtruth.loc[idx_trajectory_curr, :] = groundtruth
