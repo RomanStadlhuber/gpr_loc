@@ -83,8 +83,6 @@ class ParticleFilter:
             self.ws += 1e-10
             # normalize all weights
             self.ws /= np.sum(self.ws)
-        # resample particles with replacement
-        self.__resample()
         # re-initialize particles if the effective is too low
         M_eff = 1 / np.sum(np.square(self.ws))
         if M_eff <= self.M / 2:
