@@ -63,7 +63,7 @@ class GPRegression:
             sparse=config.is_sparse,
         )
 
-    def predict(self, Xs: np.ndarray, dX_last: np.ndarray, dU: np.ndarray) -> Prediction:
+    def predict(self, Xs: np.ndarray, dX_last: np.ndarray, U: np.ndarray) -> Prediction:
         """Predict the next state(s).
 
         Convert the input data into a `helper_types.GPDataset`.
@@ -76,9 +76,9 @@ class GPRegression:
         Returns the predicted state(s) `Xs`.
         """
         df_dX_last = pd.DataFrame(data=dX_last, columns=self.config.labels_dX_last)
-        df_dU = pd.DataFrame(data=dU, columns=self.config.labels_dU)
+        df_U = pd.DataFrame(data=U, columns=self.config.labels_dU)
         # join the datasets to obtain the feature dataset
-        df_X_in = df_dU.join(df_dX_last) if self.config.dU_first else df_dX_last.join(df_dU)
+        df_X_in = df_U.join(df_dX_last) if self.config.dU_first else df_dX_last.join(df_U)
         df_Y = pd.DataFrame()  # empty label dataset (not needed)
         D_in = GPDataset(name="anonymous (GPMCL test dataset)", features=df_X_in, labels=df_Y)
         # standard-scale the dataset for regression

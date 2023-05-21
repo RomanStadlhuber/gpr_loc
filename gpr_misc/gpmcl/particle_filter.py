@@ -55,10 +55,17 @@ class ParticleFilter:
         # the mapper
         # self.mapper = mapper
 
-    def predict(self, U: Odometry) -> None:
-        dU = self.__compute_dU(U)
+    def predict(self, odom: Odometry) -> None:
+        X_est = Pose2D.from_odometry(odom)
+        # estimated delta transformation "dU"
+        T_delta_u = self.U_last.inv() @ X_est.T
+        delta_u = Pose2D(T_delta_u).as_twist()
+        # w = np.random.default_rng().multivariate_normal(np.zeros(3), self.R, self.M)
+        # repeat the estimated motion and add gaussian white noise to spread the particles
+        U = np.repeat([delta_u], self.M, axis=0)  # + w
+        self.U_last = X_est
         # predict the next states from GP regression of the process model
-        X_predicted, dX = self.GP_p.predict(self.Xs, dX_last=self.dX_last, dU=dU)
+        X_predicted, dX = self.GP_p.predict(self.Xs, dX_last=self.dX_last, U=U)
         # update both the particles and their last state changes
         self.dX_last = dX
         self.Xs = X_predicted
@@ -120,18 +127,6 @@ class ParticleFilter:
         # the particle states
         Xs = np.random.default_rng().multivariate_normal(x0, self.R, (self.M,))
         return Xs
-
-    def __compute_dU(self, U: Odometry) -> np.ndarray:
-        """Computes the estimated motion `dU` which is an input to the process GP."""
-        X_est = Pose2D.from_odometry(U)
-        # estimated delta transformation "dU"
-        T_delta_u = self.U_last.inv() @ X_est.T
-        delta_u = Pose2D(T_delta_u).as_twist()
-        # w = np.random.default_rng().multivariate_normal(np.zeros(3), self.R, self.M)
-        # repeat the estimated motion and add gaussian white noise to spread the particles
-        dU = np.repeat([delta_u], self.M, axis=0)  # + w
-        self.U_last = X_est
-        return dU
 
     def __compute_mean_from_sample_points(self) -> np.ndarray:
         """Compute the posterior"""
