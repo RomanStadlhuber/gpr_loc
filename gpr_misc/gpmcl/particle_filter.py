@@ -60,13 +60,6 @@ class ParticleFilter:
         # estimated delta transformation "dU"
         T_delta_u = self.odom_last.inv() @ X_est.T
         delta_u = Pose2D(T_delta_u).as_twist()
-        print(
-            f"""
-odom_(t-1): {self.odom_last.as_twist()}
-odom_(t): {X_est.as_twist()}
-delta(t-1 -> t): {delta_u}
-        """
-        )
         # w = np.random.default_rng().multivariate_normal(np.zeros(3), self.R, self.M)
         # repeat the estimated motion and add gaussian white noise to spread the particles
         U = np.repeat([delta_u], self.M, axis=0)  # + w

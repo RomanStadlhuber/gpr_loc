@@ -75,6 +75,9 @@ class RosbagSyncReader:
                             callback(None, None)
                         # buffer messages if still below grace period
                         else:
+                            # use only the first arriving message
+                            # if buffered_messages.get(connection.topic) is not None:
+                            #     continue
                             msg = deserialize_cdr(
                                 ros1_to_cdr(rawdata, connection.msgtype),
                                 connection.msgtype,
