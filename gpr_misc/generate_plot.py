@@ -83,7 +83,7 @@ class PaperFigurePlotter:
             x=trajectory_odometry["x"].to_numpy(),
             y=trajectory_odometry["y"].to_numpy(),
             color=color_odom,
-            name="Groundtruth trajectory",
+            name="Odometry estimates",
         )
         markers_particles = plotter.marker_trace(
             x=df_particles["x"],

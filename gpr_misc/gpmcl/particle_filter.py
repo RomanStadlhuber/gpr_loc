@@ -36,8 +36,8 @@ class ParticleFilter:
         # the posterior is the initial guess pose
         # self.posterior_pose = Pose2D.from_odometry(initial_ground_truth) if initial_ground_truth else Pose2D()
         # the last odometry estimate is used to compute deltas
-        self.U_last = Pose2D.from_odometry(initial_odom_estimate) if initial_odom_estimate else Pose2D()
-        self.posterior_pose = self.U_last
+        self.odom_last = Pose2D.from_odometry(initial_odom_estimate) if initial_odom_estimate else Pose2D()
+        self.posterior_pose = self.odom_last
         # initialize the hyperparameters
         self.M = config.particle_count  # number of particles to track
         self.R = config.process_covariance_R  # process covariance
@@ -58,12 +58,19 @@ class ParticleFilter:
     def predict(self, odom: Odometry) -> None:
         X_est = Pose2D.from_odometry(odom)
         # estimated delta transformation "dU"
-        T_delta_u = self.U_last.inv() @ X_est.T
+        T_delta_u = self.odom_last.inv() @ X_est.T
         delta_u = Pose2D(T_delta_u).as_twist()
+        print(
+            f"""
+odom_(t-1): {self.odom_last.as_twist()}
+odom_(t): {X_est.as_twist()}
+delta(t-1 -> t): {delta_u}
+        """
+        )
         # w = np.random.default_rng().multivariate_normal(np.zeros(3), self.R, self.M)
         # repeat the estimated motion and add gaussian white noise to spread the particles
         U = np.repeat([delta_u], self.M, axis=0)  # + w
-        self.U_last = X_est
+        self.odom_last = X_est
         # predict the next states from GP regression of the process model
         X_predicted, dX = self.GP_p.predict(self.Xs, dX_last=self.dX_last, U=U)
         # update both the particles and their last state changes

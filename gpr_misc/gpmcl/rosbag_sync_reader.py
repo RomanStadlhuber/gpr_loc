@@ -43,7 +43,7 @@ class RosbagSyncReader:
         try:
             with Reader(self.bag_path) as reader:
                 # convert grace period to nsecs (used for timestamp comparsion)
-                grace_period_nsecs = int(grace_period_secs * 10e9)
+                grace_period_nsecs = grace_period_secs * 1e9
                 # a buffer used to store messages during synchronization
                 buffered_messages: Dict = dict()
                 # the last sync timestamp
