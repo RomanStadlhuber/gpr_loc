@@ -63,17 +63,17 @@ class GPRegression:
             sparse=config.is_sparse,
         )
 
-    def predict(self, X: np.ndarray, dX_last: np.ndarray, dU: np.ndarray) -> Prediction:
+    def predict(self, Xs: np.ndarray, dX_last: np.ndarray, dU: np.ndarray) -> Prediction:
         """Predict the next state(s).
 
         Convert the input data into a `helper_types.GPDataset`.
         The obtained regression data is then converted back into a matrix
-        and added to the current state(s) `X`.
+        and added to the current state(s) `Xs`.
 
-        `X` can be a single vector (e.g. `(3 x 1)`) in case of a Kalman filter
+        `Xs` can be a single vector (e.g. `(3 x 1)`) in case of a Kalman filter
         or an entire matrix (e.g. `(3 x M)`) in case of a particle filter.
 
-        Returns the predicted state(s) `X`.
+        Returns the predicted state(s) `Xs`.
         """
         df_dX_last = pd.DataFrame(data=dX_last, columns=self.config.labels_dX_last)
         df_dU = pd.DataFrame(data=dU, columns=self.config.labels_dU)
@@ -87,23 +87,20 @@ class GPRegression:
         D_pred = self.__regression(D_in)
         dX_pred = D_pred.labels.to_numpy()
 
-        def apply_control(idx: int) -> np.ndarray:
-            """Apply an local control command to the global state representation.
+        M, N = Xs.shape
+        Xs_pred = np.zeros((M, N), dtype=np.float64)
+        # update each state using its prediction
+        for i in range(M):
+            x_i = Xs[i, :]
+            T_x_i = Pose2D().from_twist(x_i)
+            # predicted motion in the local frame
+            u_i = dX_pred[i, :]
+            T_x_i.perturb(u_i)
+            x_i = T_x_i.as_twist()
+            Xs_pred[i, :] = x_i
 
-            Uses the index `idx` to address the correct particle state and control vector.
-            """
-            x_i = X[idx, :]  # global sate of particle i
-            u_i = dX_pred[idx, :]  # local control vector for particle i
-
-            T_x_i = Pose2D.from_twist(x_i)  # convert minimal pose to transform matrix
-            T_x_i.perturb(u_i)  # apply local control command to pose transform
-            return T_x_i.as_twist()  # return the perturbed transform as minimal pose
-
-        # apply the predicted state change to all states
-        M, *_ = X.shape
-        X_pred = np.array(list(map(apply_control, range(M))))
         # return both the predicted state and the change
-        return Prediction(predicted=X_pred, change=dX_pred)
+        return Prediction(predicted=Xs_pred, change=dX_pred)
 
     def __regression(self, D_test: GPDataset) -> GPDataset:
         """Perform predicton on a dataset without labels.
