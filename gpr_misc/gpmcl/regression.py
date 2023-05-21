@@ -114,7 +114,6 @@ class GPRegression:
             label = labelled_model.label
             model = labelled_model.model
             # perform regression, then rescale and export
-            # TODO: export covariance
             (Y_regr, _) = model.predict_noiseless(X_test)
             # create a dataframe for this label and join with the rest of the labels
             df_Y_regr = pd.DataFrame(columns=[label], data=Y_regr)
