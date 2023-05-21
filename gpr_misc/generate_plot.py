@@ -33,9 +33,9 @@ class PaperFigurePlotter:
 
         If there is no alignment issue, there is a problem with the frames
         """
-        D_test = GPDataset.load(pathlib.Path("data/gpmcl/gpmcl_process_test_2"))
+        D_test = GPDataset.load(pathlib.Path("data/gpmcl/datasets/gpmcl_process_test_2"))
         df_trajectory_gt = compute_trajectory_from_deltas(D_test.labels.to_numpy())
-        D_eval = GPDataset.load(pathlib.Path("data/gpmcl/gpmcl_process_dense_eval_2"))
+        D_eval = GPDataset.load(pathlib.Path("data/gpmcl/datasets/gpmcl_process_eval_2"))
 
         plot_trajectory_from_regression(
             df_trajectory_gt,
@@ -45,10 +45,14 @@ class PaperFigurePlotter:
     def paper_2__compare_trajectories(self) -> None:
         # -- load preprocessed trajectiores from GPMCL dataframes (paper no. 2)
         # region
-        pth_trajectory_est = pathlib.Path("data/gpmcl/trajectory_test_3/trajectory_estimated.csv")
-        pth_trajectory_groundtruth = pathlib.Path("data/gpmcl/trajectory_test_3/trajectory_groundtruth.csv")
-        pth_particles = pathlib.Path("data/gpmcl/trajectory_test_3/particles.csv")
-        pth_landmarks = pathlib.Path("data/gpmcl/trajectory_test_3/landmarks.csv")
+
+        data_dir = pathlib.Path("data/gpmcl/trajectories/trajectory_gt_update")
+
+        pth_trajectory_est = pathlib.Path(data_dir / "trajectory_estimated.csv")
+        pth_trajectory_groundtruth = pathlib.Path(data_dir / "trajectory_groundtruth.csv")
+        pth_trajectory_odometry = pathlib.Path(data_dir / "trajectory_odometry.csv")
+        pth_particles = pathlib.Path(data_dir / "particles.csv")
+        pth_landmarks = pathlib.Path(data_dir / "landmarks.csv")
 
         fig = go.Figure()
         plotter = TrajectoryPlotter(fontsize=18)
@@ -57,10 +61,12 @@ class PaperFigurePlotter:
         # region
         trajectory_estimated = pd.read_csv(pth_trajectory_est)
         trajectory_groundtruth = pd.read_csv(pth_trajectory_groundtruth)
+        trajectory_odometry = pd.read_csv(pth_trajectory_odometry)
         df_particles = pd.read_csv(pth_particles)
         df_landmarks = pd.read_csv(pth_landmarks)
         color_est = "orange"
         color_gt = "darkgreen"
+        color_odom = "purple"
         lineplot_est = plotter.line_trace(
             x=trajectory_estimated["x"].to_numpy(),
             y=trajectory_estimated["y"].to_numpy(),
@@ -71,6 +77,12 @@ class PaperFigurePlotter:
             x=trajectory_groundtruth["x"].to_numpy(),
             y=trajectory_groundtruth["y"].to_numpy(),
             color=color_gt,
+            name="Groundtruth trajectory",
+        )
+        lineplot_odom = plotter.line_trace(
+            x=trajectory_odometry["x"].to_numpy(),
+            y=trajectory_odometry["y"].to_numpy(),
+            color=color_odom,
             name="Groundtruth trajectory",
         )
         markers_particles = plotter.marker_trace(
@@ -96,6 +108,7 @@ class PaperFigurePlotter:
         fig.add_trace(markers_landmarks)
         fig.add_trace(lineplot_est)
         fig.add_trace(lineplot_gt)
+        fig.add_trace(lineplot_odom)
         plotter.format_figure(
             fig,
             x_title="x [m]",

@@ -37,6 +37,7 @@ class GPMCLPipeline(LocalizationPipeline):
         # the evaluation trajectories
         self.df_trajectory_estimated = pd.DataFrame(columns=["x", "y", "theta"])
         self.df_trajectory_groundtruth = pd.DataFrame(columns=["x", "y", "theta"])
+        self.df_trajectory_odometry = pd.DataFrame(columns=["x", "y", "theta"])
         self.df_particles = pd.DataFrame(columns=["x", "y", "theta"])
         self.df_landmarks = pd.DataFrame(columns=["x", "y"])
         # a count used to print the number of iterations already performed by the filter
@@ -70,6 +71,7 @@ class GPMCLPipeline(LocalizationPipeline):
             groundtruth=Pose2D.from_odometry(synced_msgs.groundtruth).as_twist()
             if synced_msgs.groundtruth is not None
             else None,
+            odometry=Pose2D.from_odometry(synced_msgs.odom_est).as_twist(),
         )
 
     def export_trajectory(self, out_dir: pathlib.Path) -> None:
@@ -82,6 +84,9 @@ class GPMCLPipeline(LocalizationPipeline):
         df_rows, *_ = self.df_trajectory_groundtruth.shape
         if df_rows > 0:
             self.df_trajectory_groundtruth.to_csv(out_dir / "trajectory_groundtruth.csv")
+        df_rows, *_ = self.df_trajectory_odometry.shape
+        if df_rows > 0:
+            self.df_trajectory_odometry.to_csv(out_dir / "trajectory_odometry.csv")
 
     def __get_pf_config(self, config: Dict) -> ParticleFilterConfig:
         return ParticleFilterConfig.from_config(config)
@@ -92,7 +97,9 @@ class GPMCLPipeline(LocalizationPipeline):
         gp = GPRegression(gp_config)
         return gp
 
-    def __update_trajectory(self, estimate: np.ndarray, groundtruth: Optional[np.ndarray] = None) -> None:
+    def __update_trajectory(
+        self, estimate: np.ndarray, groundtruth: Optional[np.ndarray] = None, odometry: Optional[np.ndarray] = None
+    ) -> None:
         """Update the dataframes containing the estimated and (optionally) ground truth trajectories."""
         # the current index is the length of the dataframe
         idx_trajectory_curr, *_ = self.df_trajectory_estimated.shape
@@ -105,6 +112,8 @@ class GPMCLPipeline(LocalizationPipeline):
         # store ground truth if provided
         if groundtruth is not None:
             self.df_trajectory_groundtruth.loc[idx_trajectory_curr, :] = groundtruth
+        if odometry is not None:
+            self.df_trajectory_odometry.loc[idx_trajectory_curr, :] = odometry
 
 
 arg_parser = argparse.ArgumentParser(
