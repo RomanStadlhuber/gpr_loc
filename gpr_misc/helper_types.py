@@ -108,12 +108,13 @@ class GPDataset:
 
         # at first, fit the scalers if none were provided
         if scalers is None:
-            feature_scaler.fit(self.features)
+            feature_scaler.fit(self.features[self.features.columns])
             if not self.labels.empty:
-                label_scaler.fit(self.labels)
+                label_scaler.fit(self.labels[self.labels.columns])
 
         self.features[self.features.columns] = feature_scaler.transform(self.features[self.features.columns])
-        # only apply scaling to features if it exists
+        # only apply scaling to labels if they exist
+        # this is done because test datasets might not have label values
         if not self.labels.empty:
             self.labels[self.labels.columns] = label_scaler.transform(self.labels[self.labels.columns])
         # return the fitted scaler
