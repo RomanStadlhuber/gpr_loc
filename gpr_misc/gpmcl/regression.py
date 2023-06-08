@@ -107,7 +107,12 @@ class GPRegression:
 
         This function assumes that `D.Y` is empty and ignores it.
         """
-
+        all_in_bounds, _ = self.D_train.check_in_bounds(D_test)
+        if not all_in_bounds:
+            raise RuntimeError(f"""
+Unable to perform GP Regression.
+The feature values of the input GPDataset do not fall within the trained bounds of the training GPDataset.            
+""")
         X_test = D_test.get_X()
         regression_labels = pd.DataFrame()
         for labelled_model in self.labelled_models:
