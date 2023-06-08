@@ -91,10 +91,8 @@ class ParticleFilter:
             z = self.Xs[:, :2]
             qs = N_pgs.pdf(z)
             self.ws = qs
-            # add small numerical offset to avoid divide-by-zero
-            self.ws += 1e-30
             # normalize all weights
-            self.ws /= np.sum(self.ws)
+            self.ws /= np.sum(self.ws) + 1e-30
         # re-initialize particles if the effective is too low
         self.M_eff = 1 / np.sum(np.square(self.ws))
         if self.M_eff <= self.M / 2:
