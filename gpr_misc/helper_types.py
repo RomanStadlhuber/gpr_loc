@@ -80,6 +80,35 @@ class GPDataset:
         joined_labels = pd.concat([other.labels for other in others])
         return GPDataset(name=name, features=joined_features, labels=joined_labels)
 
+    def check_in_bounds(self, other: "GPDataset") -> Tuple[bool, np.ndarray]:
+        """Compute whether `other.features` lie within the trained bounds.
+        
+        Returns a tuple of the form `(all_in_bounds, individual)`
+        where `individual` lists the result of the bounds check on a per-input basis.
+
+        ### Example
+
+        This example shows the output for inputs of shape `(N_rows, 6)`.
+
+        ```
+        >>> X = np.random.rand(2, 6) # get random input
+        >>> X /= np.linalg.norm(X) # normalize the input
+        >>> D_test(features=X, labels=np.zeros((2,3)))
+        >>> all_in_bounds, individual = D_train.check_in_bounds(D_test)
+        >>> all_in_bounds
+        False
+        >>> individual
+        array([[1, 1 , 1, 0, 1, 0], [1 ,1 ,1 ,1 ,1 ,1]])
+        ```
+        """
+        X = self.get_X()
+        x_min = X.min(axis=0) # lower training bound
+        x_max = X.max(axis=0) # upper training bound
+        X_other = other.get_X() # features of the other datasets
+        # perform the boundary check
+        X_in_bounds = np.where((X_other >= x_min) & (X <= x_max), 1, 0)
+        return bool(np.all(X_in_bounds)), X_in_bounds
+
     def get_X(self) -> np.ndarray:
         """obtain a column-vector matrix of the dataset features"""
         return self.features.to_numpy()
