@@ -106,7 +106,7 @@ class GPDataset:
         x_max = X.max(axis=0) # upper training bound
         X_other = other.get_X() # features of the other datasets
         # perform the boundary check
-        X_in_bounds = np.where((X_other >= x_min) & (X <= x_max), 1, 0)
+        X_in_bounds = np.where((X_other >= x_min) & (X_other <= x_max), 1, 0)
         return bool(np.all(X_in_bounds)), X_in_bounds
 
     def get_X(self) -> np.ndarray:
