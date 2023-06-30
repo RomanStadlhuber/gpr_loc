@@ -48,11 +48,9 @@ class Mapper:
         self.feature_comp_search_param = open3d.geometry.KDTreeSearchParamHybrid(radius=1, max_nn=100)
         # map starts out as empty point cloud
         self.pcd_map = open3d.geometry.PointCloud()
-        # the features for the map are empty also
-        self.features_map = open3d.pipelines.registration.Feature()
         # there also need to be buffers for the current scan and its features
-        self.pcd_scan = open3d.geometry.PointCloud()
-        self.features_scan = open3d.pipelines.registration.Feature()
+        self.pcd_scan_last = self.pcd_scan = open3d.geometry.PointCloud()
+        self.features_scan_last = self.features_scan = open3d.pipelines.registration.Feature()
         # the set of correspondences between the current scan and the map
         self.correspondences = open3d.utility.Vector2iVector()
         pass
@@ -76,13 +74,13 @@ class Mapper:
             input=self.pcd_scan, search_param=self.feature_comp_search_param
         )
         # endregion
-        if self.pcd_map.is_empty():
+        if self.pcd_map.is_empty() and self.pcd_scan_last.is_empty():
             return []
         else:
             # compute mutual correspondences betweem the map and current scan
             self.correspondences = open3d.pipelines.registration.correspondences_from_features(
                 source_features=self.features_scan,
-                target_features=self.features_map,
+                target_features=self.features_scan_last,
                 mutual_filter=True,
             )
             correspondence_idxs = np.asarray(self.correspondences)
@@ -100,12 +98,8 @@ class Mapper:
         # this assumes that the Scan-TF has already been applied
         # NOTE: transforming is not an in-place operation (very unfortunate..)
         self.pcd_scan = self.pcd_scan.transform(pose)
-        if self.pcd_map.is_empty():
+        if self.pcd_map.is_empty() and self.pcd_scan_last.is_empty():
             self.pcd_map = self.pcd_scan
-            # re-compute the features for the map to be sure they aling with the transform
-            self.features_map = open3d.pipelines.registration.compute_fpfh_feature(
-                input=self.pcd_map, search_param=self.feature_comp_search_param
-            )
         else:
             # here we assume that the pose argument represents the current pose of the scan in the map frame
             # mere the current scan into the map
@@ -113,11 +107,12 @@ class Mapper:
             # downsample the merged PCDs to remove duplicate points
             # (see: http://www.open3d.org/docs/latest/tutorial/Advanced/multiway_registration.html#Make-a-combined-point-cloud)
             self.pcd_map = self.pcd_map.voxel_down_sample(voxel_size=self.config.downsampling_voxel_size)
-            # re-estimate the normals for the merged map PCD
-            # this assures that features remain consistend with the updated map
-            self.pcd_map.estimate_normals(self.normal_est_search_param)
-            self.features_map = open3d.pipelines.registration.compute_fpfh_feature(
-                input=self.pcd_map, search_param=self.feature_comp_search_param
-            )
-            # reset the correspondences
-            self.correspondences = open3d.utility.Vector2iVector()
+        # buffer the last scan for feature computation and matching in next iteration
+        self.pcd_scan_last = self.pcd_scan
+        # self.pcd_scan_last.estimate_normals(self.normal_est_search_param)
+        # compute features for the last scan
+        self.features_scan_last = open3d.pipelines.registration.compute_fpfh_feature(
+            input=self.pcd_scan_last, search_param=self.feature_comp_search_param
+        )
+        # reset the correspondences
+        self.correspondences = open3d.utility.Vector2iVector()
