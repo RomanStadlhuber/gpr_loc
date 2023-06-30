@@ -4,6 +4,35 @@ from typing import Optional
 import numpy as np
 
 
+def odometry_msg_to_affine_transform(odom: Odometry) -> np.ndarray:
+    """Helper to convert a `nav_msgs/Odometry` message into a 4x4 affine transform."""
+    rotation = Rotation.from_quat(
+        [
+            odom.pose.pose.orientation.x,
+            odom.pose.pose.orientation.y,
+            odom.pose.pose.orientation.z,
+            odom.pose.pose.orientation.w,
+        ]
+    )
+    Rmat = rotation.as_matrix()
+    tvec = np.array(
+        [
+            odom.pose.pose.position.x,
+            odom.pose.pose.position.y,
+            odom.pose.pose.position.z,
+        ],
+        dtype=np.float64,
+    )
+    affine_tf = np.block(  # type: ignore
+        [
+            [Rmat, tvec.reshape((3, 1))],
+            [0, 0, 0, 1],
+        ],
+        dtype=np.float64,
+    )
+    return affine_tf
+
+
 class Pose2D:
     def __init__(self, T0: Optional[np.ndarray] = None) -> None:
         self.T = T0 if T0 is not None else np.eye(3)
