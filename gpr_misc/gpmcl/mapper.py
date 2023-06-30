@@ -85,12 +85,13 @@ class Mapper:
                 target_features=self.features_map,
                 mutual_filter=True,
             )
+            correspondence_idxs = np.asarray(self.correspondences)
             # PCD points need to be cast from C++ vectors into numpy arrays first
-            points_map = np.asarray(self.pcd_map, dtype=np.float64)
-            points_scan = np.asarray(self.pcd_scan, dtype=np.float64)
+            points_map = np.asarray(self.pcd_map.points, dtype=np.float64)
+            points_scan = np.asarray(self.pcd_scan.points, dtype=np.float64)
             # list of corresponding (feature_position, landmark_position) 3D-vectors
             corresponding_features_and_landmarks = list(
-                map(lambda c_i_j: (points_scan[c_i_j[0]], points_map[c_i_j[1]]), self.correspondences)
+                map(lambda c_i_j: (points_scan[c_i_j[0]], points_map[c_i_j[1]]), correspondence_idxs)
             )
             return corresponding_features_and_landmarks
 
