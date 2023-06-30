@@ -61,7 +61,7 @@ class GPMCLPipeline(LocalizationPipeline):
         )
 
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
-        pcd_scan = ScanTools3D.scan_msg_to_open3d_pcd(synced_msgs.scan_3d)
+        pcd_scan = ScanTools3D.pointcloud2_to_open3d_pointcloud(synced_msgs.scan_3d)
         self.mapper.compute_scan_correspondences_to_map(pcd_scan)
         if synced_msgs.groundtruth is not None:
             T_curr = odometry_msg_to_affine_transform(synced_msgs.groundtruth)
