@@ -2,10 +2,11 @@
 # - only open3d PCDs to represent landmarks
 # - KD tree search to find correspondences
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Tuple
 from scipy.spatial.transform import Rotation
 import numpy as np
 import open3d
+
 
 @dataclass
 class MapperConfig:
@@ -13,54 +14,109 @@ class MapperConfig:
     scan_tf: np.ndarray = np.eye(4, dtype=np.float64)
 
     @staticmethod
-    def from_config(config:Dict) -> "MapperConfig":
+    def from_config(config: Dict) -> "MapperConfig":
         scan_tf: Optional[Dict] = config.get("scan_tf")
         if scan_tf is not None:
-            downsampling_voxel_size:Optional[float] = config.get("downsampling_voxel_size")
+            downsampling_voxel_size: Optional[float] = config.get("downsampling_voxel_size")
             # --- load scan TF
             # region
             scan_translation = np.array(scan_tf.get("position"), dtype=np.float64)
             scan_orientation = np.array(scan_tf.get("orientation"), dtype=np.float64)
             R_scan = Rotation.from_quat(scan_orientation).as_matrix()
-            t_scan = scan_translation.reshape((3,1))
-            T_scan = np.block([ # type: ignore
-                [R_scan, t_scan],
-                [0,0,0,1]
-            ], dtpye=np.float64)
+            t_scan = scan_translation.reshape((3, 1))
+            T_scan = np.block([[R_scan, t_scan], [0, 0, 0, 1]], dtpye=np.float64)  # type: ignore
             # endregion
-            return MapperConfig(scan_tf=T_scan, downsampling_voxel_size=downsampling_voxel_size or 0.05,)
-        else: 
+            return MapperConfig(
+                scan_tf=T_scan,
+                downsampling_voxel_size=downsampling_voxel_size or 0.05,
+            )
+        else:
             return MapperConfig()
-
 
 
 class Mapper:
     def __init__(self, config: MapperConfig) -> None:
         self.config = config
+        # the radius used for normal estimation
+        self.radius_normal = config.downsampling_voxel_size * 2
+        # the common configuration for estimating point normals
+        self.normal_est_search_param = open3d.geometry.KDTreeSearchParamHybrid(
+            radius=self.radius_normal,
+            max_nn=30,
+        )
+        # the common configuration for estimating point cloud features
+        self.feature_comp_search_param = open3d.geometry.KDTreeSearchParamHybrid(radius=1, max_nn=100)
         # map starts out as empty point cloud
         self.pcd_map = open3d.geometry.PointCloud()
         # the features for the map are empty also
         self.features_map = open3d.pipelines.registration.Feature()
+        # there also need to be buffers for the current scan and its features
+        self.pcd_scan = open3d.geometry.PointCloud()
+        self.features_scan = open3d.pipelines.registration.Feature()
+        # the set of correspondences between the current scan and the map
+        self.correspondences = open3d.utility.Vector2iVector()
         pass
 
-    def process_scan(self, pcd: open3d.geometry.PointCloud) -> None:
+    def compute_scan_correspondences_to_map(
+        self, pcd_scan_curr: open3d.geometry.PointCloud
+    ) -> List[Tuple[np.ndarray, np.ndarray]]:
         """Compute features for a scan and store it for the next iteration."""
+        # preprocess the scan and compute its features
+        # region
         # downsample the scan
-        # pcd = pcd.voxel_down_sample(voxel_size=self.config.downsampling_voxel_size)
+        self.pcd_scan = pcd_scan_curr.voxel_down_sample(voxel_size=self.config.downsampling_voxel_size)
+        # remove reference to the input parameter to prevent incorrect access at a later time
+        del pcd_scan_curr
         # transform the scan into the base frame
-        pcd = pcd.transform(self.config.scan_tf)
+        self.pcd_scan = self.pcd_scan.transform(self.config.scan_tf)
         # estimate normals using the default settings
-        pcd.estimate_normals()
+        self.pcd_scan.estimate_normals(self.normal_est_search_param)
         # compute the FPFH features for the downsampled scan
-        features = open3d.pipelines.registration.compute_fpfh_feature(
-            input=pcd,
-            search_param=open3d.geometry.KDTreeSearchParamHybrid(radius=1, max_nn=100)
+        self.features_scan = open3d.pipelines.registration.compute_fpfh_feature(
+            input=self.pcd_scan, search_param=self.feature_comp_search_param
         )
+        # endregion
         if self.pcd_map.is_empty():
-            self.pcd_map = pcd
-            self.features_map = features
+            return []
         else:
-            # TODO: perform feature correspondence estimation and return
-            # landmarks and observed features for the PFs likelihood computation
-            pass
+            # compute mutual correspondences betweem the map and current scan
+            self.correspondences = open3d.pipelines.registration.correspondences_from_features(
+                source_features=self.features_scan,
+                target_features=self.features_map,
+                mutual_filter=True,
+            )
+            # PCD points need to be cast from C++ vectors into numpy arrays first
+            points_map = np.asarray(self.pcd_map, dtype=np.float64)
+            points_scan = np.asarray(self.pcd_scan, dtype=np.float64)
+            # list of corresponding (feature_position, landmark_position) 3D-vectors
+            corresponding_features_and_landmarks = list(
+                map(lambda c_i_j: (points_scan[c_i_j[0]], points_map[c_i_j[1]]), self.correspondences)
+            )
+            return corresponding_features_and_landmarks
 
+    def update_map(self, pose: np.ndarray):
+        # transform the scan PCD into the current pose (needed for both initialization and update)
+        # this assumes that the Scan-TF has already been applied
+        # NOTE: transforming is not an in-place operation (very unfortunate..)
+        self.pcd_scan = self.pcd_scan.transform(pose)
+        if self.pcd_map.is_empty():
+            self.pcd_map = self.pcd_scan
+            # re-compute the features for the map to be sure they aling with the transform
+            self.features_map = open3d.pipelines.registration.compute_fpfh_feature(
+                input=self.pcd_map, search_param=self.feature_comp_search_param
+            )
+        else:
+            # here we assume that the pose argument represents the current pose of the scan in the map frame
+            # mere the current scan into the map
+            self.pcd_map += self.pcd_scan
+            # downsample the merged PCDs to remove duplicate points
+            # (see: http://www.open3d.org/docs/latest/tutorial/Advanced/multiway_registration.html#Make-a-combined-point-cloud)
+            self.pcd_map = self.pcd_map.voxel_down_sample(voxel_size=self.config.downsampling_voxel_size)
+            # re-estimate the normals for the merged map PCD
+            # this assures that features remain consistend with the updated map
+            self.pcd_map.estimate_normals(self.normal_est_search_param)
+            self.features_map = open3d.pipelines.registration.compute_fpfh_feature(
+                input=self.pcd_map, search_param=self.feature_comp_search_param
+            )
+            # reset the correspondences
+            self.correspondences = open3d.utility.Vector2iVector()
