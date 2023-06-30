@@ -27,8 +27,7 @@ def odometry_msg_to_affine_transform(odom: Odometry) -> np.ndarray:
         [
             [Rmat, tvec.reshape((3, 1))],
             [0, 0, 0, 1],
-        ],
-        dtype=np.float64,
+        ]
     )
     return affine_tf
 
