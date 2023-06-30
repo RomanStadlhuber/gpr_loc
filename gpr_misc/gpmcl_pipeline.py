@@ -67,6 +67,9 @@ class GPMCLPipeline(LocalizationPipeline):
             T_curr = odometry_msg_to_affine_transform(synced_msgs.groundtruth)
             self.mapper.update_map(pose=T_curr)
             self.visualizer.update([self.mapper.pcd_map])
+            map_points = np.asarray(self.mapper.pcd_map.points)
+            print(f"Map contains {map_points.shape[0]} points.")
+
         else:
             return
 
