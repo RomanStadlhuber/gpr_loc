@@ -10,6 +10,8 @@ from gpmcl.particle_filter import (
     ParticleFilterConfig,
     Pose2D,
 )
+from gpmcl.mapper import MapperConfig, Mapper
+from gpmcl.scan_tools_3d import ScanTools3D
 from gpmcl.regression import GPRegression, GPRegressionConfig
 from typing import Optional, Dict
 import numpy as np
@@ -42,6 +44,9 @@ class GPMCLPipeline(LocalizationPipeline):
         self.df_landmarks = pd.DataFrame(columns=["x", "y"])
         # a count used to print the number of iterations already performed by the filter
         self.debug_iteration_count = 0
+        # keep a mapper for testing purposes
+        mapper_config = self.__get_mapper_config(self.config)
+        self.mapper = Mapper(mapper_config)
 
     def initialize(self, synced_msgs: LocalizationSyncMessage) -> None:
         GP_process = self.__get_process_gp(self.config)
@@ -55,24 +60,32 @@ class GPMCLPipeline(LocalizationPipeline):
         )
 
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
+
+        pcd_scan = ScanTools3D.scan_msg_to_open3d_pcd(synced_msgs.scan_3d)
+        self.mapper.process_scan(pcd_scan)
+
+        # region
+
         # increment the iteration counter
         self.debug_iteration_count += 1
         # actual inference begins here
         # pcd = ScanTools3D.scan_msg_to_open3d_pcd(synced_msgs.scan_3d)
         # compute the prior by sampling from the GP
-        self.pf.predict(odom=synced_msgs.odom_est)
-        self.pf.update(None)
-        print(f"[{timestamp}]: iteration {self.debug_iteration_count}, w_eff: {self.pf.M_eff/self.pf.M}")
-        # update the trajectory dataframe
-        self.__update_trajectory(
-            # provide current estimate as twist (x, y, theta)
-            estimate=self.pf.mean().as_twist(),
-            # provide ground truth pose as twist (x, y, theta) if available
-            groundtruth=Pose2D.from_odometry(synced_msgs.groundtruth).as_twist()
-            if synced_msgs.groundtruth is not None
-            else None,
-            odometry=Pose2D.from_odometry(synced_msgs.odom_est).as_twist(),
-        )
+        # self.pf.predict(odom=synced_msgs.odom_est)
+        # self.pf.update(None)
+        # print(f"[{timestamp}]: iteration {self.debug_iteration_count}, w_eff: {self.pf.M_eff/self.pf.M}")
+        # # update the trajectory dataframe
+        # self.__update_trajectory(
+        #     # provide current estimate as twist (x, y, theta)
+        #     estimate=self.pf.mean().as_twist(),
+        #     # provide ground truth pose as twist (x, y, theta) if available
+        #     groundtruth=Pose2D.from_odometry(synced_msgs.groundtruth).as_twist()
+        #     if synced_msgs.groundtruth is not None
+        #     else None,
+        #     odometry=Pose2D.from_odometry(synced_msgs.odom_est).as_twist(),
+        # )
+
+        # endregion
 
     def export_trajectory(self, out_dir: pathlib.Path) -> None:
         # create output directory if it does not exist
@@ -90,6 +103,10 @@ class GPMCLPipeline(LocalizationPipeline):
 
     def __get_pf_config(self, config: Dict) -> ParticleFilterConfig:
         return ParticleFilterConfig.from_config(config)
+
+    def __get_mapper_config(self, config: Dict) -> MapperConfig:
+        return MapperConfig.from_config(config)
+
 
     def __get_process_gp(self, config: Dict) -> GPRegression:
         # load the process GP from the config
