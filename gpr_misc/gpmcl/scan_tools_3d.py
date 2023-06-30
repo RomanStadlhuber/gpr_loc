@@ -139,6 +139,8 @@ class PointCloudVisualizer:
     def __init__(self) -> None:
         self.vis = open3d.visualization.Visualizer()
         self.started = False
+        # this is needed once to initialize the view-point
+        self.geometry_added = False
 
     def update(self, pcds: List[open3d.geometry.PointCloud]) -> None:
         """Update the visualizer with a (consistent) set of point clouds."""
@@ -160,7 +162,9 @@ class PointCloudVisualizer:
         """
         for pcd in pcds:
             self.vis.remove_geometry(pcd)
-            self.vis.add_geometry(pcd)
+            self.vis.add_geometry(pcd, reset_bounding_box=(not self.geometry_added))
+        if not self.geometry_added:
+            self.geometry_added = True
 
     def __update_window(self) -> None:
         self.vis.poll_events()
