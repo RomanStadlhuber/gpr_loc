@@ -10,7 +10,7 @@ from gpmcl.particle_filter import (
     ParticleFilterConfig,
 )
 from gpmcl.mapper import MapperConfig, Mapper
-from gpmcl.scan_tools_3d import ScanTools3D
+from gpmcl.scan_tools_3d import ScanTools3D, PointCloudVisualizer
 from gpmcl.regression import GPRegression, GPRegressionConfig
 from transform import odometry_msg_to_affine_transform
 from typing import Optional, Dict
@@ -47,6 +47,7 @@ class GPMCLPipeline(LocalizationPipeline):
         # keep a mapper for testing purposes
         mapper_config = self.__get_mapper_config(self.config)
         self.mapper = Mapper(mapper_config)
+        self.visualizer = PointCloudVisualizer()
 
     def initialize(self, synced_msgs: LocalizationSyncMessage) -> None:
         GP_process = self.__get_process_gp(self.config)
@@ -65,6 +66,7 @@ class GPMCLPipeline(LocalizationPipeline):
         if synced_msgs.groundtruth is not None:
             T_curr = odometry_msg_to_affine_transform(synced_msgs.groundtruth)
             self.mapper.update_map(pose=T_curr)
+            self.visualizer.update([self.mapper.pcd_map])
         else:
             return
 
@@ -72,6 +74,7 @@ class GPMCLPipeline(LocalizationPipeline):
 
         # increment the iteration counter
         self.debug_iteration_count += 1
+        print(f"Iteration {self.debug_iteration_count}.")
         # actual inference begins here
         # pcd = ScanTools3D.scan_msg_to_open3d_pcd(synced_msgs.scan_3d)
         # compute the prior by sampling from the GP

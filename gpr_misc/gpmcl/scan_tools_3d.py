@@ -135,34 +135,33 @@ class ScanTools3D:
         pcd.colors = open3d.cpu.pybind.utility.Vector3dVector(colors)
 
 
-# class PointCloudVisualizer:
-#     def __init__(self) -> None:
-#         self.vis = open3d.visualization.Visualizer()
-#         self.started = False
-#
-#     def update(self, pcds: List[open3d.geometry.PointCloud]) -> None:
-#         """Update the visualizer with a (consistent) set of point clouds."""
-#         if not self.started:
-#             self.vis.create_window()
-#             self.__add_pcds(pcds)
-#         else:
-#             self.__update_pcds(pcds)
-#         self.__update_window()
-#
-#     def terminate(self) -> None:
-#         self.vis.destroy_window()
-#
-#     def __add_pcds(self, pcds: List[open3d.geometry.PointCloud]) -> None:
-#         """Add an individual PCD to the visualizers window."""
-#         for pcd in pcds:
-#             self.vis.add_geometry(pcd)
-#         self.started = True
-#
-#     def __update_pcds(self, pcds: List[open3d.geometry.PointCloud]) -> None:
-#         """Update an already displayed PCD."""
-#         for pcd in pcds:
-#             self.vis.update_geometry(pcd)
-#
-#     def __update_window(self) -> None:
-#         self.vis.poll_events()
-#         self.vis.update_renderer()
+class PointCloudVisualizer:
+    def __init__(self) -> None:
+        self.vis = open3d.visualization.Visualizer()
+        self.started = False
+
+    def update(self, pcds: List[open3d.geometry.PointCloud]) -> None:
+        """Update the visualizer with a (consistent) set of point clouds."""
+        if not self.started:
+            self.vis.create_window()
+            self.started = True
+        else:
+            self.__update_pcds(pcds)
+            self.__update_window()
+
+    def terminate(self) -> None:
+        self.vis.destroy_window()
+
+    def __update_pcds(self, pcds: List[open3d.geometry.PointCloud]) -> None:
+        """Update an already displayed PCD.
+
+        This removes all geometry and adds it anew.
+        Unfortunately, this is the only way that it will work right now.
+        """
+        for pcd in pcds:
+            self.vis.remove_geometry(pcd)
+            self.vis.add_geometry(pcd)
+
+    def __update_window(self) -> None:
+        self.vis.poll_events()
+        self.vis.update_renderer()
