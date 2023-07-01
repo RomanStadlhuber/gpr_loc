@@ -1,11 +1,12 @@
 from rosbags.typesys.types import nav_msgs__msg__Odometry as Odometry
 from filterpy.monte_carlo import systematic_resample
-from transform import Pose2D
+from transform import Pose2D, point_to_observation, observation_delta
 from gpmcl.regression import GPRegression
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple, List
 import numpy as np
 import scipy.stats
+import open3d
 
 
 @dataclass
@@ -75,7 +76,11 @@ class ParticleFilter:
         # set posterior (as prior)
         self.posterior_pose = self.mean()
 
-    def update(self, ground_truth: Optional[Odometry]) -> None:
+    def update(
+            self, 
+            ground_truth: Optional[Odometry], 
+            features_and_landmarks: Tuple[open3d.geometry.PointCloud, open3d.geometry.PointCloud],
+        ) -> None:
         """Update the particle states using observed landmarks.
 
         ### Parameters
@@ -93,6 +98,33 @@ class ParticleFilter:
             self.ws = qs
             # normalize all weights
             self.ws /= np.sum(self.ws) + 1e-30
+
+        
+        if features_and_landmarks is not None:
+            pcd_features, pcd_landmarks = features_and_landmarks
+            # feature observations are the same for every particle
+            observed_features = list(map(point_to_observation, np.asarray(pcd_features.points)))
+            for idx, x in enumerate(self.Xs):
+                # 3d affine transform representing the inverse of the particles pose
+                T_x_i_inv = Pose2D.from_twist(x).inv3d()
+                # copy of the landmark-pcd for use in this particles frame
+                # a copy is required because in-place transform would otherwise act on the original data
+                pcd_landmarks_in_x_i = open3d.geometry.PointCloud(pcd_landmarks)
+                # transform the landmarks into the particles pose frame
+                pcd_landmarks_in_x_i.transform(T_x_i_inv)
+                # convert landmarks to range-bearing-bearing observations
+                observed_landmarks_i = list(map(point_to_observation, np.asarray(pcd_landmarks_in_x_i)))
+                # zip the observations for delta-computation
+                corresponding_observations = list(zip(observed_features, observed_landmarks_i))
+                # compute the error of two corresponding observations
+                observation_errors_i = list(map(lambda obs: observation_delta(obs[0], obs[1]), corresponding_observations))
+                # compute the likelihood of i-th particle given its observation errors
+                self.ws[idx] = self.__observation_likelihood(deltas=observation_errors_i)
+            # normalize all weights
+            self.ws /= np.sum(self.ws) + 1e-30
+
+                
+
         # re-initialize particles if the effective is too low
         self.M_eff = 1 / np.sum(np.square(self.ws))
         if self.M_eff <= self.M / 2:
@@ -154,3 +186,7 @@ class ParticleFilter:
         self.Xs = Xs_resampled
         self.ws = ws_resapmled
         self.dX_last = dX_last_resampled
+
+    def __observation_likelihood(self, deltas: List[np.ndarray]) -> float:
+        # TODO: implement probability computation (either from GP or normal distributions)
+        return 1.0
