@@ -25,6 +25,12 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+#### Installing Open3Ds Development Version
+
+> **Remark**: This might change with future releases of `open3d-cpu>=0.17.0`.
+
+Currently _(July 2023)_ the `gpmcl.mapper.Mapper` class makes use of a method that is not available in the release version of Open3D. In order to get the mapping code to work, you need to install the development version of Open3D using `install_open3d_dev.sh`
+
 ## Generating Datasets from Rosbags
 
 The following will give an overview of how to generate and interpret GP datasets from resbags.
@@ -227,7 +233,6 @@ True
 #### Misceral Information
 
 Internally, the provided datasets are standard-scaled before training and rescaled upon inference. **Do not provide standard-scaled datasets on your own**, as the regression utility will store the scalers when loading the datasets and use them to rescale once inference is complete.
-
 
 ## Running the Localization Pipeline (GPMCL)
 
