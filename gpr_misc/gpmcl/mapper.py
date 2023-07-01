@@ -15,21 +15,21 @@ class MapperConfig:
 
     @staticmethod
     def from_config(config: Dict) -> "MapperConfig":
-        scan_tf: Optional[Dict] = config.get("scan_tf")
-        if scan_tf is not None:
-            downsampling_voxel_size: Optional[float] = config.get("downsampling_voxel_size")
-            # --- load scan TF
-            # region
-            scan_translation = np.array(scan_tf.get("position"), dtype=np.float64)
-            scan_orientation = np.array(scan_tf.get("orientation"), dtype=np.float64)
-            R_scan = Rotation.from_quat(scan_orientation).as_matrix()
-            t_scan = scan_translation.reshape((3, 1))
-            T_scan = np.block([[R_scan, t_scan], [0, 0, 0, 1]], dtpye=np.float64)  # type: ignore
-            # endregion
-            return MapperConfig(
-                scan_tf=T_scan,
-                downsampling_voxel_size=downsampling_voxel_size or 0.05,
-            )
+        mapper_config: Optional[Dict] = config["mapper"]
+        if mapper_config is not None:
+            downsampling_voxel_size: Optional[float] = mapper_config.get("downsampling_voxel_size")
+            T_scan = np.eye(4, dtype=np.float32)
+            scan_tf: Optional[Dict] = mapper_config.get("scan_tf")
+            if scan_tf is not None:
+                # --- load scan TF
+                # region
+                scan_translation = np.array(scan_tf.get("position"), dtype=np.float64)
+                scan_orientation = np.array(scan_tf.get("orientation"), dtype=np.float64)
+                R_scan = Rotation.from_quat(scan_orientation).as_matrix()
+                t_scan = scan_translation.reshape((3, 1))
+                T_scan = np.block([[R_scan, t_scan], [0, 0, 0, 1]])  # type: ignore
+                # endregion
+            return MapperConfig(scan_tf=T_scan, downsampling_voxel_size=downsampling_voxel_size or 0.05)
         else:
             return MapperConfig()
 
@@ -38,7 +38,7 @@ class Mapper:
     def __init__(self, config: MapperConfig) -> None:
         self.config = config
         # the radius used for normal estimation
-        self.radius_normal = config.downsampling_voxel_size * 2
+        self.radius_normal = config.downsampling_voxel_size * 3
         # the common configuration for estimating point normals
         self.normal_est_search_param = open3d.geometry.KDTreeSearchParamHybrid(
             radius=self.radius_normal,
