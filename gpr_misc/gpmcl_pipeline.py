@@ -188,4 +188,5 @@ if __name__ == "__main__":
     localization_scenario = LocalizationScenario(config=scenario_config, pipeline=pipeline)
     # run localization inference
     localization_scenario.spin_bag()
-    localization_scenario.export_metrics(out_dir)
+    # TODO: re-enable this once the divergence is fixed
+    # localization_scenario.export_metrics(out_dir)
