@@ -77,10 +77,10 @@ class ParticleFilter:
         self.posterior_pose = self.mean()
 
     def update(
-            self, 
-            ground_truth: Optional[Odometry], 
-            features_and_landmarks: Tuple[open3d.geometry.PointCloud, open3d.geometry.PointCloud],
-        ) -> None:
+        self,
+        ground_truth: Optional[Odometry],
+        features_and_landmarks: Tuple[open3d.geometry.PointCloud, open3d.geometry.PointCloud],
+    ) -> None:
         """Update the particle states using observed landmarks.
 
         ### Parameters
@@ -99,7 +99,6 @@ class ParticleFilter:
             # normalize all weights
             self.ws /= np.sum(self.ws) + 1e-30
 
-        
         if features_and_landmarks is not None:
             pcd_features, pcd_landmarks = features_and_landmarks
             # feature observations are the same for every particle
@@ -117,13 +116,13 @@ class ParticleFilter:
                 # zip the observations for delta-computation
                 corresponding_observations = list(zip(observed_features, observed_landmarks_i))
                 # compute the error of two corresponding observations
-                observation_errors_i = list(map(lambda obs: observation_delta(obs[0], obs[1]), corresponding_observations))
+                observation_errors_i = list(
+                    map(lambda obs: observation_delta(obs[0], obs[1]), corresponding_observations)
+                )
                 # compute the likelihood of i-th particle given its observation errors
                 self.ws[idx] = self.__observation_likelihood(deltas=observation_errors_i)
             # normalize all weights
             self.ws /= np.sum(self.ws) + 1e-30
-
-                
 
         # re-initialize particles if the effective is too low
         self.M_eff = 1 / np.sum(np.square(self.ws))
