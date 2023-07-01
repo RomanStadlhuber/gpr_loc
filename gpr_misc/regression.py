@@ -53,9 +53,6 @@ arg_parser.add_argument(
     metavar="The sparsity of the GP relative to the input dataset(s).",
     help="A factor 0 < x < 1 (not including) that determines the relative number of samples used.",
 )
-arg_parser.add_argument(
-    "--load_sparse", dest="load_sparse", default=False, action="store_true"
-)
 # name of the joined datasets (that is, the regression job)
 arg_parser.add_argument("-n", "--name", dest="name", type=str)
 # model export directory
@@ -72,7 +69,6 @@ if __name__ == "__main__":
     export_dir = pathlib.Path(args.out_dir) if args.out_dir else None
     model_dir = pathlib.Path(args.model_dir) if args.model_dir else None
     sparsity: Optional[int] = args.sparsity
-    load_sparse: bool = args.load_sparse
     # use the plotly backend for graphs
     GPy.plotting.change_plotting_library("plotly")
 
@@ -83,7 +79,6 @@ if __name__ == "__main__":
         kernel_dir=model_dir,
         inspect_only=inspect_only,
         sparsity=sparsity,
-        load_sparse_models=load_sparse,
     )
 
     if inspect_only:

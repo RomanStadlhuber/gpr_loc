@@ -31,7 +31,6 @@ class GPScenario:
         kernel_dir: Optional[pathlib.Path] = None,
         inspect_only: bool = False,
         sparsity: Optional[int] = None,
-        load_sparse_models: bool = False,
     ) -> None:
         # the name of the regression scenario
         self.scenario = scenario_name
@@ -39,7 +38,7 @@ class GPScenario:
         self.train_dirs = train_dirs
         self.test_dir = test_dir
         self.kernel_dir = kernel_dir
-        self.load_sparse = load_sparse_models
+        self.load_sparse = sparsity is not None
         # the training and test datasets
         training_datasets = self.load_datasets(self.train_dirs)
         self.D_train = GPDataset.join(training_datasets, f"{self.scenario} - training")
@@ -151,7 +150,7 @@ class GPScenario:
             label = kernel_file.name.split(".npy")[0].replace("--", "/")
             Y = self.D_train.get_Y(label)
             # load a dense or sparse regression model (based on the constructors parameter)
-            model = GPModel.load_regression_model(kernel_file, X, Y, sparse=self.load_sparse)
+            model = GPModel.load_regression_model(kernel_file, X, Y, sparsity=self.sparsity)
             models.append(LabelledModel(label, model))
         # update the models used for regression
         self.models = models

@@ -207,7 +207,7 @@ class GPModel:
 
     @staticmethod
     def load_regression_model(
-        file: pathlib.Path, X: np.ndarray, Y: np.ndarray, sparse: bool = False
+        file: pathlib.Path, X: np.ndarray, Y: np.ndarray, sparsity: Optional[int],
     ) -> Union[GPy.models.GPRegression, GPy.models.SparseGPRegression]:
         """load a regression model from a file"""
         _, dim, *__ = X.shape
@@ -216,8 +216,8 @@ class GPModel:
         rbf_kernel = GPy.kern.RBF(input_dim=dim, ARD=True)
         m_load = (
             GPy.models.GPRegression(X, Y, initialize=False, kernel=rbf_kernel)
-            if not sparse
-            else GPy.models.SparseGPRegression(X, Y, initialize=False, kernel=rbf_kernel)
+            if not sparsity is None
+            else GPy.models.SparseGPRegression(X, Y, initialize=False, kernel=rbf_kernel, num_inducing=sparsity)
         )
         m_load.update_model(False)
         m_load.initialize_parameter()
@@ -247,7 +247,7 @@ class LabelledModel:
     model: Union[GPy.models.GPRegression, GPy.models.SparseGPRegression]
 
     @staticmethod
-    def load_labelled_models(model_dir: pathlib.Path, D_train: GPDataset, sparse: bool) -> List["LabelledModel"]:
+    def load_labelled_models(model_dir: pathlib.Path, D_train: GPDataset, sparsity: Optional[int]) -> List["LabelledModel"]:
         """Load multiple labelled models form a directory.
 
         Allows to load both dense and sparse models.
@@ -268,7 +268,7 @@ class LabelledModel:
             label = kernel_file.name.split(".npy")[0].replace("--", "/")
             Y = D_train.get_Y(label)
             # load a dense or sparse regression model (based on the constructors parameter)
-            model = GPModel.load_regression_model(kernel_file, X, Y, sparse=sparse)
+            model = GPModel.load_regression_model(kernel_file, X, Y, sparsity=sparsity)
             models.append(LabelledModel(label, model))
 
         return models
