@@ -117,4 +117,3 @@ class Mapper:
         # reset the current scan buffer and its features
         self.pcd_scan = open3d.geometry.PointCloud()
         self.features_scan = open3d.pipelines.registration.Feature()
-
