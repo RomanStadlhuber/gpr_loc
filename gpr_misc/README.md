@@ -201,7 +201,7 @@ This example will use the pre-trained models from above and only perfrom predict
 
 #### Loading a Sparse Regression Model
 
-As of now, a sparse model cannot be detected automatically. Therefore, when loading and evaluating a sparse regression model, specify the `--load_sparse` flag in the above command.
+As of now, a sparse model cannot be detected automatically. Therefore, when loading and evaluating a sparse regression model, specify the `--sparsity=<NUM_INDUCING>` flag in the above command, where `<NUM_INDUCING>` is the exact number of inducing inputs that were used when training the sparse GP .
 
 Below is an example on how to load a sparse model using `helper_types.GPModel`:
 
