@@ -66,7 +66,7 @@ class Mapper:
         # remove reference to the input parameter to prevent incorrect access at a later time
         del pcd_scan_curr
         # transform the scan into the base frame
-        self.pcd_scan = self.pcd_scan.transform(self.config.scan_tf)
+        self.pcd_scan.transform(self.config.scan_tf)
         # estimate normals using the default settings
         self.pcd_scan.estimate_normals(self.normal_est_search_param)
         # compute the FPFH features for the downsampled scan
@@ -85,11 +85,11 @@ class Mapper:
             )
             correspondence_idxs = np.asarray(self.correspondences)
             # PCD points need to be cast from C++ vectors into numpy arrays first
-            points_map = np.asarray(self.pcd_map.points, dtype=np.float64)
+            points_scan_last = np.asarray(self.pcd_scan_last.points, dtype=np.float64)
             points_scan = np.asarray(self.pcd_scan.points, dtype=np.float64)
             # list of corresponding (feature_position, landmark_position) 3D-vectors
             corresponding_features_and_landmarks = list(
-                map(lambda c_i_j: (points_scan[c_i_j[0]], points_map[c_i_j[1]]), correspondence_idxs)
+                map(lambda c_i_j: (points_scan[c_i_j[0]], points_scan_last[c_i_j[1]]), correspondence_idxs)
             )
             return corresponding_features_and_landmarks
 
@@ -97,16 +97,13 @@ class Mapper:
         # transform the scan PCD into the current pose (needed for both initialization and update)
         # this assumes that the Scan-TF has already been applied
         # NOTE: transforming is not an in-place operation (very unfortunate..)
-        self.pcd_scan = self.pcd_scan.transform(pose)
-        if self.pcd_map.is_empty() and self.pcd_scan_last.is_empty():
-            self.pcd_map = self.pcd_scan
-        else:
-            # here we assume that the pose argument represents the current pose of the scan in the map frame
-            # mere the current scan into the map
-            self.pcd_map += self.pcd_scan
-            # downsample the merged PCDs to remove duplicate points
-            # (see: http://www.open3d.org/docs/latest/tutorial/Advanced/multiway_registration.html#Make-a-combined-point-cloud)
-            self.pcd_map = self.pcd_map.voxel_down_sample(voxel_size=self.config.downsampling_voxel_size)
+        self.pcd_scan.transform(pose)
+        # here we assume that the pose argument represents the current pose of the scan in the map frame
+        # mere the current scan into the map
+        self.pcd_map += self.pcd_scan
+        # downsample the merged PCDs to remove duplicate points
+        # (see: http://www.open3d.org/docs/latest/tutorial/Advanced/multiway_registration.html#Make-a-combined-point-cloud)
+        self.pcd_map = self.pcd_map.voxel_down_sample(voxel_size=self.config.downsampling_voxel_size)
         # buffer the last scan for feature computation and matching in next iteration
         self.pcd_scan_last = self.pcd_scan
         # self.pcd_scan_last.estimate_normals(self.normal_est_search_param)
@@ -116,3 +113,8 @@ class Mapper:
         )
         # reset the correspondences
         self.correspondences = open3d.utility.Vector2iVector()
+        # TODO: find out if this is really necessary
+        # reset the current scan buffer and its features
+        self.pcd_scan = open3d.geometry.PointCloud()
+        self.features_scan = open3d.pipelines.registration.Feature()
+
