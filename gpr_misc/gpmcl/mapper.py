@@ -57,7 +57,7 @@ class Mapper:
 
     def compute_scan_correspondences_to_map(
         self, pcd_scan_curr: open3d.geometry.PointCloud
-    ) -> List[Tuple[np.ndarray, np.ndarray]]:
+    ) -> Optional[Tuple[open3d.geometry.PointCloud, open3d.geometry.PointCloud]]:
         """Compute features for a scan and store it for the next iteration."""
         # preprocess the scan and compute its features
         # region
@@ -75,7 +75,7 @@ class Mapper:
         )
         # endregion
         if self.pcd_map.is_empty() and self.pcd_scan_last.is_empty():
-            return []
+            return None
         else:
             # compute mutual correspondences betweem the map and current scan
             self.correspondences = open3d.pipelines.registration.correspondences_from_features(
@@ -84,14 +84,11 @@ class Mapper:
                 mutual_filter=True,
             )
             correspondence_idxs = np.asarray(self.correspondences)
-            # PCD points need to be cast from C++ vectors into numpy arrays first
-            points_scan_last = np.asarray(self.pcd_scan_last.points, dtype=np.float64)
-            points_scan = np.asarray(self.pcd_scan.points, dtype=np.float64)
-            # list of corresponding (feature_position, landmark_position) 3D-vectors
-            corresponding_features_and_landmarks = list(
-                map(lambda c_i_j: (points_scan[c_i_j[0]], points_scan_last[c_i_j[1]]), correspondence_idxs)
-            )
-            return corresponding_features_and_landmarks
+            idxs_scan = correspondence_idxs[0, :]
+            idxs_scan_last = correspondence_idxs[1, :]
+            pcd_features = self.pcd_scan.select_by_index(indices=idxs_scan)
+            pcd_landmarks = self.pcd_scan_last.select_by_index(indices=idxs_scan_last)
+            return (pcd_features, pcd_landmarks)
 
     def update_map(self, pose: np.ndarray):
         # transform the scan PCD into the current pose (needed for both initialization and update)
