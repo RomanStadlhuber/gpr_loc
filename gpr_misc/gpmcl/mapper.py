@@ -104,6 +104,9 @@ class Mapper:
         # downsample the merged PCDs to remove duplicate points
         # (see: http://www.open3d.org/docs/latest/tutorial/Advanced/multiway_registration.html#Make-a-combined-point-cloud)
         self.pcd_map = self.pcd_map.voxel_down_sample(voxel_size=self.config.downsampling_voxel_size)
+        # further reduce the map point size by removing duplicated and invalid points
+        self.pcd_map.remove_duplicated_points()
+        self.pcd_map.remove_non_finite_points()
         # buffer the last scan for feature computation and matching in next iteration
         self.pcd_scan_last = self.pcd_scan
         # self.pcd_scan_last.estimate_normals(self.normal_est_search_param)
@@ -113,7 +116,3 @@ class Mapper:
         )
         # reset the correspondences
         self.correspondences = open3d.utility.Vector2iVector()
-        # TODO: find out if this is really necessary
-        # reset the current scan buffer and its features
-        self.pcd_scan = open3d.geometry.PointCloud()
-        self.features_scan = open3d.pipelines.registration.Feature()
