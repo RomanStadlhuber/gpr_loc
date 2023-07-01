@@ -46,7 +46,7 @@ class ScanTools3D:
         return pcd_o3d
 
     @staticmethod
-    def __set_pcd_color(pcd: open3d.geometry.PointCloud, color: np.ndarray) -> None:
+    def set_pcd_color(pcd: open3d.geometry.PointCloud, color: np.ndarray) -> None:
         """Set the uniform color of points."""
         points = np.asarray(pcd.points)
         num_points, *_ = np.shape(points)
