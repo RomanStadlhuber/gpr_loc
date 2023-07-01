@@ -228,8 +228,13 @@ class GPModel:
             return m_load
         except ValueError:
             raise Exception(
-                """You are trying to load a sparse model into a dense one.
-To load a sparse model, pass the optional parameter 'sparse = True' to GPModel.load_regression_model.
+                """Loaded parameter dimenions to not match required parameter dimensions.
+
+This error likely occurs because
+    - you are trying to load a sparse model into a dense one or vice versa
+    - the version of GPy used to create the model does not match the version loading it
+
+Please see also the arguments of GPModel.load_regression_model.
             """
             )
 
