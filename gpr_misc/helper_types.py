@@ -82,7 +82,7 @@ class GPDataset:
 
     def check_in_bounds(self, other: "GPDataset") -> Tuple[bool, np.ndarray]:
         """Compute whether `other.features` lie within the trained bounds.
-        
+
         Returns a tuple of the form `(all_in_bounds, individual)`
         where `individual` lists the result of the bounds check on a per-input basis.
 
@@ -102,9 +102,9 @@ class GPDataset:
         ```
         """
         X = self.get_X()
-        x_min = X.min(axis=0) # lower training bound
-        x_max = X.max(axis=0) # upper training bound
-        X_other = other.get_X() # features of the other datasets
+        x_min = X.min(axis=0)  # lower training bound
+        x_max = X.max(axis=0)  # upper training bound
+        X_other = other.get_X()  # features of the other datasets
         # perform the boundary check
         X_in_bounds = np.where((X_other >= x_min) & (X_other <= x_max), 1, 0)
         return bool(np.all(X_in_bounds)), X_in_bounds
@@ -207,7 +207,10 @@ class GPModel:
 
     @staticmethod
     def load_regression_model(
-        file: pathlib.Path, X: np.ndarray, Y: np.ndarray, sparsity: Optional[int],
+        file: pathlib.Path,
+        X: np.ndarray,
+        Y: np.ndarray,
+        sparsity: Optional[int],
     ) -> Union[GPy.models.GPRegression, GPy.models.SparseGPRegression]:
         """load a regression model from a file"""
         _, dim, *__ = X.shape
@@ -216,7 +219,7 @@ class GPModel:
         rbf_kernel = GPy.kern.RBF(input_dim=dim, ARD=True)
         m_load = (
             GPy.models.GPRegression(X, Y, initialize=False, kernel=rbf_kernel)
-            if not sparsity is None
+            if sparsity is None
             else GPy.models.SparseGPRegression(X, Y, initialize=False, kernel=rbf_kernel, num_inducing=sparsity)
         )
         m_load.update_model(False)
@@ -247,7 +250,9 @@ class LabelledModel:
     model: Union[GPy.models.GPRegression, GPy.models.SparseGPRegression]
 
     @staticmethod
-    def load_labelled_models(model_dir: pathlib.Path, D_train: GPDataset, sparsity: Optional[int]) -> List["LabelledModel"]:
+    def load_labelled_models(
+        model_dir: pathlib.Path, D_train: GPDataset, sparsity: Optional[int]
+    ) -> List["LabelledModel"]:
         """Load multiple labelled models form a directory.
 
         Allows to load both dense and sparse models.

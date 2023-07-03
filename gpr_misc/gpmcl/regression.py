@@ -1,5 +1,5 @@
 from helper_types import GPDataset, LabelledModel
-from typing import List, NamedTuple, Dict
+from typing import List, NamedTuple, Dict, Optional
 from transform import Pose2D
 from dataclasses import dataclass
 import pandas as pd
@@ -14,7 +14,7 @@ class GPRegressionConfig:
     # the path to the models training data (required for loading)
     training_data_dirs: List[pathlib.Path]
     # if the regression uses a sparse GP
-    is_sparse: bool
+    sparsity: Optional[int]
     # labels (in order) for last state change data
     labels_dX_last: List[str]
     # labels (in order) for estimated state change "control command"
@@ -34,7 +34,7 @@ class GPRegressionConfig:
         return GPRegressionConfig(
             model_dir=pathlib.Path(gp_conf["model_dir"]),
             training_data_dirs=[pathlib.Path(d) for d in gp_conf["training_data_dirs"]],
-            is_sparse=gp_conf["is_sparse"],
+            sparsity=gp_conf.get("sparsity"),
             labels_dX_last=gp_conf["labels_dX_last"],
             labels_dU=gp_conf["labels_dU"],
             dU_first=gp_conf["dU_first"],
@@ -60,7 +60,7 @@ class GPRegression:
         self.labelled_models = LabelledModel.load_labelled_models(
             model_dir=config.model_dir,
             D_train=self.D_train,
-            sparse=config.is_sparse,
+            sparsity=config.sparsity,
         )
 
     def predict(self, Xs: np.ndarray, dX_last: np.ndarray, U: np.ndarray) -> Prediction:

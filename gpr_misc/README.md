@@ -224,7 +224,7 @@ True
     file=params_file,
     X=X,
     Y=Y,
-    sparse=True
+    sparsity=NUM_INDUCING
 )
 # print the model
 >>> print(model)
