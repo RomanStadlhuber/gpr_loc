@@ -78,8 +78,8 @@ class ParticleFilter:
 
     def update(
         self,
-        ground_truth: Optional[Odometry],
-        features_and_landmarks: Tuple[open3d.geometry.PointCloud, open3d.geometry.PointCloud],
+        ground_truth: Optional[Odometry] = None,
+        features_and_landmarks: Optional[Tuple[open3d.geometry.PointCloud, open3d.geometry.PointCloud]] = None,
     ) -> None:
         """Update the particle states using observed landmarks.
 
@@ -112,7 +112,7 @@ class ParticleFilter:
                 # transform the landmarks into the particles pose frame
                 pcd_landmarks_in_x_i.transform(T_x_i_inv)
                 # convert landmarks to range-bearing-bearing observations
-                observed_landmarks_i = list(map(point_to_observation, np.asarray(pcd_landmarks_in_x_i)))
+                observed_landmarks_i = list(map(point_to_observation, np.asarray(pcd_landmarks_in_x_i.points)))
                 # zip the observations for delta-computation
                 corresponding_observations = list(zip(observed_features, observed_landmarks_i))
                 # compute the error of two corresponding observations
@@ -188,4 +188,12 @@ class ParticleFilter:
 
     def __observation_likelihood(self, deltas: List[np.ndarray]) -> float:
         # TODO: implement probability computation (either from GP or normal distributions)
-        return 1.0
+        # convert the list to a matrix for bulk-processing
+        delta_mat = np.array(deltas)
+        # construct a diagonal covariance matrix from the independent observation axes
+        cov = np.diag([0.1, 0.2, 0.2])
+        # compute likeihood of all observations
+        ps = scipy.stats.multivariate_normal.pdf(x=delta_mat, mean=np.zeros(3), cov=cov, allow_singular=False)
+        # total likelihood is the product of all individual observation likelihoods
+        p = np.product(ps)
+        return p
