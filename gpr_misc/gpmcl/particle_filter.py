@@ -102,7 +102,6 @@ class ParticleFilter:
         if features_and_landmarks is not None:
             pcd_features, pcd_landmarks = features_and_landmarks
             # feature observations are the same for every particle
-            observed_features = list(map(point_to_observation, np.asarray(pcd_features.points)))
             for idx, x in enumerate(self.Xs):
                 # 3d affine transform representing the inverse of the particles pose
                 T_x_i_inv = Pose2D.from_twist(x).inv3d()
@@ -111,10 +110,13 @@ class ParticleFilter:
                 pcd_landmarks_in_x_i = open3d.geometry.PointCloud(pcd_landmarks)
                 # transform the landmarks into the particles pose frame
                 pcd_landmarks_in_x_i.transform(T_x_i_inv)
-                # convert landmarks to range-bearing-bearing observations
-                observed_landmarks_i = list(map(point_to_observation, np.asarray(pcd_landmarks_in_x_i.points)))
-                # zip the observations for delta-computation
-                corresponding_observations = list(zip(observed_features, observed_landmarks_i))
+                corresponding_points = self.__pick_closest_correspondences(pcd_features, pcd_landmarks_in_x_i, 5)
+                corresponding_observations = list(
+                    map(
+                        lambda pt_tuple: (point_to_observation(pt_tuple[0]), point_to_observation(pt_tuple[1])),
+                        corresponding_points,
+                    )
+                )
                 # compute the error of two corresponding observations
                 observation_errors_i = list(
                     map(lambda obs: observation_delta(obs[0], obs[1]), corresponding_observations)
@@ -185,6 +187,33 @@ class ParticleFilter:
         self.Xs = Xs_resampled
         self.ws = ws_resapmled
         self.dX_last = dX_last_resampled
+
+    def __pick_closest_correspondences(
+        self,
+        pcd_features: open3d.geometry.PointCloud,
+        pcd_landmarks: open3d.geometry.PointCloud,
+        pick_n_closest: int,
+    ) -> List[Tuple[np.ndarray, np.ndarray]]:
+        pts_f = np.asarray(pcd_features.points)
+        pts_l = np.asarray(pcd_landmarks.points)
+        distances = np.linalg.norm((pts_l - pts_f), axis=1)
+        # indices that sort the points according to distances in ascending order
+        idxs_sorted_asc = np.argsort(distances)
+        pts_f = pts_f[idxs_sorted_asc]
+        pts_l = pts_l[idxs_sorted_asc]
+        return list(
+            map(
+                lambda i: (pts_f[i], pts_l[i]),
+                range(
+                    np.min(
+                        [
+                            pick_n_closest,
+                            len(idxs_sorted_asc),
+                        ]
+                    )
+                ),
+            )
+        )
 
     def __observation_likelihood(self, deltas: List[np.ndarray]) -> float:
         # TODO: implement probability computation (either from GP or normal distributions)
