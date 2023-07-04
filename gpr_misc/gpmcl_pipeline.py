@@ -12,7 +12,7 @@ from gpmcl.particle_filter import (
 from gpmcl.mapper import MapperConfig, Mapper
 from gpmcl.scan_tools_3d import ScanTools3D, PointCloudVisualizer
 from gpmcl.regression import GPRegression, GPRegressionConfig
-from transform import odometry_msg_to_affine_transform
+from transform import odometry_msg_to_affine_transform, Pose2D
 from typing import Optional, Dict
 import numpy as np
 import pandas as pd
@@ -62,7 +62,7 @@ class GPMCLPipeline(LocalizationPipeline):
 
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
         pcd_scan = ScanTools3D.pointcloud2_to_open3d_pointcloud(synced_msgs.scan_3d)
-        self.mapper.compute_scan_correspondences_to_map(pcd_scan)
+        features_and_landmarks = self.mapper.compute_scan_correspondences_to_map(pcd_scan)
         if synced_msgs.groundtruth is not None:
             T_curr = odometry_msg_to_affine_transform(synced_msgs.groundtruth)
             self.mapper.update_map(pose=T_curr)
@@ -79,21 +79,20 @@ class GPMCLPipeline(LocalizationPipeline):
         self.debug_iteration_count += 1
         print(f"Iteration {self.debug_iteration_count}.")
         # actual inference begins here
-        # pcd = ScanTools3D.scan_msg_to_open3d_pcd(synced_msgs.scan_3d)
         # compute the prior by sampling from the GP
-        # self.pf.predict(odom=synced_msgs.odom_est)
-        # self.pf.update(None)
-        # print(f"[{timestamp}]: iteration {self.debug_iteration_count}, w_eff: {self.pf.M_eff/self.pf.M}")
-        # # update the trajectory dataframe
-        # self.__update_trajectory(
-        #     # provide current estimate as twist (x, y, theta)
-        #     estimate=self.pf.mean().as_twist(),
-        #     # provide ground truth pose as twist (x, y, theta) if available
-        #     groundtruth=Pose2D.from_odometry(synced_msgs.groundtruth).as_twist()
-        #     if synced_msgs.groundtruth is not None
-        #     else None,
-        #     odometry=Pose2D.from_odometry(synced_msgs.odom_est).as_twist(),
-        # )
+        self.pf.predict(odom=synced_msgs.odom_est)
+        self.pf.update(features_and_landmarks=features_and_landmarks)
+        print(f"[{timestamp}]: iteration {self.debug_iteration_count}, w_eff: {self.pf.M_eff/self.pf.M}")
+        # update the trajectory dataframe
+        self.__update_trajectory(
+            # provide current estimate as twist (x, y, theta)
+            estimate=self.pf.mean().as_twist(),
+            # provide ground truth pose as twist (x, y, theta) if available
+            groundtruth=Pose2D.from_odometry(synced_msgs.groundtruth).as_twist()
+            if synced_msgs.groundtruth is not None
+            else None,
+            odometry=Pose2D.from_odometry(synced_msgs.odom_est).as_twist(),
+        )
 
         # endregion
 
