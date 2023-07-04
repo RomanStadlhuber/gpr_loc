@@ -45,7 +45,7 @@ class Mapper:
             max_nn=30,
         )
         # the common configuration for estimating point cloud features
-        self.feature_comp_search_param = open3d.geometry.KDTreeSearchParamHybrid(radius=1, max_nn=100)
+        self.feature_comp_search_param = open3d.geometry.KDTreeSearchParamHybrid(radius=self.radius_normal, max_nn=100)
         # map starts out as empty point cloud
         self.pcd_map = open3d.geometry.PointCloud()
         # there also need to be buffers for the current scan and its features
@@ -77,6 +77,10 @@ class Mapper:
         if self.pcd_map.is_empty() and self.pcd_scan_last.is_empty():
             return None
         else:
+            # TODO: improve feature computation, as it currently is not robust enough
+            # this is indicated by the points at the corresponding indices being too far away from each other
+            # thus they cannot be related
+
             # compute mutual correspondences betweem the map and current scan
             self.correspondences = open3d.pipelines.registration.correspondences_from_features(
                 source_features=self.features_scan,
@@ -84,8 +88,8 @@ class Mapper:
                 mutual_filter=True,
             )
             correspondence_idxs = np.asarray(self.correspondences)
-            idxs_scan = correspondence_idxs[0, :]
-            idxs_scan_last = correspondence_idxs[1, :]
+            idxs_scan = correspondence_idxs[:, 0]
+            idxs_scan_last = correspondence_idxs[:, 1]
             pcd_features = self.pcd_scan.select_by_index(indices=idxs_scan)
             pcd_landmarks = self.pcd_scan_last.select_by_index(indices=idxs_scan_last)
             return (pcd_features, pcd_landmarks)
