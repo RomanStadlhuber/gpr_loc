@@ -34,7 +34,7 @@ def odometry_msg_to_affine_transform(odom: Odometry) -> np.ndarray:
 
 def point_to_observation(point: np.ndarray) -> np.ndarray:
     """Convert an XYZ point into a range-bearing observation.
-    
+
     For conversion logic see the
     [relevant WikiPedia article](https://en.wikipedia.org/wiki/Spherical_coordinate_system#Coordinate_system_conversions).
     """
@@ -46,21 +46,23 @@ def point_to_observation(point: np.ndarray) -> np.ndarray:
     phi = np.sign(point[1]) * np.arccos(point[0] / np.linalg.norm(point[:2]))
     return np.array([rho, theta, phi], dtype=np.float32)
 
+
 def observation_delta(obs_a: np.ndarray, obs_b: np.ndarray) -> np.ndarray:
     """Compute the error between two range-bearing observations.
-    
+
     Computes normalized interpretation of `obs_a - obs_b`. See Remark.
 
     ### Remark
     This convenience function normalizes angle errors to `[-pi, pi]`.
     """
     delta_obs: np.ndarray = obs_a - obs_b
-    delta_rho, delta_theta, delta_phi= delta_obs
+    delta_rho, delta_theta, delta_phi = delta_obs
     if delta_theta > np.pi:
         delta_theta -= 2 * np.pi
     if delta_phi > np.pi:
         delta_theta -= 2 * np.pi
     return np.array([delta_rho, delta_theta, delta_phi])
+
 
 class Pose2D:
     def __init__(self, T0: Optional[np.ndarray] = None) -> None:
@@ -76,15 +78,17 @@ class Pose2D:
 
     def inv(self) -> np.ndarray:
         return Pose2D.invert_pose(self.T)
-    
+
     def inv3d(self) -> np.ndarray:
         T_inv_2d = Pose2D.invert_pose(self.T)
         Rmat2d = T_inv_2d[:2, :2]
         tvec2d = T_inv_2d[:2, 2]
-        T_inv_3d = np.block([ # type: ignore
-            [Rmat2d, np.zeros((2,1)), tvec2d],
-            [np.zeros((2,2)), np.eye(2)]
-        ])
+        T_inv_3d = np.block(  # type: ignore
+            [
+                [Rmat2d, np.zeros((2, 1)), tvec2d.reshape((-1, 1))],
+                [np.zeros((2, 2)), np.eye(2)],
+            ]
+        )
         return T_inv_3d
 
     def as_t3d(self) -> np.ndarray:
