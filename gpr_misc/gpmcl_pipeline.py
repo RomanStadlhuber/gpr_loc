@@ -73,27 +73,26 @@ class GPMCLPipeline(LocalizationPipeline):
         else:
             return
 
-        # region
-
         # increment the iteration counter
         self.debug_iteration_count += 1
         print(f"Iteration {self.debug_iteration_count}.")
-        # actual inference begins here
-        # compute the prior by sampling from the GP
-        self.pf.predict(odom=synced_msgs.odom_est)
-        self.pf.update(features_and_landmarks=features_and_landmarks)
-        print(f"[{timestamp}]: iteration {self.debug_iteration_count}, w_eff: {self.pf.M_eff/self.pf.M}")
-        # update the trajectory dataframe
-        self.__update_trajectory(
-            # provide current estimate as twist (x, y, theta)
-            estimate=self.pf.mean().as_twist(),
-            # provide ground truth pose as twist (x, y, theta) if available
-            groundtruth=Pose2D.from_odometry(synced_msgs.groundtruth).as_twist()
-            if synced_msgs.groundtruth is not None
-            else None,
-            odometry=Pose2D.from_odometry(synced_msgs.odom_est).as_twist(),
-        )
 
+        # actual inference begins here
+        # region
+        # compute the prior by sampling from the GP
+        # self.pf.predict(odom=synced_msgs.odom_est)
+        # self.pf.update(features_and_landmarks=features_and_landmarks)
+        # print(f"[{timestamp}]: iteration {self.debug_iteration_count}, w_eff: {self.pf.M_eff/self.pf.M}")
+        # # update the trajectory dataframe
+        # self.__update_trajectory(
+        #     # provide current estimate as twist (x, y, theta)
+        #     estimate=self.pf.mean().as_twist(),
+        #     # provide ground truth pose as twist (x, y, theta) if available
+        #     groundtruth=Pose2D.from_odometry(synced_msgs.groundtruth).as_twist()
+        #     if synced_msgs.groundtruth is not None
+        #     else None,
+        #     odometry=Pose2D.from_odometry(synced_msgs.odom_est).as_twist(),
+        # )
         # endregion
 
     def export_trajectory(self, out_dir: pathlib.Path) -> None:
