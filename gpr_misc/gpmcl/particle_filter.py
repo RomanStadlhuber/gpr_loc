@@ -110,7 +110,7 @@ class ParticleFilter:
                 pcd_landmarks_in_x_i = open3d.geometry.PointCloud(pcd_landmarks)
                 # transform the landmarks into the particles pose frame
                 pcd_landmarks_in_x_i.transform(T_x_i_inv)
-                corresponding_points = self.__pick_closest_correspondences(pcd_features, pcd_landmarks_in_x_i, 5)
+                corresponding_points = self.__pick_closest_correspondences(pcd_features, pcd_landmarks_in_x_i, 3)
                 corresponding_observations = list(
                     map(
                         lambda pt_tuple: (point_to_observation(pt_tuple[0]), point_to_observation(pt_tuple[1])),
