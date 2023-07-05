@@ -38,7 +38,7 @@ class Mapper:
     def __init__(self, config: MapperConfig) -> None:
         self.config = config
         # the radius used for normal estimation
-        self.radius_normal = config.downsampling_voxel_size * 3
+        self.radius_normal = 1.0
         # the common configuration for estimating point normals
         self.normal_est_search_param = open3d.geometry.KDTreeSearchParamHybrid(
             radius=self.radius_normal,
@@ -53,7 +53,6 @@ class Mapper:
         self.features_scan_last = self.features_scan = open3d.pipelines.registration.Feature()
         # the set of correspondences between the current scan and the map
         self.correspondences = open3d.utility.Vector2iVector()
-        pass
 
     def compute_scan_correspondences_to_map(
         self, pcd_scan_curr: open3d.geometry.PointCloud
@@ -82,11 +81,8 @@ class Mapper:
             # thus they cannot be related
 
             # compute mutual correspondences betweem the map and current scan
-            self.correspondences = open3d.pipelines.registration.correspondences_from_features(
-                source_features=self.features_scan,
-                target_features=self.features_scan_last,
-                mutual_filter=True,
-            )
+            self.scan_registration_result = self.__registration_ICP_Point2Plane()
+            self.correspondences = self.scan_registration_result.correspondence_set
             correspondence_idxs = np.asarray(self.correspondences)
             idxs_scan = correspondence_idxs[:, 0]
             idxs_scan_last = correspondence_idxs[:, 1]
@@ -117,3 +113,44 @@ class Mapper:
         )
         # reset the correspondences
         self.correspondences = open3d.utility.Vector2iVector()
+
+    def __registration_FGR(self) -> open3d.pipelines.registration.RegistrationResult:
+        """Register scans using fast global registration (FGR).
+
+        see
+        [open3d.pipelines.registration.registration_fgr_based_on_feature_matching](http://www.open3d.org/docs/latest/python_api/open3d.pipelines.registration.registration_ransac_based_on_feature_matching.html#open3d-pipelines-registration-registration-ransac-based-on-feature-matching)
+        """
+        reg_res = open3d.pipelines.registration.registration_fgr_based_on_feature_matching(
+            source=self.pcd_scan,
+            target=self.pcd_scan_last,
+            source_feature=self.features_scan,
+            target_feature=self.features_scan_last,
+        )
+        return reg_res
+
+    def __registration_RANSAC(self) -> open3d.pipelines.registration.RegistrationResult:
+        """Register Scans using RANSAC.
+
+        see
+        [open3d.pipelines.registration.registration_ransac_based_on_feature_matching](http://www.open3d.org/docs/latest/python_api/open3d.pipelines.registration.registration_ransac_based_on_feature_matching.html#open3d-pipelines-registration-registration-ransac-based-on-feature-matching)
+        """
+        reg_res = open3d.pipelines.registration.registration_ransac_based_on_feature_matching(
+            source=self.pcd_scan,
+            target=self.pcd_scan_last,
+            source_feature=self.features_scan,
+            target_feature=self.features_scan_last,
+            mutual_filter=True,
+            max_correspondence_distance=0.5,
+        )
+        return reg_res
+
+    def __registration_ICP_Point2Plane(self) -> open3d.pipelines.registration.RegistrationResult:
+        """Register scans using Point to Plane ICP."""
+        reg_res = open3d.pipelines.registration.registration_icp(
+            source=self.pcd_scan,
+            target=self.pcd_scan_last,
+            max_correspondence_distance=0.2,
+            init=np.eye(4, dtype=np.float32),
+            estimation_method=open3d.pipelines.registration.TransformationEstimationPointToPlane(),
+        )
+        return reg_res
