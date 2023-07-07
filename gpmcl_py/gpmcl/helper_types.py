@@ -1,4 +1,4 @@
-from typing import TypeVar, Callable, Any, List, Tuple, Iterable, Optional, Union
+from typing import TypeVar, Callable, Any, List, Tuple, Iterable, Optional, Union, Dict, TypedDict
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from sklearn.preprocessing import StandardScaler
@@ -6,6 +6,7 @@ from pprint import pformat
 import pandas as pd
 import numpy as np
 import pathlib
+import yaml
 import GPy
 
 TRosMsg = TypeVar("TRosMsg")
@@ -119,6 +120,8 @@ class GPDataset:
 
     def export(self, folder: pathlib.Path, dataset_name: str) -> None:
         """export the dataset features and labels to CSV files"""
+        if not folder.exists():
+            folder.mkdir()
         self.features.to_csv(pathlib.Path.joinpath(folder, f"{self.name}__{dataset_name}_features.csv"))
         self.labels.to_csv(pathlib.Path.joinpath(folder, f"{self.name}__{dataset_name}_labels.csv"))
 
@@ -194,10 +197,11 @@ class GPModel:
     name: str
     parameters: np.ndarray
 
-    def save(self, dir: pathlib.Path) -> None:
+    def save(self, dir: pathlib.Path) -> str:
         # TODO: find out why this won't work with the full name
-        filename = self.name.replace("/", "--")
-        np.save(dir / f"{filename}.npy", self.parameters)
+        filename = f"""{self.name.replace("/", "--")}.npy"""
+        np.save(dir / filename, self.parameters)
+        return filename
 
     @staticmethod
     def load(file: pathlib.Path) -> "GPModel":
@@ -293,3 +297,108 @@ class DatasetPostprocessor(ABC):
     def postprocess_dataset(self, dataset: GPDataset) -> GPDataset:
         """convert an existing dataset by postprocessing it"""
         pass
+
+
+class GPModelMetadata(TypedDict):
+    label: str
+    param_file: str
+
+
+class GPModelSetMetadata(TypedDict):
+    """Metadata wrapper for a set of models used for common inference."""
+
+    # list of all the models and their labels
+    models: List[GPModelMetadata]
+    # folder name of the dataset used to train the model
+    training_data: str
+    # name of the inducing input file (if any)
+    inducing_inputs: Optional[str]
+    # name of the entire set
+    set_name: str
+
+
+@dataclass
+class GPModelSet:
+    gp_models: List[GPModel]
+
+    @staticmethod
+    def export_models(
+        gp_models: List[GPModel],
+        dataset: GPDataset,
+        inducing_inputs: Optional[np.ndarray],
+        root_folder: pathlib.Path,
+        name: str,
+    ) -> pathlib.Path:
+        """Export a set of models to the disk.
+
+        Export generates a folder containing
+        - training dataset
+        - the model kernel hyperparameter files
+        - inducing input parameter files (if any)
+        - a file listing the metadata used to quickly load saved
+        """
+        if not root_folder.exists():
+            root_folder.mkdir()
+        # save the models and store their metadata
+        models_metadata = list(
+            map(lambda gp_model: GPModelMetadata(label=gp_model.name, param_file=gp_model.save(root_folder)), gp_models)
+        )
+        # save the dataset
+        dataset_dir_name = f"{name}_dataset"
+        dataset.export(root_folder, dataset_dir_name)
+        # export inducing inputs if they exist
+        if inducing_inputs is not None:
+            filename_inducing = f"{name}_inducing_inputs.npy"
+            np.save(file=root_folder / filename_inducing, arr=inducing_inputs)
+            # write metadata with inducing inputs
+            with open(root_folder / "metadata.yaml", "w") as f_metadata:
+                yaml.safe_dump(
+                    data=GPModelSetMetadata(
+                        models=models_metadata,
+                        training_data=dataset_dir_name,
+                        inducing_inputs=filename_inducing,
+                        set_name=name,
+                    ),
+                    stream=f_metadata,
+                )
+        else:
+            # write metadata without inducing inputs
+            with open(root_folder / "metadata.yaml", "w") as f_metadata:
+                yaml.safe_dump(
+                    data=GPModelSetMetadata(
+                        models=models_metadata, training_data=dataset_dir_name, inducing_inputs=None, set_name=name
+                    ),
+                    stream=f_metadata,
+                )
+
+        return root_folder
+
+    @staticmethod
+    def load_models(root_folder: pathlib.Path) -> "GPModelSet":
+        if not root_folder.exists():
+            raise FileNotFoundError(f"Unable to locate GP Model folder '{root_folder}'.")
+        elif not (root_folder / "metadata.yaml").exists():
+            raise FileNotFoundError(f"'{root_folder}' does not contain a file called 'metadata.yaml'.")
+        with open(root_folder / "metadata.yaml", "r") as f_metadata:
+            metadata: GPModelSetMetadata = yaml.safe_load(stream=f_metadata)
+            D_train = GPDataset.load(
+                dataset_folder=root_folder / metadata["training_data"], name=f"""{metadata["set_name"]}_training_data"""
+            )
+            inducing_inputs = (
+                np.load(file=root_folder / metadata["inducing_inputs"])
+                if metadata["inducing_inputs"] is not None
+                else None
+            )
+            gp_models = list(
+                map(
+                    lambda model_metadata: GPModel.load_regression_model(
+                        root_folder / model_metadata["param_file"],
+                        X=D_train.get_X(),
+                        Y=D_train.get_Y(model_metadata["label"]),
+                        # TODO: pass actual inducing inputs
+                        sparsity=inducing_inputs.shape[0] if inducing_inputs is not None else None,
+                    ),
+                    metadata["models"],
+                )
+            )
+        return GPModelSet(gp_models=gp_models)
