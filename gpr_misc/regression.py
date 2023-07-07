@@ -1,4 +1,4 @@
-from gp_scenario import GPScenario
+from gpmcl.gp_scenario import GPScenario
 from typing import Optional
 from datetime import datetime
 import argparse

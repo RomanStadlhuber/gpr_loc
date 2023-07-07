@@ -1,5 +1,5 @@
 from typing import Optional, Iterable, List, Union
-from helper_types import GPDataset, GPModel, LabelledModel
+from gpmcl.helper_types import GPDataset, GPModel, LabelledModel
 from dataclasses import dataclass
 import pandas as pd
 import pathlib

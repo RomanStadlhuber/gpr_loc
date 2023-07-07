@@ -1,5 +1,5 @@
 from plotting.plotters import TrajectoryPlotter
-from helper_types import GPDataset
+from gpmcl.helper_types import GPDataset
 from transform import Pose2D
 import plotly.graph_objects as go
 import pandas as pd

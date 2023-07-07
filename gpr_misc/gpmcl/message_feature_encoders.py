@@ -1,5 +1,5 @@
 """This file contains a `(MessageType, encoder_fn)` map of all desired feature encoders"""
-from helper_types import GPFeature, FeatureEncodeFn
+from gpmcl.helper_types import GPFeature, FeatureEncodeFn
 from rosbags.typesys.types import (
     sensor_msgs__msg__Imu as Imu,
     geometry_msgs__msg__Twist as Twist,

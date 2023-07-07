@@ -1,5 +1,5 @@
 from plotting.plotters import TrajectoryPlotter
-from helper_types import GPDataset
+from gpmcl.helper_types import GPDataset
 from scipy.linalg import lstsq
 from sklearn.metrics import mean_squared_error
 from typing import Optional, List

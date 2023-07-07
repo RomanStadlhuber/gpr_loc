@@ -1,4 +1,4 @@
-from helper_types import GPDataset, LabelledModel
+from gpmcl.helper_types import GPDataset, LabelledModel
 from typing import List, NamedTuple, Dict, Optional
 from transform import Pose2D
 from dataclasses import dataclass

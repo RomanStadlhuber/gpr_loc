@@ -1,5 +1,5 @@
 from plotting.plotters import TrajectoryPlotter
-from helper_types import GPDataset
+from gpmcl.helper_types import GPDataset
 import plotly.graph_objects as go
 import numpy as np
 import pathlib

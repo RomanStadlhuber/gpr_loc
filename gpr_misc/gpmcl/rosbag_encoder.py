@@ -1,10 +1,10 @@
 # from rosbags.rosbag1 import Reader
 # from rosbags.serde import deserialize_cdr, ros1_to_cdr
-from helper_types import GPFeature, GPDataset, DatasetPostprocessor
+from gpmcl.helper_types import GPFeature, GPDataset, DatasetPostprocessor
 from rosbags.rosbag1 import Reader
 from rosbags.serde import deserialize_cdr, ros1_to_cdr
 from rosbags.typesys.types import nav_msgs__msg__Odometry as Odometry
-from message_feature_encoders import get_encoder
+from gpmcl.message_feature_encoders import get_encoder
 from typing import List, Optional, Dict
 import pandas as pd
 import pathlib

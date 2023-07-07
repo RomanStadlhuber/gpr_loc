@@ -1,4 +1,4 @@
-from helper_types import GPDataset, DatasetPostprocessor
+from gpmcl.helper_types import GPDataset, DatasetPostprocessor
 from typing import Tuple, Set, List
 from tqdm import tqdm
 import pandas as pd
@@ -121,9 +121,7 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
                 ]
                 return (x, y, yaw)
             except Exception:
-                raise KeyError(
-                    f"No 2D pose can be extracted from this topics data: '{topic}'"
-                )
+                raise KeyError(f"No 2D pose can be extracted from this topics data: '{topic}'")
 
         print("post-processing poses to compute deltas")
 
@@ -137,9 +135,7 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
 
                 pose_1st = pose_from_topic(row_1st, odom_topic)
                 pose_2nd = pose_from_topic(row_2nd, odom_topic)
-                pose_delta = OdomDeltaPostprocessor.compute_pose_delta(
-                    frm=pose_1st, to=pose_2nd
-                )
+                pose_delta = OdomDeltaPostprocessor.compute_pose_delta(frm=pose_1st, to=pose_2nd)
                 delta_x, delta_y, delta_yaw = pose_delta
                 new_df.loc[i, f"delta2d.x ({odom_topic})"] = delta_x
                 new_df.loc[i, f"delta2d.y ({odom_topic})"] = delta_y
