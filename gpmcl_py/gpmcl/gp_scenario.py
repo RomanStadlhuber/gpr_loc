@@ -1,7 +1,8 @@
 from typing import Optional, Iterable, List, Union
-from gpmcl.helper_types import GPDataset, GPModel, LabelledModel
+from gpmcl.helper_types import GPDataset, GPModel, LabelledModel, GPModelSet
 from dataclasses import dataclass
 import pandas as pd
+import numpy as np
 import pathlib
 import GPy
 
@@ -28,7 +29,7 @@ class GPScenario:
         scenario_name: str,
         train_dirs: Iterable[pathlib.Path],
         test_dir: Optional[pathlib.Path] = None,
-        kernel_dir: Optional[pathlib.Path] = None,
+        modelset_dir: Optional[pathlib.Path] = None,
         inspect_only: bool = False,
         sparsity: Optional[int] = None,
     ) -> None:
@@ -37,26 +38,19 @@ class GPScenario:
         # the directories containing the data and the models
         self.train_dirs = train_dirs
         self.test_dir = test_dir
-        self.kernel_dir = kernel_dir
+        self.modelset_dir = modelset_dir
         self.load_sparse = sparsity is not None
         # the training and test datasets
         training_datasets = self.load_datasets(self.train_dirs)
         self.D_train = GPDataset.join(training_datasets, f"{self.scenario} - training")
+        # TODO: check if this truly is a copy operation
+        self.D_train_unscaled = self.D_train
         # scale the training dataset
         (
             self.train_feature_scaler,
             self.train_label_scaler,
         ) = self.D_train.standard_scale()
-        self.D_test = GPDataset.load(dataset_folder=self.test_dir) if self.test_dir else None
-        # scale the test dataset if it exists
-        (
-            self.test_feature_scaler,
-            self.test_label_scaler,
-        ) = (
-            self.D_test.standard_scale(scalers=(self.train_feature_scaler, self.train_label_scaler))
-            if self.D_test
-            else (None, None)
-        )
+        self.load_test_set()
         # the names of the columns used in the regression process
         self.labels = self.D_train.labels.columns
         # a list containing the optimized model kernels
@@ -84,10 +78,10 @@ class GPScenario:
         if inspect_only:
             return
         # generate models if none were provided, otherwise load them
-        if self.kernel_dir is None:
+        if self.modelset_dir is None:
             self.generate_models(messages=True)
         else:
-            self.load_kernels()
+            self.load_models()
 
     def load_datasets(self, dirs: Iterable[pathlib.Path]) -> Iterable[GPDataset]:
         """load all datasets from a list of directories"""
@@ -97,6 +91,19 @@ class GPScenario:
         # load all datasets from the subdirectories
         datasets = [GPDataset.load(d) for d in dirs]
         return datasets
+
+    def load_test_set(self) -> None:
+        """Loads the test dataset and standard-scales it according to the training feature and label scalers."""
+        self.D_test = GPDataset.load(dataset_folder=self.test_dir) if self.test_dir else None
+        # scale the test dataset if it exists
+        (
+            self.test_feature_scaler,
+            self.test_label_scaler,
+        ) = (
+            self.D_test.standard_scale(scalers=(self.train_feature_scaler, self.train_label_scaler))
+            if self.D_test
+            else (None, None)
+        )
 
     def generate_models(
         self, messages: bool = False, export_directory: Optional[pathlib.Path] = None
@@ -136,24 +143,17 @@ class GPScenario:
         self.models = models
         return models
 
-    def load_kernels(self) -> None:
+    def load_models(self) -> None:
         """Load all kernels from the kernel directory"""
         # skip if there aren't any kernels to load
-        if self.kernel_dir is None or not self.kernel_dir.exists() or not self.kernel_dir.is_dir():
-            return
-
-        X = self.D_train.get_X()
-        # TODO: unify this interface!
-        kernel_files = [x for x in self.kernel_dir.iterdir() if x.suffix == ".npy"]
-        models: List[GPy.Model] = []
-        for kernel_file in kernel_files:
-            label = kernel_file.name.split(".npy")[0].replace("--", "/")
-            Y = self.D_train.get_Y(label)
-            # load a dense or sparse regression model (based on the constructors parameter)
-            model = GPModel.load_regression_model(kernel_file, X, Y, sparsity=self.sparsity)
-            models.append(LabelledModel(label, model))
-        # update the models used for regression
-        self.models = models
+        modelset = GPModelSet.load_models(self.modelset_dir)
+        self.D_train = modelset.D_train
+        self.train_feature_scaler = modelset.training_feature_scaler
+        self.train_label_scaler = modelset.training_label_scaler
+        # load the test set again, but this time with the new scalers
+        self.load_test_set()
+        # store the models for later use (i.e. inference)
+        self.models = modelset.gp_models
 
     def perform_regression(self, messages: bool = False) -> Optional[GPDataset]:
         """Perform regression if a test dataset was provided and models are loaded."""
@@ -183,9 +183,18 @@ class GPScenario:
         D_regr.rescale(self.train_feature_scaler, self.train_label_scaler)
         return D_regr
 
-    def export_model_parameters(self, dir: pathlib.Path) -> None:
+    def export_models(self, dir: pathlib.Path, name: str) -> None:
         """export the paramters of all models in this scenario to the target directory"""
         if len(self.models) > 0:
-            for model in self.models:
-                m = GPModel(name=model.label, parameters=model.model.param_array)
-                m.save(dir)
+            X = self.D_train.get_X()
+            # TODO: k-means inducing input picking
+            inducing_inputs = (
+                np.empty((self.sparsity, X.shape[1]), dtype=np.uint8) if self.sparsity is not None else None
+            )
+            GPModelSet.export_models(
+                labelled_models=self.models,
+                dataset=self.D_train_unscaled,
+                inducing_inputs=inducing_inputs,
+                root_folder=dir,
+                name=name,
+            )

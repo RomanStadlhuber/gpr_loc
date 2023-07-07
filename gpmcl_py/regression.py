@@ -90,7 +90,7 @@ if __name__ == "__main__":
             os.mkdir(export_dir)
 
         if model_dir is None:  # only export models if they do not exist
-            regressor.export_model_parameters(export_dir)
+            regressor.export_models(export_dir, scenario_name)
 
         if test_dir is not None:
             D_regr = regressor.perform_regression(messages=True)
