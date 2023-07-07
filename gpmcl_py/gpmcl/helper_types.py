@@ -253,6 +253,11 @@ class LabelledModel:
     label: str
     model: Union[GPy.models.GPRegression, GPy.models.SparseGPRegression]
 
+    def save_params(self, dir: pathlib.Path) -> pathlib.Path:
+        file_path = dir / f"""{self.label.replace("/", "--")}.npy"""
+        np.save(file_path, self.model.param_array)
+        return file_path
+
     @staticmethod
     def load_labelled_models(
         model_dir: pathlib.Path, D_train: GPDataset, sparsity: Optional[int]
@@ -319,11 +324,25 @@ class GPModelSetMetadata(TypedDict):
 
 @dataclass
 class GPModelSet:
-    gp_models: List[GPModel]
+    """A wrapper about labelled, pre-loaded GP models.
+
+    Contains the training dataset and various other relevant data.
+    """
+
+    # the pre-configured models
+    gp_models: List[LabelledModel]
+    # the scaled training dataset
+    D_train: GPDataset
+    # inducing inputs used (in case of a sparse GP)
+    inducing_inputs: Optional[np.ndarray]
+    # scaler to training data feature scale
+    training_feature_scaler: StandardScaler
+    # scaler to training data label scale
+    training_label_scaler: StandardScaler
 
     @staticmethod
     def export_models(
-        gp_models: List[GPModel],
+        labelled_models: List[LabelledModel],
         dataset: GPDataset,
         inducing_inputs: Optional[np.ndarray],
         root_folder: pathlib.Path,
@@ -341,7 +360,12 @@ class GPModelSet:
             root_folder.mkdir()
         # save the models and store their metadata
         models_metadata = list(
-            map(lambda gp_model: GPModelMetadata(label=gp_model.name, param_file=gp_model.save(root_folder)), gp_models)
+            map(
+                lambda labelled_model: GPModelMetadata(
+                    label=labelled_model.label, param_file=labelled_model.save_params(root_folder).name
+                ),
+                labelled_models,
+            )
         )
         # save the dataset
         dataset_dir_name = f"{name}_dataset"
@@ -384,6 +408,7 @@ class GPModelSet:
             D_train = GPDataset.load(
                 dataset_folder=root_folder / metadata["training_data"], name=f"""{metadata["set_name"]}_training_data"""
             )
+            (feature_scaler, label_scaler) = D_train.standard_scale()
             inducing_inputs = (
                 np.load(file=root_folder / metadata["inducing_inputs"])
                 if metadata["inducing_inputs"] is not None
@@ -391,14 +416,23 @@ class GPModelSet:
             )
             gp_models = list(
                 map(
-                    lambda model_metadata: GPModel.load_regression_model(
-                        root_folder / model_metadata["param_file"],
-                        X=D_train.get_X(),
-                        Y=D_train.get_Y(model_metadata["label"]),
-                        # TODO: pass actual inducing inputs
-                        sparsity=inducing_inputs.shape[0] if inducing_inputs is not None else None,
+                    lambda model_metadata: LabelledModel(
+                        label=model_metadata["label"],
+                        model=GPModel.load_regression_model(
+                            root_folder / model_metadata["param_file"],
+                            X=D_train.get_X(),
+                            Y=D_train.get_Y(model_metadata["label"]),
+                            # TODO: pass actual inducing inputs
+                            sparsity=inducing_inputs.shape[0] if inducing_inputs is not None else None,
+                        ),
                     ),
                     metadata["models"],
                 )
             )
-        return GPModelSet(gp_models=gp_models)
+            return GPModelSet(
+                gp_models=gp_models,
+                D_train=D_train,
+                inducing_inputs=inducing_inputs,
+                training_feature_scaler=feature_scaler,
+                training_label_scaler=label_scaler,
+            )
