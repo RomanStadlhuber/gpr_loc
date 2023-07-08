@@ -41,8 +41,20 @@ class GPScenario:
         self.test_dir = test_dir
         self.modelset_dir = modelset_dir
         self.load_sparse = sparsity is not None
-        if modelset_dir is None and train_dirs is not None:
+        if self.modelset_dir is None and self.train_dirs is not None:
             self.load_training_set_from_dirs()
+        elif self.modelset_dir is not None and self.train_dirs is None:
+            self.load_models()
+        else:
+            raise Exception(
+                f"""
+ {str(self.__class__)}: Incorrect combination of arguments.
+ Cannot determine training data source when either of:
+    - no model or training data directories were provided
+    - both model and training data directories were provided
+Aborting operation.
+            """
+            )
         self.load_test_set()
         # the names of the columns used in the regression process
         self.labels = self.D_train.labels.columns
@@ -75,8 +87,6 @@ class GPScenario:
         # generate models if none were provided, otherwise load them
         if self.modelset_dir is None:
             self.generate_models(messages=True)
-        else:
-            self.load_models()
 
     def load_datasets(self, dirs: Iterable[pathlib.Path]) -> Iterable[GPDataset]:
         """load all datasets from a list of directories"""
@@ -103,7 +113,9 @@ class GPScenario:
 
     def load_test_set(self) -> None:
         """Loads the test dataset and standard-scales it according to the training feature and label scalers."""
-        self.D_test = GPDataset.load(dataset_folder=self.test_dir) if self.test_dir else None
+        if self.test_dir is None:
+            return
+        self.D_test = GPDataset.load(dataset_folder=self.test_dir, order_by=self.D_train)
         # scale the test dataset if it exists
         (
             self.test_feature_scaler,
@@ -162,13 +174,16 @@ class GPScenario:
         self.train_feature_scaler = modelset.training_feature_scaler
         self.train_label_scaler = modelset.training_label_scaler
         self.inducing_features = modelset.inducing_inputs
-        # load the test set again, but this time with the new scalers
-        self.load_test_set()
         # store the models for later use (i.e. inference)
+        # TODO: somehow, the copying does not work here, find out why!
         self.models = modelset.gp_models
+        # NOTE: instead, use this as a hotfix
+        self.modelset = modelset
 
     def perform_regression(self, messages: bool = False) -> Optional[GPDataset]:
         """Perform regression if a test dataset was provided and models are loaded."""
+        # NOTE: see TODO comment in load_models!
+        self.models = self.modelset.gp_models
         if self.models is None or self.D_test is None:
             return None
 
