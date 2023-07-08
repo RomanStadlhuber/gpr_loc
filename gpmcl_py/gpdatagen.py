@@ -3,8 +3,8 @@
 
 """The command-line utility that wraps the Rosbag Parser and allows to export GP Datasets from rosbags."""
 
-from rosbag_encoder import RosbagEncoder
-from postprocessors import OdomDeltaPostprocessor
+from gpmcl.rosbag_encoder import RosbagEncoder
+from gpmcl.postprocessors import OdomDeltaPostprocessor
 from typing import List
 import argparse
 import pathlib
