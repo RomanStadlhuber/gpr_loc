@@ -334,17 +334,19 @@ class GPModelSet:
     # the scaled training dataset
     D_train: GPDataset
     # inducing inputs used (in case of a sparse GP)
-    inducing_inputs: Optional[np.ndarray]
+    inducing_inputs: Optional[pd.DataFrame]
     # scaler to training data feature scale
     training_feature_scaler: StandardScaler
     # scaler to training data label scale
     training_label_scaler: StandardScaler
+    # a constant remark that should come up in all metadata files
+    remark: str = "Inducing inputs are already std.-scaled acc. to the training data."
 
     @staticmethod
     def export_models(
         labelled_models: List[LabelledModel],
         dataset: GPDataset,
-        inducing_inputs: Optional[np.ndarray],
+        inducing_inputs: Optional[pd.DataFrame],
         root_folder: pathlib.Path,
         name: str,
     ) -> pathlib.Path:
@@ -372,8 +374,8 @@ class GPModelSet:
         dataset.export(root_folder, dataset_dir_name)
         # export inducing inputs if they exist
         if inducing_inputs is not None:
-            filename_inducing = f"{name}_inducing_inputs.npy"
-            np.save(file=root_folder / filename_inducing, arr=inducing_inputs)
+            filename_inducing = f"{name}_inducing_inputs.csv"
+            inducing_inputs.to_csv(root_folder / filename_inducing)
             # write metadata with inducing inputs
             with open(root_folder / "metadata.yaml", "w") as f_metadata:
                 yaml.safe_dump(
@@ -410,7 +412,7 @@ class GPModelSet:
             )
             (feature_scaler, label_scaler) = D_train.standard_scale()
             inducing_inputs = (
-                np.load(file=root_folder / metadata["inducing_inputs"])
+                pd.read_csv(root_folder / metadata["inducing_inputs"])
                 if metadata["inducing_inputs"] is not None
                 else None
             )
