@@ -14,6 +14,8 @@ arg_parser = argparse.ArgumentParser(
 
 # the first positional parameter is a list of all training dataset directories
 arg_parser.add_argument(
+    "-d",
+    "--data_dirs",
     dest="train_dirs",
     type=str,
     metavar="Training Dataset Directory",
@@ -62,7 +64,7 @@ arg_parser.add_argument("-o", "--out_dir", dest="out_dir", required=False, type=
 if __name__ == "__main__":
     # load cli arguments
     args = arg_parser.parse_args()
-    train_dirs = [pathlib.Path(d) for d in args.train_dirs]
+    train_dirs = [pathlib.Path(d) for d in args.train_dirs] if args.train_dirs else None
     test_dir = pathlib.Path(args.test_dir) if args.test_dir else None
     inspect_only: bool = args.inspect_only or False
     scenario_name: str = args.name or datetime.today().strftime("%Y%m%d-%H%M%S")
@@ -76,7 +78,7 @@ if __name__ == "__main__":
         scenario_name=scenario_name,
         train_dirs=train_dirs,
         test_dir=test_dir,
-        kernel_dir=model_dir,
+        modelset_dir=model_dir,
         inspect_only=inspect_only,
         sparsity=sparsity,
     )
@@ -85,7 +87,6 @@ if __name__ == "__main__":
         sys.exit()
 
     if export_dir is not None:
-        export_dir = export_dir / f"{scenario_name}"
         if not export_dir.exists():
             os.mkdir(export_dir)
 
