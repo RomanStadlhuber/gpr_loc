@@ -64,7 +64,7 @@ Aborting operation.
         self.inducing_features: Optional[pd.DataFrame] = None
 
         self.D_train.print_info()
-        if self.D_test:
+        if self.D_test is not None:
             self.D_test.print_info()
 
         num_datapoints, *_ = self.D_train.get_X().shape
@@ -114,6 +114,7 @@ Aborting operation.
     def load_test_set(self) -> None:
         """Loads the test dataset and standard-scales it according to the training feature and label scalers."""
         if self.test_dir is None:
+            self.D_test = None
             return
         self.D_test = GPDataset.load(dataset_folder=self.test_dir, order_by=self.D_train)
         # scale the test dataset if it exists
