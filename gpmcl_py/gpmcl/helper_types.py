@@ -38,8 +38,15 @@ class GPDataset:
         dataset_folder: pathlib.Path,
         name: Optional[str] = None,
         file_prefix_name: Optional[str] = None,
+        order_by: Optional["GPDataset"] = None,
     ) -> "GPDataset":
-        """Uses the filename prefix to load features and labels and construct a new Dataset"""
+        """Uses the filename prefix to load features and labels and construct a new Dataset
+
+        ### Remark
+
+        Pass another dataset `order_by` to force the same column order.
+        This requries that the datasets have at least the same columns.
+        """
 
         if file_prefix_name is not None:
             features_dir = dataset_folder.joinpath(f"{file_prefix_name}_features.csv")
@@ -49,7 +56,11 @@ class GPDataset:
                 name = name or file_prefix_name
                 features = pd.read_csv(features_dir, index_col=0)
                 labels = pd.read_csv(labels_dir, index_col=0)
-                return GPDataset(name, features, labels)
+                if order_by is None:
+                    return GPDataset(name, features, labels)
+                else:
+                    return GPDataset(name, features[order_by.features.columns], labels[order_by.labels.columns])
+
             else:
                 raise FileNotFoundError(
                     f"""One of the dataset files cannot be found.
@@ -72,7 +83,10 @@ class GPDataset:
             # load the dataset from the directory
             feature_df = pd.read_csv(feature_files[0], index_col=0)
             label_df = pd.read_csv(label_files[0], index_col=0)
-            return GPDataset(name=name or dataset_folder.name, features=feature_df, labels=label_df)
+            if order_by is None:
+                return GPDataset(name, feature_df, label_df)
+            else:
+                return GPDataset(name, feature_df[order_by.features.columns], label_df[order_by.labels.columns])
 
     @staticmethod
     def join(others: Iterable["GPDataset"], name: str = "joined") -> "GPDataset":
@@ -214,7 +228,7 @@ class GPModel:
         file: pathlib.Path,
         X: np.ndarray,
         Y: np.ndarray,
-        sparsity: Optional[int],
+        inducing_inputs: Optional[pd.DataFrame],
     ) -> Union[GPy.models.GPRegression, GPy.models.SparseGPRegression]:
         """load a regression model from a file"""
         _, dim, *__ = X.shape
@@ -223,8 +237,14 @@ class GPModel:
         rbf_kernel = GPy.kern.RBF(input_dim=dim, ARD=True)
         m_load = (
             GPy.models.GPRegression(X, Y, initialize=False, kernel=rbf_kernel)
-            if sparsity is None
-            else GPy.models.SparseGPRegression(X, Y, initialize=False, kernel=rbf_kernel, num_inducing=sparsity)
+            if inducing_inputs is None
+            else GPy.models.SparseGPRegression(
+                X,
+                Y,
+                initialize=False,
+                kernel=rbf_kernel,
+                Z=inducing_inputs.to_numpy() if inducing_inputs is not None else None,
+            )
         )
         m_load.update_model(False)
         m_load.initialize_parameter()
@@ -371,7 +391,7 @@ class GPModelSet:
         )
         # save the dataset
         dataset_dir_name = f"{name}_dataset"
-        dataset.export(root_folder, dataset_dir_name)
+        dataset.export(root_folder / dataset_dir_name, dataset_dir_name)
         # export inducing inputs if they exist
         if inducing_inputs is not None:
             filename_inducing = f"{name}_inducing_inputs.csv"
@@ -412,7 +432,7 @@ class GPModelSet:
             )
             (feature_scaler, label_scaler) = D_train.standard_scale()
             inducing_inputs = (
-                pd.read_csv(root_folder / metadata["inducing_inputs"])
+                pd.read_csv(root_folder / metadata["inducing_inputs"], index_col=0)
                 if metadata["inducing_inputs"] is not None
                 else None
             )
@@ -424,8 +444,9 @@ class GPModelSet:
                             root_folder / model_metadata["param_file"],
                             X=D_train.get_X(),
                             Y=D_train.get_Y(model_metadata["label"]),
-                            # TODO: pass actual inducing inputs
-                            sparsity=inducing_inputs.shape[0] if inducing_inputs is not None else None,
+                            # the inducing inputs, reordered to fit the training data order
+                            # this is a safeguard, but the order will probably be right most of the time
+                            inducing_inputs=inducing_inputs[D_train.features.columns],
                         ),
                     ),
                     metadata["models"],
