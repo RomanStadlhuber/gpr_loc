@@ -362,6 +362,39 @@ class GPModelSet:
     # a constant remark that should come up in all metadata files
     remark: str = "Inducing inputs are already std.-scaled acc. to the training data."
 
+    def perform_regression(
+        self,
+        D_test_unscaled: Optional[GPDataset] = None,
+        D_test_scaled: Optional[GPDataset] = None,
+        name: Optional[str] = None,
+    ) -> GPDataset:
+        if D_test_unscaled is not None:
+            D_test_unscaled.standard_scale(scalers=(self.training_feature_scaler, self.training_label_scaler))
+        D_test = D_test_scaled or D_test_unscaled
+        if D_test is None:
+            raise ValueError("Unable to perform regression, dataset does not exist!")
+        # reorder input features according to the training data
+        D_test.features = D_test.features[self.D_train.features.columns]
+        X_test = D_test.get_X()
+        regression_labels = pd.DataFrame()
+        for labelled_model in self.gp_models:
+            label = labelled_model.label
+            model = labelled_model.model
+            # perform regression, then rescale and export
+            # TODO: export covariance
+            (Y_regr, _) = model.predict_noiseless(X_test)
+            # create a dataframe for this label and join with the rest of the labels
+            df_Y_regr = pd.DataFrame(columns=[label], data=Y_regr)
+            regression_labels = pd.concat([regression_labels, df_Y_regr], axis=1)
+
+        D_regr = GPDataset(
+            name=name,
+            features=D_test.features,
+            labels=regression_labels,
+        )
+        D_regr.rescale(self.training_feature_scaler, self.training_label_scaler)
+        return D_regr
+
     @staticmethod
     def export_models(
         labelled_models: List[LabelledModel],

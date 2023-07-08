@@ -191,24 +191,10 @@ Aborting operation.
         if messages:
             print(f"performing regression in scenario {self.scenario}..")
 
-        X_test = self.D_test.get_X()
-        regression_labels = pd.DataFrame()
-        for labelled_model in self.models:
-            label = labelled_model.label
-            model = labelled_model.model
-            # perform regression, then rescale and export
-            # TODO: export covariance
-            (Y_regr, _) = model.predict_noiseless(X_test)
-            # create a dataframe for this label and join with the rest of the labels
-            df_Y_regr = pd.DataFrame(columns=[label], data=Y_regr)
-            regression_labels = pd.concat([regression_labels, df_Y_regr], axis=1)
-
-        D_regr = GPDataset(
+        D_regr = self.modelset.perform_regression(
+            D_test_scaled=self.D_test,
             name=f"{self.scenario}_regression-output",
-            features=self.D_test.features,
-            labels=regression_labels,
         )
-        D_regr.rescale(self.train_feature_scaler, self.train_label_scaler)
         return D_regr
 
     def export_models(self, dir: pathlib.Path, name: str) -> None:
