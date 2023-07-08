@@ -1,3 +1,6 @@
 *.txt
 !requirements*.txt
 TODO.md
+
+data/
+models/
