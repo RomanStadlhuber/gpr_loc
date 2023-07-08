@@ -1,5 +1,6 @@
 from typing import Optional, Iterable, List, Union
 from gpmcl.helper_types import GPDataset, GPModel, LabelledModel, GPModelSet
+from gpmcl.sparse_picker import SparsePicker
 from dataclasses import dataclass
 import pandas as pd
 import numpy as np
@@ -27,7 +28,7 @@ class GPScenario:
     def __init__(
         self,
         scenario_name: str,
-        train_dirs: Iterable[pathlib.Path],
+        train_dirs: Optional[Iterable[pathlib.Path]] = None,
         test_dir: Optional[pathlib.Path] = None,
         modelset_dir: Optional[pathlib.Path] = None,
         inspect_only: bool = False,
@@ -40,21 +41,15 @@ class GPScenario:
         self.test_dir = test_dir
         self.modelset_dir = modelset_dir
         self.load_sparse = sparsity is not None
-        # the training and test datasets
-        training_datasets = self.load_datasets(self.train_dirs)
-        self.D_train = GPDataset.join(training_datasets, f"{self.scenario} - training")
-        # TODO: check if this truly is a copy operation
-        self.D_train_unscaled = self.D_train
-        # scale the training dataset
-        (
-            self.train_feature_scaler,
-            self.train_label_scaler,
-        ) = self.D_train.standard_scale()
+        if modelset_dir is None and train_dirs is not None:
+            self.load_training_set_from_dirs()
         self.load_test_set()
         # the names of the columns used in the regression process
         self.labels = self.D_train.labels.columns
         # a list containing the optimized model kernels
         self.models: List[LabelledModel] = []
+        # a buffer for the inducing inputs feature dataframe
+        self.inducing_features: Optional[pd.DataFrame] = None
 
         self.D_train.print_info()
         if self.D_test:
@@ -92,6 +87,20 @@ class GPScenario:
         datasets = [GPDataset.load(d) for d in dirs]
         return datasets
 
+    def load_training_set_from_dirs(self) -> None:
+        if self.train_dirs is None:
+            return
+        # the training and test datasets
+        training_datasets = self.load_datasets(self.train_dirs)
+        self.D_train = GPDataset.join(training_datasets, f"{self.scenario} - training")
+        # TODO: check if this truly is a copy operation
+        self.D_train_unscaled = self.D_train
+        # scale the training dataset
+        (
+            self.train_feature_scaler,
+            self.train_label_scaler,
+        ) = self.D_train.standard_scale()
+
     def load_test_set(self) -> None:
         """Loads the test dataset and standard-scales it according to the training feature and label scalers."""
         self.D_test = GPDataset.load(dataset_folder=self.test_dir) if self.test_dir else None
@@ -105,14 +114,16 @@ class GPScenario:
             else (None, None)
         )
 
-    def generate_models(
-        self, messages: bool = False, export_directory: Optional[pathlib.Path] = None
-    ) -> Iterable[GPy.Model]:
+    def generate_models(self, messages: bool = False) -> Iterable[GPy.Model]:
         """Generate models for each label in the training data"""
         # load the input data for all models
         X = self.D_train.get_X()
         # obtain dimensionality of input data
         _, dim, *__ = X.shape
+        # compute the sparse inducing inputs once, they're the same for all processes
+        if self.sparsity is not None:
+            print(f"Constructing a sparse GP with {self.sparsity} inducing inputs.")
+            self.inducing_features = SparsePicker.pick_kmeanspp(self.D_train, self.sparsity)
         # list used to store all models
         models: List[GPy.Model] = []
         # individually create models for each label_
@@ -120,13 +131,17 @@ class GPScenario:
             Y = self.D_train.get_Y(label)
             # define the kernel function for the GP
             rbf_kernel = GPy.kern.RBF(input_dim=dim, variance=1.0, lengthscale=1.0, ARD=True)
-            if self.sparsity is not None:
-                print(f"Constructing a sparse GP with {self.sparsity} inducing inputs.")
             # build the model
             model = (
                 GPy.models.GPRegression(X, Y, kernel=rbf_kernel)
                 if self.sparsity is None
-                else GPy.models.SparseGPRegression(X, Y, kernel=rbf_kernel, num_inducing=self.sparsity)
+                else GPy.models.SparseGPRegression(
+                    X,
+                    Y,
+                    kernel=rbf_kernel,
+                    # inducing inputs as picked by the Sparse-Picker
+                    Z=self.inducing_features.to_numpy(),
+                )
             )
             if messages:
                 # print information about the model
@@ -135,10 +150,6 @@ class GPScenario:
                 print(f"Beginning model optimization for label {label}...")
             model.optimize(messages=messages)
             models.append(LabelledModel(label, model))
-            if export_directory and export_directory.exists() and export_directory.is_dir():
-                # NOTE: it is paramount that this filename is equal to the label column
-                model_metadata = GPModel(name=label, parameters=model.param_array)
-                model_metadata.save(export_directory)
 
         self.models = models
         return models
@@ -150,6 +161,7 @@ class GPScenario:
         self.D_train = modelset.D_train
         self.train_feature_scaler = modelset.training_feature_scaler
         self.train_label_scaler = modelset.training_label_scaler
+        self.inducing_features = modelset.inducing_inputs
         # load the test set again, but this time with the new scalers
         self.load_test_set()
         # store the models for later use (i.e. inference)
@@ -187,14 +199,10 @@ class GPScenario:
         """export the paramters of all models in this scenario to the target directory"""
         if len(self.models) > 0:
             X = self.D_train.get_X()
-            # TODO: k-means inducing input picking
-            inducing_inputs = (
-                np.empty((self.sparsity, X.shape[1]), dtype=np.uint8) if self.sparsity is not None else None
-            )
             GPModelSet.export_models(
                 labelled_models=self.models,
                 dataset=self.D_train_unscaled,
-                inducing_inputs=inducing_inputs,
+                inducing_inputs=self.inducing_features,
                 root_folder=dir,
                 name=name,
             )
