@@ -9,7 +9,7 @@ import os
 
 arg_parser = argparse.ArgumentParser(
     prog="regression",
-    description="the script used to perform regression on gaussian process data",
+    description="Train and/or evaluate a set of dense or sparse Gaussian Processes.",
 )
 
 # the first positional parameter is a list of all training dataset directories
@@ -18,8 +18,8 @@ arg_parser.add_argument(
     "--data_dirs",
     dest="train_dirs",
     type=str,
-    metavar="Training Dataset Directory",
-    help="The root directory containing all training datasets",
+    metavar="dataset-dir.",
+    help="Directories containing the training datasets.",
     nargs="+",
 )
 # an optional parameter loads the test dataset and performs regression on it
@@ -28,8 +28,8 @@ arg_parser.add_argument(
     "--test",
     dest="test_dir",
     type=str,
-    metavar="Test Dataset Directory",
-    help="The root directory containing the test dataset",
+    metavar="dataset-dir.",
+    help="Directory containing the test dataset.",
 )
 arg_parser.add_argument(
     "-m",
@@ -37,7 +37,7 @@ arg_parser.add_argument(
     type=str,
     dest="model_dir",
     metavar="Pretrained models",
-    help="The directory containing optimized models",
+    help="The directory containing optimized models.",
 )
 # if the dataset is to be inspected (i.e. printing information)
 arg_parser.add_argument(
@@ -46,14 +46,15 @@ arg_parser.add_argument(
     dest="inspect_only",
     default=False,
     action="store_true",
+    help="Only print information about the training and test dataset.",
 )
 arg_parser.add_argument(
     "--sparsity",
     dest="sparsity",
     type=int,
     required=False,
-    metavar="The sparsity of the GP relative to the input dataset(s).",
-    help="A factor 0 < x < 1 (not including) that determines the relative number of samples used.",
+    metavar="No. of inducing inputs (> 0) used to train a sparse GP.",
+    help="The inducing inputs picked for training will be exported with the model.",
 )
 # name of the joined datasets (that is, the regression job)
 arg_parser.add_argument("-n", "--name", dest="name", type=str)
