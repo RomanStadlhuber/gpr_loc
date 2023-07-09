@@ -359,8 +359,6 @@ class GPModelSet:
     training_feature_scaler: StandardScaler
     # scaler to training data label scale
     training_label_scaler: StandardScaler
-    # a constant remark that should come up in all metadata files
-    remark: str = "Inducing inputs are already std.-scaled acc. to the training data."
 
     def perform_regression(
         self,
