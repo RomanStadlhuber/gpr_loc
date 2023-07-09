@@ -32,7 +32,7 @@ Unable to load GP Models!
             self.models = GPModelSet.load_models(model_path)
         # endregion: load GP models
 
-    def regression(
+    def predict(
         self,
         estimated_motion: np.ndarray,
         previous_motion: np.ndarray,
