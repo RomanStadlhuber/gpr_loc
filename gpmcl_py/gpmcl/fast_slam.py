@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from gpmcl.transform import Pose2D
 from gpmcl.config import FastSLAMConfig
 from gpmcl.particle import FastSLAMParticle
