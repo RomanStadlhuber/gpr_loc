@@ -1,6 +1,7 @@
 from gpmcl.transform import Pose2D
 from gpmcl.config import FastSLAMConfig
 from gpmcl.particle import FastSLAMParticle
+from gpmcl.motion_model import MotionModel
 from typing import List
 import numpy as np
 import scipy.stats
@@ -10,13 +11,14 @@ import open3d
 class FastSLAM:
     # TODO: how to manage particle values?
 
-    def __init__(self, config: FastSLAMConfig) -> None:
+    def __init__(self, config: FastSLAMConfig, motion_model: MotionModel) -> None:
         # initialize particles by setting landmarks empty
         # and sampling about intial guess with uniform distribution
         # load/set inference function to gaussian process models
         self.config = config
         self.M = self.config["particle_count"]
         self.particles: List[FastSLAMParticle] = []
+        self.motion_model = motion_model
         pass
 
     def initialize_from_pose(self, x0: np.ndarray) -> None:
