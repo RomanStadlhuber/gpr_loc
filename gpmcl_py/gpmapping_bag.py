@@ -1,4 +1,3 @@
-# from gpmcl.scan_tools_3d import ScanTools3D
 from gpmcl.localization_scenario import (
     LocalizationScenario,
     LocalizationSyncMessage,
