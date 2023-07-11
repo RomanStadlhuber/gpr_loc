@@ -61,7 +61,7 @@ class ParticleFilter:
     def predict(self, odom: Odometry) -> None:
         X_est = Pose2D.from_odometry(odom)
         # estimated delta transformation "dU"
-        T_delta_u = self.odom_last.inv() @ X_est.T
+        T_delta_u = self.odom_last.inv2d() @ X_est.T
         delta_u = Pose2D(T_delta_u).as_twist()
         # repeat the estimated motion and add gaussian white noise to spread the particles
         noise_u = self.N_u.rvs(size=self.M)
