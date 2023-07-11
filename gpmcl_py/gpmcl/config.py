@@ -22,6 +22,8 @@ class MotionModelGPConfig(TypedDict):
 
 class MapperConfig(TypedDict):
     # the following parameters are required for keypoint detection
+    scatter_radius: float
+    nms_radius: float
     eig_ratio_32: float
     eig_ratio_21: float
     min_neighbor_count: int
