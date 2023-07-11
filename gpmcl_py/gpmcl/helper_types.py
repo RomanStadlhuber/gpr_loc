@@ -492,7 +492,9 @@ class GPModelSet:
                             Y=D_train.get_Y(model_metadata["label"]),
                             # the inducing inputs, reordered to fit the training data order
                             # this is a safeguard, but the order will probably be right most of the time
-                            inducing_inputs=inducing_inputs[D_train.features.columns] if inducing_inputs else None,
+                            inducing_inputs=inducing_inputs[D_train.features.columns]
+                            if inducing_inputs is not None
+                            else None,
                         ),
                     ),
                     metadata["models"],
