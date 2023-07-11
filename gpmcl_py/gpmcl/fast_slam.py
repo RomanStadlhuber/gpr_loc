@@ -75,7 +75,7 @@ class FastSLAM:
         # convert range and bearing values to 2D poses
         poses = list(
             map(
-                lambda r, b, h: np.array(r * np.cos(b) + x0, r * np.sin(b) + y0, h + h0),  # type: ignore
+                lambda rbh: np.array([rbh[0] * np.cos(rbh[1]) + x0, rbh[0] * np.sin(rbh[1]) + y0, rbh[2] + h0]),  # type: ignore
                 zip(ranges, bearings, headings),
             )
         )
