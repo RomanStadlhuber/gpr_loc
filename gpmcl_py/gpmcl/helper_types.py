@@ -90,6 +90,15 @@ class GPDataset:
                     name or "anonymous", feature_df[order_by.features.columns], label_df[order_by.labels.columns]
                 )
 
+    def pick_from(self, other: "GPDataset") -> "GPDataset":
+        """Pick the features and labels of a dataset based on the column names of another.
+
+        This is useful if a subset of the features and/or labels is to be selected.
+        """
+        p_features = self.features[other.features.columns].copy()
+        p_labels = self.labels[other.labels.columns].copy() if not self.labels.empty else self.labels
+        return GPDataset(name=self.name, features=p_features, labels=p_labels)
+
     @staticmethod
     def join(others: Iterable["GPDataset"], name: str = "joined") -> "GPDataset":
         """join multiple GP Datasets (in the order as passed)"""
@@ -381,12 +390,15 @@ class GPModelSet:
         name: Optional[str] = None,
     ) -> GPDataset:
         if D_test_unscaled is not None:
+            # pick the desired feature columns
+            D_test_unscaled = D_test_unscaled.pick_from(self.D_train_unscaled)
+            # standard-scale the unscaled dataset
             D_test_unscaled.standard_scale(scalers=(self.training_feature_scaler, self.training_label_scaler))
+        if D_test_scaled is not None:
+            D_test_scaled = D_test_scaled.pick_from(self.D_train_scaled)
         D_test = D_test_scaled or D_test_unscaled
         if D_test is None:
             raise ValueError("Unable to perform regression, dataset does not exist!")
-        # reorder input features according to the training data
-        D_test.features = D_test.features[self.D_train_scaled.features.columns]
         X_test = D_test.get_X()
         regression_labels = pd.DataFrame()
         for labelled_model in self.gp_models:
