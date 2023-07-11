@@ -31,7 +31,7 @@ class FastSLAM:
         # predict new particle poses
         # update the trajectories by appending the prior
         predicted_motion = self.motion_model.predict(
-            estimated_motion=np.repeat(estimated_motion, repeats=self.M, axis=0),
+            estimated_motion=np.repeat([estimated_motion], repeats=self.M, axis=0),
             previous_motion=self.previous_motion,
         )
         self.previous_motion = predicted_motion
