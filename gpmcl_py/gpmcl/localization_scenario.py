@@ -1,10 +1,10 @@
 from gpmcl.rosbag_sync_reader import RosbagSyncReader, SyncMessage
+from gpmcl.config import BagRunnerConfig
 from rosbags.typesys.types import (
     nav_msgs__msg__Odometry as Odometry,
     sensor_msgs__msg__PointCloud2 as PointCloud2,
 )
 from typing import Dict, Optional
-from dataclasses import dataclass
 from abc import ABC, abstractmethod
 import pathlib
 
@@ -69,57 +69,31 @@ class LocalizationPipeline(ABC):
         pass
 
 
-@dataclass
-class LocalizationScenarioConfig:
-    """Configuration wrapper for localization scenario"""
-
-    bag_path: pathlib.Path  # path to the input rosbag
-    topic_odom_est: str  # name of the odometry estimates topic
-    topic_scan_3d: str  # name of the laser scan topic
-    topic_odom_groundtruth: Optional[str] = None  # optional name of the ground truth topic
-    bag_sync_period: float = 0.1  # max. elapsed period in [sec.] to consider messages synchronized
-    max_iterations: int = -1  # number of iterations after which the bag stops spinning
-
-    @staticmethod
-    def from_config(config: Dict) -> "LocalizationScenarioConfig":
-        """Load configuration from a `PyYAML.load` config document."""
-        scen_config: Dict = config["scenario"]
-        return LocalizationScenarioConfig(
-            bag_path=pathlib.Path(scen_config["bag_path"]),
-            topic_odom_est=scen_config["topic_odom_est"],
-            # load with get to retain None value
-            topic_odom_groundtruth=scen_config.get("topic_odom_groundtruth"),
-            topic_scan_3d=scen_config["topic_scan_3d"],
-            bag_sync_period=scen_config["bag_sync_period"],
-            max_iterations=scen_config.get("max_iterations") or -1,
-        )
-
-
 class LocalizationScenario:
-    def __init__(self, config: LocalizationScenarioConfig, pipeline: LocalizationPipeline) -> None:
+    def __init__(self, config: BagRunnerConfig, pipeline: LocalizationPipeline) -> None:
         self.config = config
         self.localization_pipeline = pipeline
         # set the desired topics of the Sync Message
         LocalizationSyncMessage.set_topics(
-            topic_odom_groundtruth=config.topic_odom_groundtruth,
-            topic_odom_est=config.topic_odom_est,
-            topic_scan_3d=config.topic_scan_3d,
+            topic_odom_groundtruth=config["groundtruth_topic"],
+            topic_odom_est=config["estimated_odometry_topic"],
+            topic_scan_3d=config["pointcloud_topic"],
         )
         self.pipeline_initialized = False
 
     def spin_bag(self) -> None:
         """Perform localization on the bag."""
-        rosbag_sync_reader = RosbagSyncReader(self.config.bag_path)
+        rosbag_sync_reader = RosbagSyncReader(pathlib.Path(self.config["bag_path"]))
         # set of topic names the bag is searched for
-        topic_names = set([self.config.topic_odom_est, self.config.topic_scan_3d])
+        topic_names = set([self.config["estimated_odometry_topic"], self.config["pointcloud_topic"]])
         # add the ground truth topic if it exists
-        if self.config.topic_odom_groundtruth is not None:
-            topic_names.add(self.config.topic_odom_groundtruth)
+        if self.config["groundtruth_topic"] is not None:
+            topic_names.add(self.config["groundtruth_topic"])
         rosbag_sync_reader.spin(
             topics=topic_names,
             callback=self.__message_callback,
-            grace_period_secs=self.config.bag_sync_period,
-            max_iterations=self.config.max_iterations,
+            grace_period_secs=self.config["sync_period"],
+            max_iterations=self.config["stop_after"] or -1,
         )
 
     def export_metrics(self, out_dir: pathlib.Path) -> None:
