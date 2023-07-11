@@ -71,7 +71,13 @@ class GPMCLPipeline(LocalizationPipeline):
         self.debug_iteration_count += 1
         print(f"Iteration {self.debug_iteration_count}.")
         self.odom_last = odom_curr
-        self.__update_trajectory()
+        # update the estimated trajectory, odometry and ground truth
+        # this is used for plotting
+        self.__update_trajectory(
+            estimate=self.slam.get_mean_pose().as_twist(),
+            groundtruth=Pose2D.from_odometry(synced_msgs.groundtruth).as_twist() if synced_msgs.groundtruth else None,
+            odometry=Pose2D.from_odometry(synced_msgs.odom_est).as_twist(),
+        )
 
     def export_trajectory(self, out_dir: pathlib.Path) -> None:
         # create output directory if it does not exist
@@ -136,14 +142,14 @@ arg_parser.add_argument(
 if __name__ == "__main__":
     args = arg_parser.parse_args()
     config_path = pathlib.Path(args.config_path)
-    gpmapping_config = load_gpmapping_offline_config(config_path)
     dbg_vis = args.debug_visualize
     out_dir = pathlib.Path(args.out_dir)
+    # load the pipelines configuration
+    gpmapping_config = load_gpmapping_offline_config(config_path)
     # instantiate the pipeline
     pipeline = GPMCLPipeline(config=gpmapping_config, debug_visualize=dbg_vis)
     # instantiate the scenario
     localization_scenario = LocalizationScenario(config=gpmapping_config["bag_runner"], pipeline=pipeline)
     # run localization inference
     localization_scenario.spin_bag()
-    # TODO: re-enable this once the divergence is fixed
-    # localization_scenario.export_metrics(out_dir)
+    localization_scenario.export_metrics(out_dir)
