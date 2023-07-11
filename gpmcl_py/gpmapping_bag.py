@@ -12,7 +12,7 @@ from gpmcl.particle_filter import (
 from gpmcl.mapper import MapperConfig, Mapper
 from gpmcl.scan_tools_3d import ScanTools3D, PointCloudVisualizer
 from gpmcl.regression import GPRegression, GPRegressionConfig
-from transform import odometry_msg_to_affine_transform, Pose2D
+from gpmcl.transform import odometry_msg_to_affine_transform, Pose2D
 from typing import Optional, Dict
 import numpy as np
 import pandas as pd
