@@ -84,9 +84,11 @@ class GPDataset:
             feature_df = pd.read_csv(feature_files[0], index_col=0)
             label_df = pd.read_csv(label_files[0], index_col=0)
             if order_by is None:
-                return GPDataset(name, feature_df, label_df)
+                return GPDataset(name or "anonymous", feature_df, label_df)
             else:
-                return GPDataset(name, feature_df[order_by.features.columns], label_df[order_by.labels.columns])
+                return GPDataset(
+                    name or "anonymous", feature_df[order_by.features.columns], label_df[order_by.labels.columns]
+                )
 
     @staticmethod
     def join(others: Iterable["GPDataset"], name: str = "joined") -> "GPDataset":
@@ -179,6 +181,15 @@ class GPDataset:
             self.features[self.features.columns]
         )
         self.labels[self.labels.columns] = fitted_label_scaler.inverse_transform(self.labels[self.labels.columns])
+
+    def copy(self) -> "GPDataset":
+        """Obtain a deep copy of this dataset.
+
+        This is useful to keep an unscaled copy before calling `GPDataset.standard_scale()`.
+        """
+        c_features = self.features.copy()
+        c_labels = self.labels.copy()
+        return GPDataset(name=self.name, features=c_features, labels=c_labels)
 
     def print_info(self) -> None:
         rows, *_ = self.features.shape
@@ -278,6 +289,7 @@ class LabelledModel:
         np.save(file_path, self.model.param_array)
         return file_path
 
+    # TODO: remove this method once the new system is working
     @staticmethod
     def load_labelled_models(
         model_dir: pathlib.Path, D_train: GPDataset, sparsity: Optional[int]
@@ -302,7 +314,7 @@ class LabelledModel:
             label = kernel_file.name.split(".npy")[0].replace("--", "/")
             Y = D_train.get_Y(label)
             # load a dense or sparse regression model (based on the constructors parameter)
-            model = GPModel.load_regression_model(kernel_file, X, Y, sparsity=sparsity)
+            model = GPModel.load_regression_model(kernel_file, X, Y, inducing_inputs=None)
             models.append(LabelledModel(label, model))
 
         return models
@@ -351,8 +363,10 @@ class GPModelSet:
 
     # the pre-configured models
     gp_models: List[LabelledModel]
+    # the unscaled training dataset
+    D_train_unscaled: GPDataset
     # the scaled training dataset
-    D_train: GPDataset
+    D_train_scaled: GPDataset
     # inducing inputs used (in case of a sparse GP)
     inducing_inputs: Optional[pd.DataFrame]
     # scaler to training data feature scale
@@ -372,7 +386,7 @@ class GPModelSet:
         if D_test is None:
             raise ValueError("Unable to perform regression, dataset does not exist!")
         # reorder input features according to the training data
-        D_test.features = D_test.features[self.D_train.features.columns]
+        D_test.features = D_test.features[self.D_train_scaled.features.columns]
         X_test = D_test.get_X()
         regression_labels = pd.DataFrame()
         for labelled_model in self.gp_models:
@@ -386,7 +400,7 @@ class GPModelSet:
             regression_labels = pd.concat([regression_labels, df_Y_regr], axis=1)
 
         D_regr = GPDataset(
-            name=name,
+            name=name or "anonymous",
             features=D_test.features,
             labels=regression_labels,
         )
@@ -396,7 +410,7 @@ class GPModelSet:
     @staticmethod
     def export_models(
         labelled_models: List[LabelledModel],
-        dataset: GPDataset,
+        dataset_unscaled: GPDataset,
         inducing_inputs: Optional[pd.DataFrame],
         root_folder: pathlib.Path,
         name: str,
@@ -422,7 +436,7 @@ class GPModelSet:
         )
         # save the dataset
         dataset_dir_name = f"{name}_dataset"
-        dataset.export(root_folder / dataset_dir_name, dataset_dir_name)
+        dataset_unscaled.export(root_folder / dataset_dir_name, dataset_dir_name)
         # export inducing inputs if they exist
         if inducing_inputs is not None:
             filename_inducing = f"{name}_inducing_inputs.csv"
@@ -461,6 +475,7 @@ class GPModelSet:
             D_train = GPDataset.load(
                 dataset_folder=root_folder / metadata["training_data"], name=f"""{metadata["set_name"]}_training_data"""
             )
+            D_train_unscaled = D_train.copy()
             (feature_scaler, label_scaler) = D_train.standard_scale()
             inducing_inputs = (
                 pd.read_csv(root_folder / metadata["inducing_inputs"], index_col=0)
@@ -485,7 +500,8 @@ class GPModelSet:
             )
             return GPModelSet(
                 gp_models=gp_models,
-                D_train=D_train,
+                D_train_scaled=D_train,
+                D_train_unscaled=D_train_unscaled,
                 inducing_inputs=inducing_inputs,
                 training_feature_scaler=feature_scaler,
                 training_label_scaler=label_scaler,
