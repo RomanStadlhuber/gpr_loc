@@ -46,7 +46,7 @@ class PaperFigurePlotter:
         # -- load preprocessed trajectiores from GPMCL dataframes (paper no. 2)
         # region
 
-        data_dir = pathlib.Path("data/gpmcl/trajectories/trajectory_gt_update")
+        data_dir = pathlib.Path("data/eval_trajectories")
 
         pth_trajectory_est = pathlib.Path(data_dir / "trajectory_estimated.csv")
         pth_trajectory_groundtruth = pathlib.Path(data_dir / "trajectory_groundtruth.csv")
@@ -63,7 +63,7 @@ class PaperFigurePlotter:
         trajectory_groundtruth = pd.read_csv(pth_trajectory_groundtruth)
         trajectory_odometry = pd.read_csv(pth_trajectory_odometry)
         df_particles = pd.read_csv(pth_particles)
-        df_landmarks = pd.read_csv(pth_landmarks)
+        df_landmarks = pd.read_csv(pth_landmarks) if pth_landmarks.exists() else pd.DataFrame(columns=["x", "y"])
         color_est = "orange"
         color_gt = "darkgreen"
         color_odom = "purple"

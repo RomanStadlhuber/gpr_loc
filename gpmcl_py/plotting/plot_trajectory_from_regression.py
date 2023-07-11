@@ -1,6 +1,6 @@
 from plotting.plotters import TrajectoryPlotter
 from gpmcl.helper_types import GPDataset
-from transform import Pose2D
+from gpmcl.transform import Pose2D
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
