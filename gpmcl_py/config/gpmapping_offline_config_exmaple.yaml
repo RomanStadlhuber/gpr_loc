@@ -1,4 +1,6 @@
 mapper:
+  scatter_radius: 1.0
+  nms_radius: 0.4
   eig_ratio_32: 0.65
   eig_ratio_21: 0.65
   min_neighbor_count: 5
@@ -11,16 +13,8 @@ fast_slam:
   max_feature_range: 12 # [m]
   max_unobserved_count: -10 # remove landmark after unobserved this often
   particle_count: 100
-  keypoint_covariance: [
-    0.6, 0, 0,
-    0, 0.6, 0,
-    0, 0, 0.6
-  ]
-  observation_covariance: [
-    0.4, 0, 0,
-    0, 0.2, 0,
-    0, 0, 0.2
-  ]
+  keypoint_covariance: [0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6]
+  observation_covariance: [0.4, 0, 0, 0, 0.2, 0, 0, 0, 0.2]
 motion_model_gp:
   model_dir: "/path/to/model_dir/"
   estimated_motion_labels:
