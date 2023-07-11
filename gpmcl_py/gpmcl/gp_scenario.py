@@ -1,7 +1,6 @@
-from typing import Optional, Iterable, List, Union
-from gpmcl.helper_types import GPDataset, GPModel, LabelledModel, GPModelSet
+from typing import Optional, Iterable, List
+from gpmcl.helper_types import GPDataset, LabelledModel, GPModelSet
 from gpmcl.sparse_picker import SparsePicker
-from dataclasses import dataclass
 import pandas as pd
 import numpy as np
 import pathlib
@@ -103,8 +102,7 @@ Aborting operation.
         # the training and test datasets
         training_datasets = self.load_datasets(self.train_dirs)
         self.D_train = GPDataset.join(training_datasets, f"{self.scenario} - training")
-        # TODO: check if this truly is a copy operation
-        self.D_train_unscaled = self.D_train
+        self.D_train_unscaled = self.D_train.copy()
         # scale the training dataset
         (
             self.train_feature_scaler,
@@ -147,7 +145,7 @@ Aborting operation.
             # build the model
             model = (
                 GPy.models.GPRegression(X, Y, kernel=rbf_kernel)
-                if self.sparsity is None
+                if self.inducing_features is None
                 else GPy.models.SparseGPRegression(
                     X,
                     Y,
@@ -169,9 +167,11 @@ Aborting operation.
 
     def load_models(self) -> None:
         """Load all kernels from the kernel directory"""
+        if self.modelset_dir is None:
+            return
         # skip if there aren't any kernels to load
         modelset = GPModelSet.load_models(self.modelset_dir)
-        self.D_train = modelset.D_train
+        self.D_train = modelset.D_train_scaled
         self.train_feature_scaler = modelset.training_feature_scaler
         self.train_label_scaler = modelset.training_label_scaler
         self.inducing_features = modelset.inducing_inputs
@@ -203,7 +203,7 @@ Aborting operation.
             X = self.D_train.get_X()
             GPModelSet.export_models(
                 labelled_models=self.models,
-                dataset=self.D_train_unscaled,
+                dataset_unscaled=self.D_train_unscaled,
                 inducing_inputs=self.inducing_features,
                 root_folder=dir,
                 name=name,
