@@ -76,7 +76,7 @@ class Pose2D:
         dT = Pose2D.twist_to_pose(u)
         self.T = self.T @ dT
 
-    def inv(self) -> np.ndarray:
+    def inv2d(self) -> np.ndarray:
         return Pose2D.invert_pose(self.T)
 
     def inv3d(self) -> np.ndarray:
@@ -91,6 +91,10 @@ class Pose2D:
         )
         return T_inv_3d
 
+    def as_t2d(self) -> np.ndarray:
+        """The pose as 2D affine transform matrix."""
+        return self.T
+
     def as_t3d(self) -> np.ndarray:
         """Obtain the transform as as 4x4 matrix in 3D space."""
         R = self.T[:2, :2]
@@ -103,6 +107,19 @@ class Pose2D:
             ]
         )
         return T
+
+    @staticmethod
+    def delta(p_from: "Pose2D", p_to: "Pose2D") -> np.ndarray:
+        """Compute the lifted delta transformation `p_from` -> `p_to`."""
+        T_a_inv = p_from.inv2d()
+        T_b = p_to.as_t2d()
+        T_delta = T_a_inv @ T_b
+        cos_dtheta = T_delta[0, 0]
+        sin_dtheta = T_delta[1, 0]
+        dtheta = np.arctan2(sin_dtheta, cos_dtheta)
+        dx, dy = T_delta[:2, 2]
+        twist = np.array([dx, dy, dtheta])
+        return twist
 
     @staticmethod
     def from_twist(x: np.ndarray) -> "Pose2D":
