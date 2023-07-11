@@ -48,6 +48,17 @@ class FastSLAM:
         # resmple particles
         pass
 
+    def get_mean_pose(self) -> Pose2D:
+        """Compute the weighted average pose given all particles and their weights."""
+        xs = np.array([p.x.as_twist() for p in self.particles])
+        mean_pose_twist = np.average(xs, axis=0, weights=self.ws)
+        return Pose2D.from_twist(mean_pose_twist)
+
+    def get_particle_poses(self) -> np.ndarray:
+        """Obtain the current poses of all particles as twist vectors."""
+        xs = np.array([p.x.as_twist() for p in self.particles])
+        return xs
+
     def sample_circular_uniform(
         self, initial_guess: np.ndarray, circle_radius: float = 1.0
     ) -> Tuple[List[FastSLAMParticle], np.ndarray]:
@@ -64,7 +75,7 @@ class FastSLAM:
         # convert range and bearing values to 2D poses
         poses = list(
             map(
-                lambda r, b, h: np.array(r * np.cos(b) + x0, r * np.sin(b) + y0, h + h0),
+                lambda r, b, h: np.array(r * np.cos(b) + x0, r * np.sin(b) + y0, h + h0),  # type: ignore
                 zip(ranges, bearings, headings),
             )
         )

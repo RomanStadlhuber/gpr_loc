@@ -6,13 +6,14 @@ from gpmcl.localization_scenario import (
 from gpmcl.mapper import Mapper
 from gpmcl.scan_tools_3d import ScanTools3D, PointCloudVisualizer
 from gpmcl.config import load_gpmapping_offline_config, GPMappingOfflineConfig
-from gpmcl.transform import odometry_msg_to_affine_transform
+from gpmcl.transform import odometry_msg_to_affine_transform, Pose2D
+from gpmcl.motion_model import MotionModel
+from gpmcl.fast_slam import FastSLAM
 from typing import Optional
 import numpy as np
 import pandas as pd
 import argparse
 import pathlib
-import yaml
 
 # TODO:
 # the pipeline will later use the following modules
@@ -37,28 +38,40 @@ class GPMCLPipeline(LocalizationPipeline):
         self.df_particles = pd.DataFrame(columns=["x", "y", "theta"])
         # a count used to print the number of iterations already performed by the filter
         self.debug_iteration_count = 0
-        self.mapper = Mapper(self.config["mapper"])
+        # the visualizer used to display the 3D scan map
         self.visualizer = PointCloudVisualizer()
+        # the 3D scan mapper
+        self.mapper = Mapper(self.config["mapper"])
+        # motion model used for GP based Fast SLAM
+        self.motion_model = MotionModel(config=self.config["motion_model_gp"])
+        # GP based Fast SLAM
+        self.slam = FastSLAM(config=self.config["fast_slam"], motion_model=self.motion_model)
 
     def initialize(self, synced_msgs: LocalizationSyncMessage) -> None:
-        pass
+        # sample initial guess about ground truth or first odometry estimate
+        initial_guess_pose = Pose2D.from_odometry(synced_msgs.groundtruth or synced_msgs.odom_est)
+        self.slam.initialize_from_pose(x0=initial_guess_pose.as_twist())
+        # buffer the latest estimated pose, this is used to compute estimated motion from odometry
+        self.odom_last = Pose2D.from_odometry(synced_msgs.odom_est)
 
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
         pcd_scan = ScanTools3D.pointcloud2_to_open3d_pointcloud(synced_msgs.scan_3d)
         pcd_keypoints = self.mapper.process_scan(pcd_scan)
-        if synced_msgs.groundtruth is not None:
-            T_curr = odometry_msg_to_affine_transform(synced_msgs.groundtruth)
-            self.mapper.update_map(pose=T_curr)
-            self.visualizer.update([self.mapper.pcd_map])
-            map_points = np.asarray(self.mapper.pcd_map.points)
-            print(f"Map contains {map_points.shape[0]} points.")
-
-        else:
-            return
-
+        odom_curr = Pose2D.from_odometry(synced_msgs.odom_est)
+        delta_odom = Pose2D.delta(self.odom_last, odom_curr)
+        self.slam.predict(estimated_motion=delta_odom)
+        self.slam.update(keypoints=pcd_keypoints)
+        # if synced_msgs.groundtruth is not None:
+        #     T_curr = odometry_msg_to_affine_transform(synced_msgs.groundtruth)
+        #     self.mapper.update_map(pose=T_curr)
+        #     self.visualizer.update([self.mapper.pcd_map])
+        #     map_points = np.asarray(self.mapper.pcd_map.points)
+        #     print(f"Map contains {map_points.shape[0]} points.")
         # increment the iteration counter
         self.debug_iteration_count += 1
         print(f"Iteration {self.debug_iteration_count}.")
+        self.odom_last = odom_curr
+        self.__update_trajectory()
 
     def export_trajectory(self, out_dir: pathlib.Path) -> None:
         # create output directory if it does not exist
@@ -80,12 +93,9 @@ class GPMCLPipeline(LocalizationPipeline):
         # the current index is the length of the dataframe
         idx_trajectory_curr, *_ = self.df_trajectory_estimated.shape
         self.df_trajectory_estimated.loc[idx_trajectory_curr, :] = estimate
-        # region: store particle poses
-        # TODO: implement a method to load particle poses from the filter
-        # partilces_weighted = np.hstack((self.pf.Xs, self.pf.ws.reshape(-1, 1)))
-        # df_particles_curr = pd.DataFrame(columns=["x", "y", "theta", "w"], data=partilces_weighted)
-        # self.df_particles = pd.concat((self.df_particles, df_particles_curr), ignore_index=True)
-        # endregion
+        particles = self.slam.get_particle_poses()
+        df_particles_curr = pd.DataFrame(columns=["x", "y", "theta"], data=particles)
+        self.df_particles = pd.concat((self.df_particles, df_particles_curr), ignore_index=True)
         if groundtruth is not None:
             self.df_trajectory_groundtruth.loc[idx_trajectory_curr, :] = groundtruth
         if odometry is not None:
