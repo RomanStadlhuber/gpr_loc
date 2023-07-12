@@ -4,66 +4,6 @@ from typing import Optional
 import numpy as np
 
 
-def odometry_msg_to_affine_transform(odom: Odometry) -> np.ndarray:
-    """Helper to convert a `nav_msgs/Odometry` message into a 4x4 affine transform."""
-    rotation = Rotation.from_quat(
-        [
-            odom.pose.pose.orientation.x,
-            odom.pose.pose.orientation.y,
-            odom.pose.pose.orientation.z,
-            odom.pose.pose.orientation.w,
-        ]
-    )
-    Rmat = rotation.as_matrix()
-    tvec = np.array(
-        [
-            odom.pose.pose.position.x,
-            odom.pose.pose.position.y,
-            odom.pose.pose.position.z,
-        ],
-        dtype=np.float64,
-    )
-    affine_tf = np.block(  # type: ignore
-        [
-            [Rmat, tvec.reshape((3, 1))],
-            [0, 0, 0, 1],
-        ]
-    )
-    return affine_tf
-
-
-def point_to_observation(point: np.ndarray) -> np.ndarray:
-    """Convert an XYZ point into a range-bearing observation.
-
-    For conversion logic see the
-    [relevant WikiPedia article](https://en.wikipedia.org/wiki/Spherical_coordinate_system#Coordinate_system_conversions).
-    """
-    # range component of the observation vector
-    rho = np.linalg.norm(point)
-    # bearing from vertical axis to point
-    theta = np.arccos(point[2] / rho)
-    # planar bearing
-    phi = np.sign(point[1]) * np.arccos(point[0] / np.linalg.norm(point[:2]))
-    return np.array([rho, theta, phi], dtype=np.float32)
-
-
-def observation_delta(obs_a: np.ndarray, obs_b: np.ndarray) -> np.ndarray:
-    """Compute the error between two range-bearing observations.
-
-    Computes normalized interpretation of `obs_a - obs_b`. See Remark.
-
-    ### Remark
-    This convenience function normalizes angle errors to `[-pi, pi]`.
-    """
-    delta_obs: np.ndarray = obs_a - obs_b
-    delta_rho, delta_theta, delta_phi = delta_obs
-    if delta_theta > np.pi:
-        delta_theta -= 2 * np.pi
-    if delta_phi > np.pi:
-        delta_theta -= 2 * np.pi
-    return np.array([delta_rho, delta_theta, delta_phi])
-
-
 class Pose2D:
     def __init__(self, T0: Optional[np.ndarray] = None) -> None:
         self.T = T0 if T0 is not None else np.eye(3)
@@ -183,3 +123,73 @@ class Pose2D:
 
         u = np.array([x, y, theta], dtype=np.float64)
         return Pose2D.from_twist(u)
+
+
+def odometry_msg_to_affine_transform(odom: Odometry) -> np.ndarray:
+    """Helper to convert a `nav_msgs/Odometry` message into a 4x4 affine transform."""
+    rotation = Rotation.from_quat(
+        [
+            odom.pose.pose.orientation.x,
+            odom.pose.pose.orientation.y,
+            odom.pose.pose.orientation.z,
+            odom.pose.pose.orientation.w,
+        ]
+    )
+    Rmat = rotation.as_matrix()
+    tvec = np.array(
+        [
+            odom.pose.pose.position.x,
+            odom.pose.pose.position.y,
+            odom.pose.pose.position.z,
+        ],
+        dtype=np.float64,
+    )
+    affine_tf = np.block(  # type: ignore
+        [
+            [Rmat, tvec.reshape((3, 1))],
+            [0, 0, 0, 1],
+        ]
+    )
+    return affine_tf
+
+
+# TODO: move these observation functions elsewhere
+
+
+def point_to_observation(point: np.ndarray) -> np.ndarray:
+    """Convert an XYZ point into a range-bearing observation.
+
+    For conversion logic see the
+    [relevant WikiPedia article](https://en.wikipedia.org/wiki/Spherical_coordinate_system#Coordinate_system_conversions).
+    """
+    # range component of the observation vector
+    rho = np.linalg.norm(point)
+    # bearing from vertical axis to point
+    theta = np.arccos(point[2] / rho)
+    # planar bearing
+    phi = np.sign(point[1]) * np.arccos(point[0] / np.linalg.norm(point[:2]))
+    return np.array([rho, theta, phi], dtype=np.float32)
+
+
+def observation_jacobian(point: np.ndarray, pose: Pose2D) -> np.ndarray:
+    """Compute the jacobian matrix of the observation `h(point)`."""
+    # TODO: compute jacobian
+    H = np.eye(3, dtype=np.float64)
+    return H
+
+
+def observation_delta(obs_a: np.ndarray, obs_b: np.ndarray) -> np.ndarray:
+    """Compute the error between two range-bearing observations.
+
+    Computes normalized interpretation of `obs_a - obs_b`. See Remark.
+
+    ### Remark
+    This convenience function normalizes angle errors to `[-pi, pi]`.
+    """
+    delta_obs: np.ndarray = obs_a - obs_b
+    delta_rho, delta_theta, delta_phi = delta_obs
+    if delta_theta > np.pi:
+        delta_theta -= 2 * np.pi
+    if delta_phi > np.pi:
+        delta_theta -= 2 * np.pi
+    return np.array([delta_rho, delta_theta, delta_phi])
