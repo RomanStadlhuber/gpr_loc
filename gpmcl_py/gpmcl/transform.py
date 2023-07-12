@@ -171,10 +171,37 @@ def point_to_observation(point: np.ndarray) -> np.ndarray:
     return np.array([rho, theta, phi], dtype=np.float32)
 
 
-def observation_jacobian(point: np.ndarray, pose: Pose2D) -> np.ndarray:
-    """Compute the jacobian matrix of the observation `h(point)`."""
-    # TODO: compute jacobian
-    H = np.eye(3, dtype=np.float64)
+def observation_jacobian(point: np.ndarray) -> np.ndarray:
+    """Compute the jacobian matrix of the observation `h(point)`.
+
+    ### Remark
+
+    This function requires `point` to be expressed in the pose frame!
+    """
+    rho = np.linalg.norm(point)
+    px, py, pz = point
+    # first row
+    h_11 = px / rho
+    h_12 = py / rho
+    h_13 = pz / rho
+    # secnod row
+    q = np.square(rho)
+    # common denominator expression
+    denom = np.power(q, 3 / 2) * np.sqrt(1 - (np.square(pz) / q))
+    h_21 = px * py / denom
+    h_22 = px * pz / denom
+    h_23 = -((rho**-1) - (np.square(pz) / np.power(q, 3 / 2)))
+    q_planar = np.square(px) + np.square(py)
+    denom = np.sqrt(1 - np.square(px) / q_planar)
+    h_31 = -np.sign(py) * ((q_planar**-1) - (np.square(px) / np.power(q_planar, 3 / 2))) / denom
+    h_32 = np.sign(py) * (px) * (py) / (np.power(q_planar, 3 / 2) * denom)
+    H = np.array(
+        [
+            [h_11, h_12, h_13],
+            [h_21, h_22, h_23],
+            [h_31, h_32, 0],
+        ]
+    )
     return H
 
 

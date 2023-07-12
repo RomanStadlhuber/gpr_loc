@@ -40,7 +40,7 @@ class FastSLAMParticle:
         # update landmark position covariance
         self.landmark_covariances[idx] = J @ P @ J.T + K_gain @ Qz @ K_gain.T
 
-    def add_landmarks(self, ls: List[np.ndarray], Q_0: np.ndarray, Qs: Optional[np.ndarray] = None) -> None:
+    def add_landmarks(self, ls: np.ndarray, Q_0: np.ndarray, Qs: Optional[np.ndarray] = None) -> None:
         """Add a set of landmarks with common or individual covariances.
 
         Pass `Qs` as individual landmark covariances.
@@ -53,8 +53,10 @@ class FastSLAMParticle:
 
     def estimate_correspondences(
         self, pcd_keypoints: open3d.geometry.PointCloud, max_distance: float = 0.6
-    ) -> Tuple[npt.NDArray[np.int32], open3d.geometry.PointCloud]:
+    ) -> Tuple[npt.NDArray[np.int32], open3d.geometry.PointCloud, npt.NDArray[np.int32], npt.NDArray[np.int32]]:
         """Estimate the correspondences between observed keypoints and landmarks in the map.
+
+        returns `(all_correspondences, pcd_keypoints_in_map_frame, best_correspondence, new_landmark_idxs)`.
 
         ### Remarks
 
@@ -68,11 +70,18 @@ class FastSLAMParticle:
         pcd_keypoints.transform()
         n_landmarks, *_ = self.landmarks.shape
         if n_landmarks == 0:
-            return (np.empty((0, 2), dtype=np.int32), pcd_keypoints)
+            return (
+                np.empty((0, 2), dtype=np.int32),
+                pcd_keypoints,
+                np.empty((0, 2), dtype=np.int32),
+                np.empty(0, dtype=np.int32),
+            )
         else:
             # create a KD-Tree for correspondence search
             kdtree_keypoints = open3d.geometry.KDTreeFLANN(pcd_keypoints)
             correspondences = np.empty((n_landmarks, 2), dtype=np.int32)
+            c_distances = np.empty(n_landmarks, dtype=np.float64)
+            c_max = (-1, -1)
             for idx_l, landmark in enumerate(self.landmarks):
                 # (num_neighbors, idxs, distances) = ...
                 # see: http://www.open3d.org/docs/latest/python_api/open3d.geometry.KDTreeFlann.html#open3d.geometry.KDTreeFlann.search_radius_vector_3d
@@ -80,4 +89,10 @@ class FastSLAMParticle:
                 idx_min_dist = np.argmin(distances)
                 # set min-distance point to be the corresponding
                 correspondences[idx_l] = [idx_l, idxs[idx_min_dist]]
-            return (correspondences, pcd_keypoints)
+                c_distances[idx_l] = distances[idx_min_dist]
+            idx_c_min_distance = np.argmin(c_distances)
+            # get the correspondence with the lowest distance
+            # this is considered the most likely correspondence
+            closest_corresondence = correspondences[idx_c_min_distance]
+            # TODO: obtain idxs of previously unseen features!!
+            return (correspondences, pcd_keypoints, closest_corresondence, np.empty(0, dtype=np.int32))
