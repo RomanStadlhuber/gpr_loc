@@ -1,4 +1,4 @@
-from gpmcl.transform import Pose2D
+from gpmcl.transform import Pose2D, point_to_observation, observation_delta, observation_jacobian
 from gpmcl.config import FastSLAMConfig
 from gpmcl.particle import FastSLAMParticle
 from gpmcl.motion_model import MotionModel
@@ -41,11 +41,36 @@ class FastSLAM:
 
     def update(self, keypoints: open3d.geometry.PointCloud) -> None:
         """Update the particle poses and landmarks from observed keypoints."""
-        # detect keypoints
         # update landmarks
         # compute particle likelihoods
         # normalize weights
         # resmple particles
+        Q_0 = np.array(self.config["keypoint_covariance"])
+        Q_z = np.array(self.config["observation_covariance"])
+        for particle in self.particles:
+            # [[idx_landmark, idx_keypoint]], pcd = ...
+            correspondences, pcd_keypoints = particle.estimate_correspondences(keypoints)
+            if correspondences.shape[0] == 0:
+                # add all keypoints as landmarks
+                particle.add_landmarks(
+                    ls=np.asarray(pcd_keypoints.points),
+                    Q_0=Q_0,
+                )
+            else:
+                for correspondence in correspondences:
+                    idx_landmark, idx_keypoint = correspondence
+                    keypoints = np.asarray(pcd_keypoints.points)
+                    # update the landamark position at idx_landmark with the keypoint position at idx_keypoint
+                    z_i = point_to_observation(keypoints[idx_keypoint])
+                    z_est_i = particle.landmarks[idx_landmark]
+                    delta_z = observation_delta(z_i, z_est_i)
+                    Q_i = particle.landmark_covariances[idx_landmark]
+                    H_i = observation_jacobian(point=keypoints[idx_keypoint], pose=particle.x)
+                    # TODO: use cholesky-inverse for numerical stability of covariance matrices
+                    K_i = Q_i @ H_i.T @ np.linalg.inv(H_i @ Q_i @ H_i.T + Q_z)
+                    # update the landmarks location
+                    particle.update_landmark(idx=idx_landmark, delta=delta_z, H=H_i, K_gain=K_i, Qz=Q_z)
+        # TODO: compute particle likelihoods, normalize and update particles
         pass
 
     def get_mean_pose(self) -> Pose2D:
