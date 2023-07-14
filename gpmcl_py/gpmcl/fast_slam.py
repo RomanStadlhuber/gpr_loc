@@ -1,4 +1,4 @@
-from gpmcl.transform import Pose2D, point_to_observation, observation_delta, observation_jacobian
+from gpmcl.transform import Pose2D
 from gpmcl.config import FastSLAMConfig
 from gpmcl.particle import FastSLAMParticle
 from gpmcl.motion_model import MotionModel
@@ -61,8 +61,6 @@ class FastSLAM:
                     position_covariance=Q_0,
                 )
             else:
-                # for updating, we need the keypoints to lie in the robots pose frame
-                # see point_to_observation and observation_jacobian!
                 particle.update_existing_landmarks(
                     correspondences=correspondences,
                     keypoints_in_robot_frame=keypoints,
