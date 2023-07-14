@@ -39,7 +39,7 @@ class FastSLAM:
             # TODO: add noise according to predicted covaraince
             particle.apply_u(predicted_motion[idx])
 
-    def update(self, keypoints: open3d.geometry.PointCloud) -> None:
+    def update(self, pcd_keypoints: open3d.geometry.PointCloud) -> None:
         """Update the particle poses and landmarks from observed keypoints."""
         # update landmarks
         # compute particle likelihoods
@@ -47,37 +47,32 @@ class FastSLAM:
         # resmple particles
         Q_0 = np.array(self.config["keypoint_covariance"])
         Q_z = np.array(self.config["observation_covariance"])
+        keypoints = np.asarray(pcd_keypoints.points)
         for m, particle in enumerate(self.particles):
             (
                 correspondences,
-                pcd_keypoints_in_map_frame,
                 best_correspondence,
                 idxs_new_keypoints,
-            ) = particle.estimate_correspondences(keypoints)
+            ) = particle.estimate_correspondences(pcd_keypoints)
             if correspondences.shape[0] == 0:
-                # add all keypoints as landmarks
-                particle.add_landmarks(
-                    ls=np.asarray(pcd_keypoints_in_map_frame.points),
-                    Q_0=Q_0,
+                particle.add_new_landmarks_from_keypoints(
+                    idxs_new_landmarks=idxs_new_keypoints,
+                    keypoints_in_robot_frame=keypoints,
+                    position_covariance=Q_0,
                 )
             else:
                 # for updating, we need the keypoints to lie in the robots pose frame
                 # see point_to_observation and observation_jacobian!
-                keypoints = np.asarray(keypoints.points)
-                for correspondence in correspondences:
-                    idx_landmark, idx_keypoint = correspondence
-                    # update the landamark position at idx_landmark with the keypoint position at idx_keypoint
-                    z_i = point_to_observation(keypoints[idx_keypoint])
-                    # TODO: this requires the landmarks to be in the robot frame!!
-                    z_est_i = particle.landmarks[idx_landmark]
-                    delta_z = observation_delta(z_i, z_est_i)
-                    Q_i = particle.landmark_covariances[idx_landmark]
-                    H_i = observation_jacobian(point=keypoints[idx_keypoint])
-                    # TODO: use cholesky-inverse for numerical stability of covariance matrices
-                    K_i = Q_i @ H_i.T @ np.linalg.inv(H_i @ Q_i @ H_i.T + Q_z)
-                    # update the landmarks location
-                    particle.update_landmark(idx=idx_landmark, delta=delta_z, H=H_i, K_gain=K_i, Qz=Q_z)
-                # TODO: add previously unseen features, implement feature observation count
+                particle.update_existing_landmarks(
+                    correspondences=correspondences,
+                    keypoints_in_robot_frame=keypoints,
+                    observation_covariance=Q_z,
+                )
+                particle.add_new_landmarks_from_keypoints(
+                    idxs_new_landmarks=idxs_new_keypoints,
+                    keypoints_in_robot_frame=keypoints,
+                    position_covariance=Q_0,
+                )
                 # TODO: compute particle likelihood given the best correspondence
                 idx_l_min, idx_z_min = best_correspondence
                 self.ws[m] = 1.0  # multivariate PDF here!
