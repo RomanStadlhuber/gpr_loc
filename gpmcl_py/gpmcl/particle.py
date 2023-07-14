@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple
-from gpmcl.observation_model import range_bearing_observation_landmark, range_bearing_observation_keypoint
+from gpmcl.observation_model import ObservationModel
 from gpmcl.transform import Pose2D
 from autograd import jacobian
 import numpy as np
@@ -104,7 +104,7 @@ class FastSLAMParticle:
             # observation and its corresponding jacobian
             kp = keypoints_in_robot_frame[idx_kp]
             z_l, H_l = self.__compute_landmark_observation(idx_l)
-            z_kp = range_bearing_observation_keypoint(kp)
+            z_kp = ObservationModel.range_bearing_observation_keypoint(kp)
             delta_z = z_l - z_kp
             Q_l = self.landmark_covariances[idx_l]
             K_l = Q_l @ H_l.T @ np.linalg.inv(H_l @ Q_l @ H_l.T + Q_z)
@@ -142,7 +142,7 @@ class FastSLAMParticle:
         """
 
         def h(l: np.ndarray) -> np.ndarray:
-            return range_bearing_observation_landmark(l=l, x=self.x.as_twist())
+            return ObservationModel.range_bearing_observation_landmark(l=l, x=self.x.as_twist())
 
         l_i = self.landmarks[idx_landmark]
         z_i = h(l_i)
