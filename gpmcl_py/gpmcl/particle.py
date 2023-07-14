@@ -34,7 +34,7 @@ class FastSLAMParticle:
 
     def estimate_correspondences(
         self, pcd_keypoints: open3d.geometry.PointCloud, max_distance: float = 0.6
-    ) -> Tuple[npt.NDArray[np.int32], open3d.geometry.PointCloud, npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+    ) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.int32], npt.NDArray[np.int32]]:
         """Estimate the correspondences between observed keypoints and landmarks in the map.
 
         returns `(all_correspondences, pcd_keypoints_in_map_frame, best_correspondence, new_landmark_idxs)`.
@@ -46,6 +46,7 @@ class FastSLAMParticle:
         """
         # copy the original pointcloud
         pcd_keypoints = open3d.geometry.PointCloud(pcd_keypoints)
+        idxs_all_keypoints = np.linspace(0, np.asarray(pcd_keypoints).shape[0], dtype=np.int32)
         # transform the keypoints into the map frame
         # this is done under the assumptions that, at some point, there are more landmarks than keypoints being observed
         pcd_keypoints.transform()
@@ -53,14 +54,13 @@ class FastSLAMParticle:
         if n_landmarks == 0:
             return (
                 np.empty((0, 2), dtype=np.int32),
-                pcd_keypoints,
                 np.empty((0, 2), dtype=np.int32),  # closest correspondence
-                np.linspace(0, np.asarray(pcd_keypoints).shape[0], dtype=np.int32),  # previously unseen correspondences
+                idxs_all_keypoints,  # previously unseen correspondences
             )
         else:
             # create a KD-Tree for correspondence search
             kdtree_keypoints = open3d.geometry.KDTreeFLANN(pcd_keypoints)
-            correspondences = np.empty((n_landmarks, 2), dtype=np.int32)
+            correspondences = np.empty((0, 2), dtype=np.int32)
             c_distances = np.empty(n_landmarks, dtype=np.float64)
             for idx_l, landmark in enumerate(self.landmarks):
                 # (num_neighbors, idxs, distances) = ...
@@ -68,20 +68,22 @@ class FastSLAMParticle:
                 [_, idxs, distances] = kdtree_keypoints.search_radius_vector3d(query=landmark, radius=max_distance)
                 idx_min_dist = np.argmin(distances)
                 # set min-distance point to be the corresponding
-                correspondences[idx_l] = [idx_l, idxs[idx_min_dist]]
+                correspondences = np.vstack((correspondences, [idx_l, idxs[idx_min_dist]]))
                 c_distances[idx_l] = distances[idx_min_dist]
-            idx_c_min_distance = np.argmin(c_distances)
             # get the correspondence with the lowest distance
             # this is considered the most likely correspondence
+            idx_c_min_distance = np.argmin(c_distances)
             closest_corresondence = correspondences[idx_c_min_distance]
+            # previously unseen keypoints are those whose indices are not in the correspondence list
+            ixds_previously_unseen_kps = np.unique(np.vstack((idxs_all_keypoints, correspondences[:, 1])))
             # TODO: obtain idxs of previously unseen features!!
-            return (correspondences, pcd_keypoints, closest_corresondence, np.empty(0, dtype=np.int32))
+            return (correspondences, closest_corresondence, ixds_previously_unseen_kps)
 
     def add_new_landmarks_from_keypoints(
         self,
         idxs_new_landmarks: npt.NDArray[np.int32],
         keypoints_in_robot_frame: npt.NDArray[np.float64],
-        observation_covariance: np.array,
+        position_covariance: npt.NDArray[np.float64],
     ) -> None:
         pcd_l_new = open3d.geometry.PointCloud(
             open3d.utility.Vector3dVector(keypoints_in_robot_frame[idxs_new_landmarks])
@@ -89,7 +91,7 @@ class FastSLAMParticle:
         # transform the keyponits into the map frame
         pcd_l_new.transform(self.x.as_t3d())
         l_new = np.asarray(pcd_l_new.points)
-        self.__add_landmarks(ls=l_new, Q_0=observation_covariance)
+        self.__add_landmarks(ls=l_new, Q_0=position_covariance)
 
     def update_existing_landmarks(
         self,
