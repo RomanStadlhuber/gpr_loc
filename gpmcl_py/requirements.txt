@@ -20,6 +20,7 @@ filterpy==1.4.5
 PyYAML
 types-PyYAML
 tqdm
+autograd
 
 # linting, formatting and typing
 mypy
