@@ -73,6 +73,7 @@ class FastSLAM:
                     keypoints_in_robot_frame=keypoints,
                     position_covariance=Q_0,
                 )
+                # TODO: register the unobserved landmarks (or should it be done internally?)
                 # TODO: compute particle likelihood given the best correspondence
                 idx_l_min, idx_z_min = best_correspondence
                 self.ws[m] = 1.0  # multivariate PDF here!
