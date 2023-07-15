@@ -8,6 +8,7 @@ from gpmcl.scan_tools_3d import ScanTools3D, PointCloudVisualizer
 from gpmcl.config import load_gpmapping_offline_config, GPMappingOfflineConfig
 from gpmcl.transform import odometry_msg_to_affine_transform, Pose2D
 from gpmcl.motion_model import MotionModel
+from gpmcl.observation_model import ObservationModel
 from gpmcl.fast_slam import FastSLAM
 from typing import Optional
 import numpy as np
@@ -44,8 +45,14 @@ class GPMCLPipeline(LocalizationPipeline):
         self.mapper = Mapper(self.config["mapper"])
         # motion model used for GP based Fast SLAM
         self.motion_model = MotionModel(config=self.config["motion_model_gp"])
+        # TODO:
+        # implement config
+        # load from config
+        self.observation_model = ObservationModel(use_gp=False)
         # GP based Fast SLAM
-        self.slam = FastSLAM(config=self.config["fast_slam"], motion_model=self.motion_model)
+        self.slam = FastSLAM(
+            config=self.config["fast_slam"], motion_model=self.motion_model, observation_model=self.observation_model
+        )
 
     def initialize(self, synced_msgs: LocalizationSyncMessage) -> None:
         # sample initial guess about ground truth or first odometry estimate
