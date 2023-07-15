@@ -2,6 +2,8 @@ from gpmcl.transform import Pose2D
 from gpmcl.config import FastSLAMConfig
 from gpmcl.particle import FastSLAMParticle
 from gpmcl.motion_model import MotionModel
+from gpmcl.observation_model import ObservationModel
+from filterpy.monte_carlo import systematic_resample
 from typing import List, Tuple
 import numpy as np
 import scipy.stats
@@ -9,7 +11,7 @@ import open3d
 
 
 class FastSLAM:
-    def __init__(self, config: FastSLAMConfig, motion_model: MotionModel) -> None:
+    def __init__(self, config: FastSLAMConfig, motion_model: MotionModel, observation_model: ObservationModel) -> None:
         # initialize particles by setting landmarks empty
         # and sampling about intial guess with uniform distribution
         # load/set inference function to gaussian process models
@@ -19,6 +21,7 @@ class FastSLAM:
         # initialize all particle weights equally likely
         self.ws = 1 / self.M * np.ones(self.M)
         self.motion_model = motion_model
+        self.observation_model = observation_model
         self.previous_motion = np.zeros((self.M, 3), dtype=np.float64)
         pass
 
@@ -61,7 +64,7 @@ class FastSLAM:
                     position_covariance=Q_0,
                 )
             else:
-                particle.update_existing_landmarks(
+                innovations, innovation_covariances = particle.update_existing_landmarks(
                     correspondences=correspondences,
                     keypoints_in_robot_frame=keypoints,
                     observation_covariance=Q_z,
@@ -72,11 +75,23 @@ class FastSLAM:
                     position_covariance=Q_0,
                 )
                 # TODO: register the unobserved landmarks (or should it be done internally?)
-                # TODO: compute particle likelihood given the best correspondence
-                idx_l_min, idx_z_min = best_correspondence
-                self.ws[m] = 1.0  # multivariate PDF here!
-        # TODO: compute particle likelihoods, normalize and update particles
-        pass
+                idx_l_min, _ = best_correspondence
+                # compute a particles likelihood given its best correspondence
+                likelihood = self.observation_model.compute_likelihood(
+                    dz=innovations[idx_l_min], Q=innovation_covariances[idx_l_min]
+                )
+                self.ws[m] = likelihood
+        # normalize the likelihoods to obtain a nonparametric PDF
+        self.ws /= np.sum(self.ws) + 1e-6
+        # compute the indices to resample from
+        idxs_resample = systematic_resample(weights=self.ws)
+        # create an intermediate set of resampled particles
+        intermediate_particles: List[FastSLAMParticle] = []
+        for idx_resampled in idxs_resample:
+            intermediate_particles.append(self.particles[idx_resampled])
+        # update the current particles and reset their weights
+        self.particles = intermediate_particles
+        self.ws = 1 / self.M * np.ones(self.M, dtype=np.float64)
 
     def get_mean_pose(self) -> Pose2D:
         """Compute the weighted average pose given all particles and their weights."""
