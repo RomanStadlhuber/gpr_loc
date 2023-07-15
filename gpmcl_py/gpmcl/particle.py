@@ -98,17 +98,43 @@ class FastSLAMParticle:
         correspondences: npt.NDArray[np.int32],
         keypoints_in_robot_frame: npt.NDArray[np.float64],
         observation_covariance: np.ndarray,
-    ) -> None:
+    ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+        """Update the landmarks from observed keypoints and their landmark correspondences.
+
+        Returns the `(observation_errors, innovation_covariances)` of the respective innovations.
+
+        ### Remark
+        - Retured values are ordered w.r.t. the particles landmarks.
+        - Observation error `d_z` and innovation covariance `Q` might be used to compute a particles likelihood.
+        """
         Q_z = observation_covariance
+        # errors and covariances of the landmark observations
+        # these are used to compute particle likelihoods
+        N_landmarks, *_ = self.landmarks.shape
+        ds = np.emtpy((N_landmarks, 2), dtype=np.float64)
+        Qs = np.empty((N_landmarks, 3, 3), dtype=np.float64)
+        # update the landmarks using EKF approach
         for idx_l, idx_kp in correspondences:
-            # observation and its corresponding jacobian
+            # the observed keypoint in XYZ coordinates
             kp = keypoints_in_robot_frame[idx_kp]
+            # landmark range-bearing observation and its corresponding jacobian
             z_l, H_l = self.__compute_landmark_observation(idx_l)
+            # keypoint range-bearing observation
             z_kp = ObservationModel.range_bearing_observation_keypoint(kp)
             delta_z = z_l - z_kp
-            Q_l = self.landmark_covariances[idx_l]
-            K_l = Q_l @ H_l.T @ np.linalg.inv(H_l @ Q_l @ H_l.T + Q_z)
+            # covariance of the landmark in question
+            S_l = self.landmark_covariances[idx_l]
+            # innovation covariance
+            Q_l = H_l @ S_l @ H_l.T + Q_z
+            # kalman gain
+            K_l = S_l @ H_l.T @ np.linalg.inv(Q_l)
+            # update the landmark in question
             self.__update_landmark(idx_l, delta=delta_z, K_gain=K_l, H=H_l, Qz=Q_z)
+            # set observation error and its covariance
+            ds[idx_l] = delta_z
+            Qs[idx_l] = Q_l
+        # return the errors and covariances for likelihood computation
+        return (ds, Qs)
 
     def register_unobserved_landmarks(self, idxs_unobserved: npt.NDArray[np.int32]) -> None:
         # TODO: implement
