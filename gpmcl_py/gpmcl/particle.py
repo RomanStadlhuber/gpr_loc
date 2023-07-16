@@ -77,18 +77,26 @@ class FastSLAMParticle:
                     # set min-distance point to be the corresponding
                     correspondences = np.vstack((correspondences, [idx_l, idxs[idx_min_dist]]))
                     c_distances = np.vstack((c_distances, [idx_min_dist]))
-            # get the correspondence with the lowest distance
-            # this is considered the most likely correspondence
-            idx_c_min_distance = np.argmin(c_distances)
-            closest_corresondence = correspondences[idx_c_min_distance]
-            # previously unseen keypoints are those whose indices are not in the correspondence list
-            matched_keypoints = set(correspondences[:, 1])
-            unmatched_keypoints = np.array(
-                list(set(idxs_all_keypoints).difference(matched_keypoints)),
-                dtype=np.int32,
-            )
-            # TODO: obtain idxs of previously unseen features!!
-            return (correspondences, closest_corresondence, unmatched_keypoints)
+            # safeguard in case there are no correspondences
+            if c_distances.shape[0] == 0:
+                return (
+                    np.empty((0, 2), dtype=np.int32),
+                    np.empty((0, 2), dtype=np.int32),  # closest correspondence
+                    idxs_all_keypoints,  # previously unseen correspondences
+                )
+            else:
+                # get the correspondence with the lowest distance
+                # this is considered the most likely correspondence
+                idx_c_min_distance = np.argmin(c_distances)
+                closest_corresondence = correspondences[idx_c_min_distance]
+                # previously unseen keypoints are those whose indices are not in the correspondence list
+                matched_keypoints = set(correspondences[:, 1])
+                unmatched_keypoints = np.array(
+                    list(set(idxs_all_keypoints).difference(matched_keypoints)),
+                    dtype=np.int32,
+                )
+                # TODO: obtain idxs of previously unseen features!!
+                return (correspondences, closest_corresondence, unmatched_keypoints)
 
     def add_new_landmarks_from_keypoints(
         self,
