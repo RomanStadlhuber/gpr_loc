@@ -121,7 +121,8 @@ class FastSLAMParticle:
             z_l, H_l = self.__compute_landmark_observation(idx_l)
             # keypoint range-bearing observation
             z_kp = ObservationModel.range_bearing_observation_keypoint(kp)
-            delta_z = z_l - z_kp
+            # compute delta between the two observation
+            delta_z = ObservationModel.observation_delta(z_true=z_kp, z_est=z_l)
             # covariance of the landmark in question
             S_l = self.landmark_covariances[idx_l]
             # innovation covariance
