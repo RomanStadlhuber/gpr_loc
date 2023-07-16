@@ -67,7 +67,7 @@ class GPMCLPipeline(LocalizationPipeline):
         odom_curr = Pose2D.from_odometry(synced_msgs.odom_est)
         delta_odom = Pose2D.delta(self.odom_last, odom_curr)
         self.slam.predict(estimated_motion=delta_odom)
-        self.slam.update(keypoints=pcd_keypoints)
+        self.slam.update(pcd_keypoints=pcd_keypoints)
         # if synced_msgs.groundtruth is not None:
         #     T_curr = odometry_msg_to_affine_transform(synced_msgs.groundtruth)
         #     self.mapper.update_map(pose=T_curr)

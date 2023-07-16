@@ -57,8 +57,8 @@ class ObservationModel:
         rho_a, phi_a, psi_a = z_true
         rho_b, phi_b, psi_b = z_est
         delta_rho = rho_a - rho_b
-        Rmat_a = Rotation.from_euler("zyx", [psi_a, phi_a]).as_matrix()
-        Rmat_b = Rotation.from_euler("zyx", [psi_b, phi_b]).as_matrix()
+        Rmat_a = Rotation.from_euler("zyx", [psi_a, phi_a, 0]).as_matrix()
+        Rmat_b = Rotation.from_euler("zyx", [psi_b, phi_b, 0]).as_matrix()
         delta_psi, delta_phi, _ = Rotation.from_matrix(Rmat_a.T @ Rmat_b).as_euler("zyx")
         return np.array([delta_rho, delta_phi, delta_psi], dtype=np.float64)
 

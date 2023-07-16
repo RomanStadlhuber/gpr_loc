@@ -48,8 +48,8 @@ class FastSLAM:
         # compute particle likelihoods
         # normalize weights
         # resmple particles
-        Q_0 = np.array(self.config["keypoint_covariance"])
-        Q_z = np.array(self.config["observation_covariance"])
+        Q_0 = np.array(self.config["keypoint_covariance"]).reshape((3, 3))
+        Q_z = np.array(self.config["observation_covariance"]).reshape((3, 3))
         keypoints = np.asarray(pcd_keypoints.points)
         for m, particle in enumerate(self.particles):
             (

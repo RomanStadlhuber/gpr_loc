@@ -46,10 +46,11 @@ class FastSLAMParticle:
         """
         # copy the original pointcloud
         pcd_keypoints = open3d.geometry.PointCloud(pcd_keypoints)
-        idxs_all_keypoints = np.linspace(0, np.asarray(pcd_keypoints).shape[0], dtype=np.int32)
+        num_keypoints = np.asarray(pcd_keypoints.points).shape[0]
+        idxs_all_keypoints = np.linspace(start=0, stop=num_keypoints - 1, num=num_keypoints, dtype=np.int32)
         # transform the keypoints into the map frame
         # this is done under the assumptions that, at some point, there are more landmarks than keypoints being observed
-        pcd_keypoints.transform()
+        pcd_keypoints.transform(self.x.as_t3d())
         n_landmarks, *_ = self.landmarks.shape
         if n_landmarks == 0:
             return (
@@ -59,25 +60,35 @@ class FastSLAMParticle:
             )
         else:
             # create a KD-Tree for correspondence search
-            kdtree_keypoints = open3d.geometry.KDTreeFLANN(pcd_keypoints)
+            kdtree_keypoints = open3d.geometry.KDTreeFlann(pcd_keypoints)
             correspondences = np.empty((0, 2), dtype=np.int32)
-            c_distances = np.empty(n_landmarks, dtype=np.float64)
+            c_distances = np.empty((0, 1), dtype=np.float64)
             for idx_l, landmark in enumerate(self.landmarks):
                 # (num_neighbors, idxs, distances) = ...
                 # see: http://www.open3d.org/docs/latest/python_api/open3d.geometry.KDTreeFlann.html#open3d.geometry.KDTreeFlann.search_radius_vector_3d
-                [_, idxs, distances] = kdtree_keypoints.search_radius_vector3d(query=landmark, radius=max_distance)
-                idx_min_dist = np.argmin(distances)
-                # set min-distance point to be the corresponding
-                correspondences = np.vstack((correspondences, [idx_l, idxs[idx_min_dist]]))
-                c_distances[idx_l] = distances[idx_min_dist]
+                [num_matches, idxs, distances] = kdtree_keypoints.search_radius_vector_3d(
+                    query=landmark, radius=max_distance
+                )
+                # store distances and correspondences only when they're available
+                if num_matches > 0:
+                    idxs = np.asarray(idxs, dtype=np.int32)
+                    distances = np.asarray(distances, dtype=np.float64)
+                    idx_min_dist = np.argmin(distances)
+                    # set min-distance point to be the corresponding
+                    correspondences = np.vstack((correspondences, [idx_l, idxs[idx_min_dist]]))
+                    c_distances = np.vstack((c_distances, [idx_min_dist]))
             # get the correspondence with the lowest distance
             # this is considered the most likely correspondence
             idx_c_min_distance = np.argmin(c_distances)
             closest_corresondence = correspondences[idx_c_min_distance]
             # previously unseen keypoints are those whose indices are not in the correspondence list
-            ixds_previously_unseen_kps = np.unique(np.vstack((idxs_all_keypoints, correspondences[:, 1])))
+            matched_keypoints = set(correspondences[:, 1])
+            unmatched_keypoints = np.array(
+                list(set(idxs_all_keypoints).difference(matched_keypoints)),
+                dtype=np.int32,
+            )
             # TODO: obtain idxs of previously unseen features!!
-            return (correspondences, closest_corresondence, ixds_previously_unseen_kps)
+            return (correspondences, closest_corresondence, unmatched_keypoints)
 
     def add_new_landmarks_from_keypoints(
         self,
@@ -111,7 +122,7 @@ class FastSLAMParticle:
         # errors and covariances of the landmark observations
         # these are used to compute particle likelihoods
         N_landmarks, *_ = self.landmarks.shape
-        ds = np.empty((N_landmarks, 2), dtype=np.float64)
+        ds = np.empty((N_landmarks, 3), dtype=np.float64)
         Qs = np.empty((N_landmarks, 3, 3), dtype=np.float64)
         # update the landmarks using EKF approach
         for idx_l, idx_kp in correspondences:
@@ -148,7 +159,9 @@ class FastSLAMParticle:
         """
         self.landmarks = np.vstack((self.landmarks, ls))
         if Qs is None:
-            self.landmark_covariances = np.vstack((self.landmark_covariances, np.repeat([Q_0], repeats=len(ls))))
+            self.landmark_covariances = np.vstack(
+                (self.landmark_covariances, np.repeat([Q_0], repeats=len(ls), axis=0))
+            )
         else:
             self.landmark_covariances = np.vstack((self.landmark_covariances, Qs))
 
