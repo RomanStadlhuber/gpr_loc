@@ -111,7 +111,7 @@ class FastSLAMParticle:
         # errors and covariances of the landmark observations
         # these are used to compute particle likelihoods
         N_landmarks, *_ = self.landmarks.shape
-        ds = np.emtpy((N_landmarks, 2), dtype=np.float64)
+        ds = np.empty((N_landmarks, 2), dtype=np.float64)
         Qs = np.empty((N_landmarks, 3, 3), dtype=np.float64)
         # update the landmarks using EKF approach
         for idx_l, idx_kp in correspondences:
