@@ -27,8 +27,15 @@ class FastSLAM:
 
     def initialize_from_pose(self, x0: np.ndarray) -> None:
         """Initialize the particle set by sampling about a pose."""
+        # region: ciruclar uniform sampling about initial guess
         # TODO: configure initial sampling radius
-        self.particles, self.ws = self.sample_circular_uniform(initial_guess=x0)
+        # NOTE: the problem with sampling the initial from a distribution is that
+        # every pose and heading is equally likely at that point
+        # this means that while the trajectory might be accurate,
+        # the direction its headed in could be completely off
+        # self.particles, self.ws = self.sample_circular_uniform(initial_guess=x0)
+        # endregion
+        self.particles, self.ws = self.sample_identical(initial_guess=x0)
 
     def predict(self, estimated_motion: np.ndarray) -> None:
         # predict new particle poses
@@ -44,13 +51,19 @@ class FastSLAM:
 
     def update(self, pcd_keypoints: open3d.geometry.PointCloud) -> None:
         """Update the particle poses and landmarks from observed keypoints."""
-        # update landmarks
-        # compute particle likelihoods
-        # normalize weights
-        # resmple particles
+        # initial landmark covariance
         Q_0 = np.array(self.config["keypoint_covariance"]).reshape((3, 3))
+        # range-bearing observation covariance
         Q_z = np.array(self.config["observation_covariance"]).reshape((3, 3))
         keypoints = np.asarray(pcd_keypoints.points)
+        # compute distance to all keypoints, used to select only those that are in range
+        keypoint_distances = np.linalg.norm(keypoints, axis=1)
+        # select only keypoints that lie within the max. feature range
+        selected_keypoints = keypoints[np.where(keypoint_distances <= self.config["max_feature_range"])]
+        # update the keypoint pcd if there are fewer points in range
+        if selected_keypoints.shape != keypoints.shape:
+            pcd_keypoints = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(selected_keypoints))
+        # update the particle states and their corresponding likelihoods
         for m, particle in enumerate(self.particles):
             (
                 correspondences,
@@ -58,21 +71,30 @@ class FastSLAM:
                 idxs_new_keypoints,
             ) = particle.estimate_correspondences(pcd_keypoints)
             if correspondences.shape[0] == 0:
+                # remove the particle (i.e. likelihood to zero) if it has landmarks but no matches
+                # if particle.landmarks.shape[0] == 0:
+                #     self.ws[m] = 0
+                #     continue
                 particle.add_new_landmarks_from_keypoints(
                     idxs_new_landmarks=idxs_new_keypoints,
-                    keypoints_in_robot_frame=keypoints,
+                    keypoints_in_robot_frame=selected_keypoints,
                     position_covariance=Q_0,
                 )
             else:
                 innovations, innovation_covariances = particle.update_existing_landmarks(
                     correspondences=correspondences,
-                    keypoints_in_robot_frame=keypoints,
+                    keypoints_in_robot_frame=selected_keypoints,
                     observation_covariance=Q_z,
                 )
                 particle.add_new_landmarks_from_keypoints(
                     idxs_new_landmarks=idxs_new_keypoints,
-                    keypoints_in_robot_frame=keypoints,
+                    keypoints_in_robot_frame=selected_keypoints,
                     position_covariance=Q_0,
+                )
+                # remove landmarks that are out of range or unobserved too often
+                particle.prune_landmarks(
+                    max_distance=self.config["max_feature_range"],
+                    max_unobserved_count=self.config["max_unobserved_count"],
                 )
                 # TODO: register the unobserved landmarks (or should it be done internally?)
                 idx_l_min, _ = best_correspondence
@@ -125,5 +147,12 @@ class FastSLAM:
             )
         )
         particles = list(map(lambda vec: FastSLAMParticle(x=Pose2D.from_twist(vec)), poses))
+        ws = 1 / self.M * np.ones(self.M)
+        return (particles, ws)
+
+    def sample_identical(self, initial_guess: np.ndarray) -> Tuple[List[FastSLAMParticle], np.ndarray]:
+        """Create `self.M` particles at the exact same pose."""
+        inital_particle = FastSLAMParticle(x=Pose2D.from_twist(initial_guess))
+        particles = [inital_particle] * self.M
         ws = 1 / self.M * np.ones(self.M)
         return (particles, ws)
