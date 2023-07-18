@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 from gpmcl.observation_model import ObservationModel
 from gpmcl.transform import Pose2D
+from filterpy.kalman import ExtendedKalmanFilter
 from autograd import jacobian
 import numpy as np
 import numpy.typing as npt
@@ -112,7 +113,6 @@ class FastSLAMParticle:
                 self.observation_counter[idxs_matched_landmarks, 0] += 1
                 # decrement the observation counter for unmatched landmarks
                 self.observation_counter[idxs_unmatched_landmarks, 0] -= 1
-                # TODO: obtain idxs of previously unseen features!!
                 return (correspondences, closest_corresondence, unmatched_keypoints)
 
     def add_new_landmarks_from_keypoints(
@@ -166,7 +166,11 @@ class FastSLAMParticle:
             # covariance of the landmark in question
             S_l = self.landmark_covariances[idx_l]
             # innovation covariance
-            Q_l = H_l @ S_l @ H_l.T + Q_z
+            # uses cholesky factor because H @ S @ H.T would not be symmetric
+            # ... why?
+            C = np.linalg.cholesky(S_l)
+            HC = H_l @ C
+            Q_l = HC @ HC.T + Q_z
             # kalman gain
             K_l = S_l @ H_l.T @ np.linalg.inv(Q_l)
             # update the landmark in question
@@ -213,10 +217,9 @@ class FastSLAMParticle:
 
     def __update_landmark(self, idx: int, delta: np.ndarray, K_gain: np.ndarray, H: np.ndarray, Qz: np.ndarray) -> None:
         """Update the position of an individual landmark given its index and Kalman filter values"""
-        # TODO: normalize the angle values of the delta vector to [-pi, pi]!
         self.landmarks[idx] += K_gain @ delta
         # update landmark position mean
-        J = np.eye(3) - K_gain * H
+        J = np.eye(3) - K_gain @ H
         P = self.landmark_covariances[idx]
         # update landmark position covariance
         self.landmark_covariances[idx] = J @ P @ J.T + K_gain @ Qz @ K_gain.T
