@@ -412,12 +412,10 @@ class GPModelSet:
             # perform regression, then rescale and export
             # TODO: export covariance
             (Y_regr, Cov_regr) = model.predict_noiseless(X_test)
-            # extract the diagonal entries of the covariance matrix
-            Var_regr = np.diagonal(Cov_regr)
             # create a dataframe for this label and join with the rest of the labels
             df_Y_regr = pd.DataFrame(columns=[label], data=Y_regr)
             regression_labels = pd.concat([regression_labels, df_Y_regr], axis=1)
-            df_Var_regr = pd.DataFrame(columns=[label], data=Var_regr)
+            df_Var_regr = pd.DataFrame(columns=[label], data=Cov_regr)
             regression_variances = pd.concat([regression_variances, df_Var_regr], axis=1)
         # package the resulting mean outputs into a dataset
         D_regr = GPDataset(
@@ -428,8 +426,8 @@ class GPModelSet:
         # rescale the dataset
         D_regr.rescale(self.training_feature_scaler, self.training_label_scaler)
         # rescale the variances
-        regression_variances[D_regr.labels.columns] *= self.training_label_scaler.scale_
-        return D_regr
+        regression_variances[D_regr.labels.columns] *= np.square(self.training_label_scaler.scale_)
+        return (D_regr, regression_variances)
 
     @staticmethod
     def export_models(
