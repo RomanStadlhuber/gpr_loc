@@ -40,14 +40,14 @@ class FastSLAM:
     def predict(self, estimated_motion: np.ndarray) -> None:
         # predict new particle poses
         # update the trajectories by appending the prior
-        predicted_motion = self.motion_model.predict(
+        predicted_motion, predicted_motion_variances = self.motion_model.predict(
             estimated_motion=np.repeat([estimated_motion], repeats=self.M, axis=0),
             previous_motion=self.previous_motion,
         )
         self.previous_motion = predicted_motion
         for idx, particle in enumerate(self.particles):
-            # TODO: add noise according to predicted covaraince
-            particle.apply_u(predicted_motion[idx])
+            cov = np.diag(predicted_motion_variances[idx])
+            particle.apply_u(u=predicted_motion[idx], R=cov)
 
     def update(self, pcd_keypoints: open3d.geometry.PointCloud) -> None:
         """Update the particle poses and landmarks from observed keypoints."""

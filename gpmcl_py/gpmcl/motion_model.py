@@ -1,5 +1,6 @@
 from gpmcl.helper_types import GPModelSet, GPDataset
 from gpmcl.config import MotionModelGPConfig
+from typing import Tuple
 import pandas as pd
 import numpy as np
 import pathlib
@@ -36,8 +37,11 @@ Unable to load GP Models!
         self,
         estimated_motion: np.ndarray,
         previous_motion: np.ndarray,
-    ) -> np.ndarray:
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Perform motion prediction using Gaussian process regression.
+
+        Returns `mean_vectors, variance_vectors`, where the latter can be used to construct
+        diagonal covariance matrices using `np.diag(variance_vector)`.
 
         ### Remark
         The input values can have dimensions `(3x1)` or `(Nx3)`,
@@ -51,6 +55,6 @@ Unable to load GP Models!
         D_in = GPDataset(name="", features=features, labels=pd.DataFrame())
         # pass the unscaled dataset to the regression method.
         # it will inernally scale the dataset accordingly
-        D_regr = self.models.perform_regression(D_test_unscaled=D_in)
+        D_regr, df_Var_regr = self.models.perform_regression(D_test_unscaled=D_in)
         # return the predicted motion mean vectors
-        return D_regr.labels.to_numpy()
+        return (D_regr.labels.to_numpy(), df_Var_regr.to_numpy())

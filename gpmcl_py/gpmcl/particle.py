@@ -5,6 +5,7 @@ from gpmcl.transform import Pose2D
 from autograd import jacobian
 import numpy as np
 import numpy.typing as npt
+import scipy.stats
 import open3d
 
 
@@ -23,7 +24,7 @@ class FastSLAMParticle:
     # counts how often a landmark is observed during its lifetime
     observation_counter: np.ndarray = np.zeros((0, 1), dtype=np.int32)
 
-    def apply_u(self, u: np.ndarray) -> None:
+    def apply_u(self, u: np.ndarray, R: np.ndarray = np.eye(3, dtype=np.float64)) -> None:
         """Apply a motion to the particles pose.
 
         NOTE: this implicitly updates the trajectory of the particle.
@@ -31,8 +32,10 @@ class FastSLAMParticle:
         # add the current pose to the trajectory
         x_vec = self.x.as_twist()
         self.trajectory = np.vstack((self.trajectory, x_vec))
+        # generate motion noise from covariance
+        noise = scipy.stats.multivariate_normal.rvs(mean=np.zeros(3), cov=R)
         # apply the motion to obtain the new pose
-        self.x.perturb(u)
+        self.x.perturb(u + noise)
 
     def estimate_correspondences(
         self,

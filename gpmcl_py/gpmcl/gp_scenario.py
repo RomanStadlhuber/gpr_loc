@@ -191,7 +191,7 @@ Aborting operation.
         if messages:
             print(f"performing regression in scenario {self.scenario}..")
 
-        D_regr = self.modelset.perform_regression(
+        D_regr, _ = self.modelset.perform_regression(
             D_test_scaled=self.D_test,
             name=f"{self.scenario}_regression-output",
         )

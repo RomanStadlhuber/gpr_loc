@@ -388,7 +388,11 @@ class GPModelSet:
         D_test_unscaled: Optional[GPDataset] = None,
         D_test_scaled: Optional[GPDataset] = None,
         name: Optional[str] = None,
-    ) -> GPDataset:
+    ) -> Tuple[GPDataset, pd.DataFrame]:
+        """Perform regression on the GP models and return the output mean and variances.
+
+        Returns `output_mean_dataset, output_var_dataset`.
+        """
         if D_test_unscaled is not None:
             # pick the desired feature columns
             D_test_unscaled = D_test_unscaled.pick_from(self.D_train_unscaled)
@@ -401,22 +405,30 @@ class GPModelSet:
             raise ValueError("Unable to perform regression, dataset does not exist!")
         X_test = D_test.get_X()
         regression_labels = pd.DataFrame()
+        regression_variances = pd.DataFrame()
         for labelled_model in self.gp_models:
             label = labelled_model.label
             model = labelled_model.model
             # perform regression, then rescale and export
             # TODO: export covariance
-            (Y_regr, _) = model.predict_noiseless(X_test)
+            (Y_regr, Cov_regr) = model.predict_noiseless(X_test)
+            # extract the diagonal entries of the covariance matrix
+            Var_regr = np.diagonal(Cov_regr)
             # create a dataframe for this label and join with the rest of the labels
             df_Y_regr = pd.DataFrame(columns=[label], data=Y_regr)
             regression_labels = pd.concat([regression_labels, df_Y_regr], axis=1)
-
+            df_Var_regr = pd.DataFrame(columns=[label], data=Var_regr)
+            regression_variances = pd.concat([regression_variances, df_Var_regr], axis=1)
+        # package the resulting mean outputs into a dataset
         D_regr = GPDataset(
             name=name or "anonymous",
             features=D_test.features,
             labels=regression_labels,
         )
+        # rescale the dataset
         D_regr.rescale(self.training_feature_scaler, self.training_label_scaler)
+        # rescale the variances
+        regression_variances[D_regr.labels.columns] *= self.training_label_scaler.scale_
         return D_regr
 
     @staticmethod
