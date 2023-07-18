@@ -49,8 +49,12 @@ class FastSLAM:
             cov = np.diag(predicted_motion_variances[idx])
             particle.apply_u(u=predicted_motion[idx], R=cov)
 
-    def update(self, pcd_keypoints: open3d.geometry.PointCloud) -> None:
-        """Update the particle poses and landmarks from observed keypoints."""
+    def update(self, pcd_keypoints: open3d.geometry.PointCloud) -> float:
+        """Update the particle poses and landmarks from observed keypoints.
+
+        Returns the so-called *effective weight* or the relative amount of "useful"
+        particles w.r.t. the particle-count.
+        """
         # initial landmark covariance
         Q_0 = np.array(self.config["keypoint_covariance"]).reshape((3, 3))
         # range-bearing observation covariance
@@ -105,6 +109,8 @@ class FastSLAM:
                 self.ws[m] = likelihood
         # normalize the likelihoods to obtain a nonparametric PDF
         self.ws /= np.sum(self.ws) + 1e-6
+        # compute ratio of effective particles
+        w_eff = self.compute_effective_weight()
         # compute the indices to resample from
         idxs_resample = systematic_resample(weights=self.ws)
         # create an intermediate set of resampled particles
@@ -114,6 +120,7 @@ class FastSLAM:
         # update the current particles and reset their weights
         self.particles = intermediate_particles
         self.ws = 1 / self.M * np.ones(self.M, dtype=np.float64)
+        return w_eff
 
     def get_mean_pose(self) -> Pose2D:
         """Compute the weighted average pose given all particles and their weights."""
@@ -156,3 +163,12 @@ class FastSLAM:
         particles = [inital_particle] * self.M
         ws = 1 / self.M * np.ones(self.M)
         return (particles, ws)
+
+    def compute_effective_weight(self) -> float:
+        """Compute the normalized weights of the effective particles.
+
+        Roughly speaking, returns the ratio `useful_particles / particle_count`.
+
+        See `Eq. (16)` in [(Elfring, Torta, v.d. Molengraft, 2021)](https://www.mdpi.com/1424-8220/21/2/438).
+        """
+        return 1 / np.sum(np.square(self.ws)) / self.M

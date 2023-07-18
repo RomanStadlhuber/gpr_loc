@@ -67,7 +67,7 @@ class GPMCLPipeline(LocalizationPipeline):
         odom_curr = Pose2D.from_odometry(synced_msgs.odom_est)
         delta_odom = Pose2D.delta(self.odom_last, odom_curr)
         self.slam.predict(estimated_motion=delta_odom)
-        self.slam.update(pcd_keypoints=pcd_keypoints)
+        w_eff = self.slam.update(pcd_keypoints=pcd_keypoints)
         # if synced_msgs.groundtruth is not None:
         #     T_curr = odometry_msg_to_affine_transform(synced_msgs.groundtruth)
         #     self.mapper.update_map(pose=T_curr)
@@ -76,7 +76,7 @@ class GPMCLPipeline(LocalizationPipeline):
         #     print(f"Map contains {map_points.shape[0]} points.")
         # increment the iteration counter
         self.debug_iteration_count += 1
-        print(f"Iteration {self.debug_iteration_count}.")
+        print(f"Iteration {self.debug_iteration_count}, W_eff: {w_eff}.")
         self.odom_last = odom_curr
         # update the estimated trajectory, odometry and ground truth
         # this is used for plotting
