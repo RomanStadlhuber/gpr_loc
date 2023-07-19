@@ -77,7 +77,7 @@ class FastSLAM:
             if correspondences.shape[0] == 0:
                 # remove the particle (i.e. likelihood to zero) if it has landmarks but no matches
                 if particle.landmarks.shape[0] == self.config["max_active_landmarks"]:
-                    self.ws[m] = 0
+                    self.ws[m] = 1e-3
                     continue
                 particle.add_new_landmarks_from_keypoints(
                     idxs_new_landmarks=idxs_new_keypoints,
@@ -110,7 +110,7 @@ class FastSLAM:
                 )
                 self.ws[m] = likelihood
         # normalize the likelihoods to obtain a nonparametric PDF
-        self.ws /= np.sum(self.ws) + 1e-12
+        self.ws /= np.sum(self.ws)
         # compute ratio of effective particles
         w_eff = self.compute_effective_weight()
         # compute the indices to resample from
