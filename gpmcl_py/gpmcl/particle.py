@@ -196,7 +196,7 @@ class FastSLAMParticle:
         robot_position = np.array([*self.x.as_twist()[:2], 0], dtype=np.float64)
         relative_landmark_positions = np.copy(self.landmarks)
         relative_landmark_positions -= robot_position
-        landmark_distances = np.linalg.norm(relative_landmark_positions, axis=0)
+        landmark_distances = np.linalg.norm(relative_landmark_positions, axis=1)
         idxs_landmarks_in_range = np.where(landmark_distances <= max_distance)
         idxs_landmarks_unobserved_too_often = np.where(self.observation_counter <= max_unobserved_count)
         idxs_to_keep = np.setdiff1d(idxs_landmarks_in_range, idxs_landmarks_unobserved_too_often)
