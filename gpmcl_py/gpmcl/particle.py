@@ -90,7 +90,7 @@ class FastSLAMParticle:
                     idx_min_dist = np.argmin(distances)
                     # set min-distance point to be the corresponding
                     correspondences = np.vstack((correspondences, [idx_l, idxs[idx_min_dist]]))
-                    c_distances = np.vstack((c_distances, [idx_min_dist]))
+                    c_distances = np.vstack((c_distances, distances[idx_min_dist]))
             # safeguard in case there are no correspondences
             if c_distances.shape[0] == 0:
                 return (
