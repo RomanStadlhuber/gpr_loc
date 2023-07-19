@@ -18,12 +18,18 @@ class FastSLAMParticle:
     x: Pose2D
     # T x 3 list of all poses
     trajectory: np.ndarray = np.empty((0, 3))
+    # whether the landmarks of this particle have already been initialized
+    landmarks_initialized: bool = False
     # N x 3 positions of all landmarks in the map
     landmarks: np.ndarray = np.empty((0, 3))
     # N x (3 x 3) landmark position covariance
     landmark_covariances: np.ndarray = np.empty((0, 3, 3))
     # counts how often a landmark is observed during its lifetime
     observation_counter: np.ndarray = np.zeros((0, 1), dtype=np.int32)
+
+    def has_map(self) -> bool:
+        """Evaluate whether or not this particle already has a map."""
+        return self.landmarks_initialized
 
     def apply_u(self, u: np.ndarray, R: np.ndarray = np.eye(3, dtype=np.float64)) -> None:
         """Apply a motion to the particles pose.
@@ -132,6 +138,7 @@ class FastSLAMParticle:
             pcd_l_new.transform(self.x.as_t3d())
             l_new = np.asarray(pcd_l_new.points)
             self.__add_landmarks(ls=l_new, Q_0=position_covariance)
+            self.landmarks_initialized = True
 
     def update_existing_landmarks(
         self,
