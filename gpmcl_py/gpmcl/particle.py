@@ -139,6 +139,18 @@ class FastSLAMParticle:
         position_covariance: npt.NDArray[np.float64],
         max_active_landmarks: int = 5,
     ) -> None:
+        # region: add all keypoints to map if there is no restriction
+        if max_active_landmarks < 0:
+            pcd_l_new = open3d.geometry.PointCloud(
+                open3d.utility.Vector3dVector(keypoints_in_robot_frame[idxs_new_landmarks])
+            )
+            # transform the keyponits into the map frame
+            pcd_l_new.transform(self.x.as_t3d())
+            l_new = np.asarray(pcd_l_new.points)
+            self.__add_landmarks(ls=l_new, Q_0=position_covariance)
+            self.landmarks_initialized = True
+        # endregion
+        # region: add only the remainder of allowed landmarks
         # amount of new landmarks that can be admitted
         num_new = max_active_landmarks - self.landmarks.shape[0]
         if num_new > 0:
@@ -150,6 +162,7 @@ class FastSLAMParticle:
             l_new = np.asarray(pcd_l_new.points)
             self.__add_landmarks(ls=l_new, Q_0=position_covariance)
             self.landmarks_initialized = True
+        # endregion
 
     def update_existing_landmarks(
         self,

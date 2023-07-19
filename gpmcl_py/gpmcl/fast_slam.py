@@ -76,7 +76,10 @@ class FastSLAM:
             ) = particle.estimate_correspondences(pcd_keypoints)
             if correspondences.shape[0] == 0:
                 # remove the particle (i.e. likelihood to zero) if it has landmarks but no matches
-                if particle.landmarks.shape[0] == self.config["max_active_landmarks"]:
+                if (
+                    self.config["max_active_landmarks"] > 0
+                    and particle.landmarks.shape[0] == self.config["max_active_landmarks"]
+                ):
                     self.ws[m] = 1e-3
                     continue
                 particle.add_new_landmarks_from_keypoints(
