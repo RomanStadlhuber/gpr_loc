@@ -41,6 +41,7 @@ class FastSLAMConfig(TypedDict):
     particle_count: int
     keypoint_covariance: List[int]  # covariance of an XYZ keypoint
     observation_covariance: List[int]  # signal cov. of range-bearing observations
+    max_active_landmarks: int  # the maximum amount of allowed landmarks
 
 
 class BagRunnerConfig(TypedDict):

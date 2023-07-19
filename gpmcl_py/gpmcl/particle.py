@@ -27,6 +27,17 @@ class FastSLAMParticle:
     # counts how often a landmark is observed during its lifetime
     observation_counter: np.ndarray = np.zeros((0, 1), dtype=np.int32)
 
+    @staticmethod
+    def copy(other: "FastSLAMParticle") -> "FastSLAMParticle":
+        return FastSLAMParticle(
+            x=other.x,
+            trajectory=np.copy(other.trajectory),
+            landmarks_initialized=other.landmarks_initialized,
+            landmarks=np.copy(other.landmarks),
+            landmark_covariances=np.copy(other.landmark_covariances),
+            observation_counter=np.copy(other.observation_counter),
+        )
+
     def has_map(self) -> bool:
         """Evaluate whether or not this particle already has a map."""
         return self.landmarks_initialized

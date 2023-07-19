@@ -8,7 +8,6 @@ from typing import List, Tuple
 import numpy as np
 import scipy.stats
 import open3d
-import copy
 
 
 class FastSLAM:
@@ -77,13 +76,14 @@ class FastSLAM:
             ) = particle.estimate_correspondences(pcd_keypoints)
             if correspondences.shape[0] == 0:
                 # remove the particle (i.e. likelihood to zero) if it has landmarks but no matches
-                # if particle.landmarks.shape[0] != 0:
-                #     self.ws[m] = 0
-                #     continue
+                if particle.landmarks.shape[0] == self.config["max_active_landmarks"]:
+                    self.ws[m] = 0
+                    continue
                 particle.add_new_landmarks_from_keypoints(
                     idxs_new_landmarks=idxs_new_keypoints,
                     keypoints_in_robot_frame=selected_keypoints,
                     position_covariance=Q_0,
+                    max_active_landmarks=self.config["max_active_landmarks"],
                 )
             else:
                 innovations, innovation_covariances = particle.update_existing_landmarks(
@@ -95,7 +95,7 @@ class FastSLAM:
                     idxs_new_landmarks=idxs_new_keypoints,
                     keypoints_in_robot_frame=selected_keypoints,
                     position_covariance=Q_0,
-                    max_active_landmarks=5,
+                    max_active_landmarks=self.config["max_active_landmarks"],
                 )
                 # remove landmarks that are out of range or unobserved too often
                 particle.prune_landmarks(
@@ -118,7 +118,7 @@ class FastSLAM:
         # create an intermediate set of resampled particles
         intermediate_particles: List[FastSLAMParticle] = []
         for idx_resampled in idxs_resample:
-            intermediate_particles.append(copy.deepcopy(self.particles[idx_resampled]))
+            intermediate_particles.append(FastSLAMParticle.copy(self.particles[idx_resampled]))
         # update the current particles and reset their weights
         self.particles = intermediate_particles
         self.ws = 1 / self.M * np.ones(self.M, dtype=np.float64)
