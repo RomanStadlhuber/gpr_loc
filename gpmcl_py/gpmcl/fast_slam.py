@@ -8,6 +8,7 @@ from typing import List, Tuple
 import numpy as np
 import scipy.stats
 import open3d
+import copy
 
 
 class FastSLAM:
@@ -76,7 +77,7 @@ class FastSLAM:
             ) = particle.estimate_correspondences(pcd_keypoints)
             if correspondences.shape[0] == 0:
                 # remove the particle (i.e. likelihood to zero) if it has landmarks but no matches
-                # if particle.landmarks.shape[0] == 0:
+                # if particle.landmarks.shape[0] != 0:
                 #     self.ws[m] = 0
                 #     continue
                 particle.add_new_landmarks_from_keypoints(
@@ -94,6 +95,7 @@ class FastSLAM:
                     idxs_new_landmarks=idxs_new_keypoints,
                     keypoints_in_robot_frame=selected_keypoints,
                     position_covariance=Q_0,
+                    max_active_landmarks=5,
                 )
                 # remove landmarks that are out of range or unobserved too often
                 particle.prune_landmarks(
@@ -108,7 +110,7 @@ class FastSLAM:
                 )
                 self.ws[m] = likelihood
         # normalize the likelihoods to obtain a nonparametric PDF
-        self.ws /= np.sum(self.ws) + 1e-6
+        self.ws /= np.sum(self.ws) + 1e-12
         # compute ratio of effective particles
         w_eff = self.compute_effective_weight()
         # compute the indices to resample from
@@ -116,7 +118,7 @@ class FastSLAM:
         # create an intermediate set of resampled particles
         intermediate_particles: List[FastSLAMParticle] = []
         for idx_resampled in idxs_resample:
-            intermediate_particles.append(self.particles[idx_resampled])
+            intermediate_particles.append(copy.deepcopy(self.particles[idx_resampled]))
         # update the current particles and reset their weights
         self.particles = intermediate_particles
         self.ws = 1 / self.M * np.ones(self.M, dtype=np.float64)
@@ -159,8 +161,9 @@ class FastSLAM:
 
     def sample_identical(self, initial_guess: np.ndarray) -> Tuple[List[FastSLAMParticle], np.ndarray]:
         """Create `self.M` particles at the exact same pose."""
-        inital_particle = FastSLAMParticle(x=Pose2D.from_twist(initial_guess))
-        particles = [inital_particle] * self.M
+        particles: List[FastSLAMParticle] = []
+        for _ in range(self.M):
+            particles.append(FastSLAMParticle(x=Pose2D.from_twist(initial_guess)))
         ws = 1 / self.M * np.ones(self.M)
         return (particles, ws)
 
