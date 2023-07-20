@@ -29,8 +29,6 @@ class MapperConfig(TypedDict):
     min_neighbor_count: int
     voxel_size: float
     scan_tf: ScanTFConfig
-    # parameter for correspondence estimation using KDTree-FLANN
-    kdtree_search_radius: float  # the nearest neighbor search radius
 
 
 class FastSLAMConfig(TypedDict):
@@ -42,6 +40,9 @@ class FastSLAMConfig(TypedDict):
     keypoint_covariance: List[int]  # covariance of an XYZ keypoint
     observation_covariance: List[int]  # signal cov. of range-bearing observations
     max_active_landmarks: int  # the maximum amount of allowed landmarks
+    # parameter for correspondence estimation using KDTree-FLANN
+    kdtree_search_radius: float  # the nearest neighbor search radius
+    motion_noise_gain: float  # amplification of the motion noise to achieve higher spread
 
 
 class BagRunnerConfig(TypedDict):
