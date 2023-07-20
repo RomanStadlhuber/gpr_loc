@@ -88,6 +88,7 @@ class FastSLAMParticle:
             kdtree_keypoints = open3d.geometry.KDTreeFlann(pcd_keypoints)
             correspondences = np.empty((0, 2), dtype=np.int32)
             c_distances = np.empty((0, 1), dtype=np.float64)
+            idxs_outlier_keypoints = np.empty(0, dtype=np.int32)
             for idx_l, landmark in enumerate(self.landmarks):
                 # (num_neighbors, idxs, distances) = ...
                 # see: http://www.open3d.org/docs/latest/python_api/open3d.geometry.KDTreeFlann.html#open3d.geometry.KDTreeFlann.search_radius_vector_3d
@@ -101,6 +102,7 @@ class FastSLAMParticle:
                     idx_min_dist = np.argmin(distances)
                     # set min-distance point to be the corresponding
                     correspondences = np.vstack((correspondences, [idx_l, idxs[idx_min_dist]]))
+                    idxs_outlier_keypoints = np.hstack((idxs_outlier_keypoints, np.delete(idxs, idx_min_dist)))
                     c_distances = np.vstack((c_distances, distances[idx_min_dist]))
             # safeguard in case there are no correspondences
             if c_distances.shape[0] == 0:
@@ -120,6 +122,7 @@ class FastSLAMParticle:
                     list(set(idxs_all_keypoints).difference(matched_keypoints)),
                     dtype=np.int32,
                 )
+                non_outlier_unmatched_keypoints = np.setdiff1d(unmatched_keypoints, idxs_outlier_keypoints)
                 idxs_matched_landmarks = correspondences[:, 0]
                 num_landmarks = self.landmarks.shape[0]
                 idxs_all_landmarks = np.linspace(start=0, stop=num_landmarks - 1, num=num_landmarks, dtype=np.int32)
@@ -130,7 +133,7 @@ class FastSLAMParticle:
                 self.observation_counter[idxs_matched_landmarks, 0] += 1
                 # decrement the observation counter for unmatched landmarks
                 self.observation_counter[idxs_unmatched_landmarks, 0] -= 1
-                return (correspondences, closest_corresondence, unmatched_keypoints)
+                return (correspondences, closest_corresondence, non_outlier_unmatched_keypoints)
 
     def add_new_landmarks_from_keypoints(
         self,
