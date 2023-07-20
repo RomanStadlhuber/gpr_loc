@@ -46,7 +46,9 @@ class FastSLAM:
         )
         self.previous_motion = predicted_motion
         for idx, particle in enumerate(self.particles):
-            cov = np.diag(predicted_motion_variances[idx]) * self.config["motion_noise_gain"]
+            cov = np.diag(predicted_motion_variances[idx]) * np.array(
+                self.config["motion_noise_gains"], dtype=np.float64
+            )
             particle.apply_u(u=predicted_motion[idx], R=cov)
 
     def update(self, pcd_keypoints: open3d.geometry.PointCloud) -> float:
