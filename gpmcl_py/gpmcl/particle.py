@@ -30,7 +30,7 @@ class FastSLAMParticle:
     @staticmethod
     def copy(other: "FastSLAMParticle") -> "FastSLAMParticle":
         return FastSLAMParticle(
-            x=other.x,
+            x=Pose2D(np.copy(other.x.T)),
             trajectory=np.copy(other.trajectory),
             landmarks_initialized=other.landmarks_initialized,
             landmarks=np.copy(other.landmarks),
