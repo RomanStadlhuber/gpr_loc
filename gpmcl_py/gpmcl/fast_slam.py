@@ -46,7 +46,7 @@ class FastSLAM:
         )
         self.previous_motion = predicted_motion
         for idx, particle in enumerate(self.particles):
-            cov = np.diag(predicted_motion_variances[idx])
+            cov = np.diag(predicted_motion_variances[idx]) * self.config["motion_noise_gain"]
             particle.apply_u(u=predicted_motion[idx], R=cov)
 
     def update(self, pcd_keypoints: open3d.geometry.PointCloud) -> float:
@@ -67,13 +67,16 @@ class FastSLAM:
         # update the keypoint pcd if there are fewer points in range
         if selected_keypoints.shape != keypoints.shape:
             pcd_keypoints = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(selected_keypoints))
+        if selected_keypoints.shape[0] == 0:
+            print("[WARNING]: No keypoints available, skipping update!")
+            return 1.0
         # update the particle states and their corresponding likelihoods
         for m, particle in enumerate(self.particles):
             (
                 correspondences,
                 best_correspondence,
                 idxs_new_keypoints,
-            ) = particle.estimate_correspondences(pcd_keypoints)
+            ) = particle.estimate_correspondences(pcd_keypoints, knn_search_radius=self.config["kdtree_search_radius"])
             if correspondences.shape[0] == 0:
                 # remove the particle (i.e. likelihood to zero) if it has landmarks but no matches
                 if (
