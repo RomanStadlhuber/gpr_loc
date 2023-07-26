@@ -19,7 +19,7 @@ class FastSLAM:
         self.M = self.config["particle_count"]
         self.particles: List[FastSLAMParticle] = []
         # initialize all particle weights equally likely
-        self.ws = 1 / self.M * np.ones(self.M)
+        self.ws_last = self.ws = 1 / self.M * np.ones(self.M)
         self.motion_model = motion_model
         self.observation_model = observation_model
         self.previous_motion = np.zeros((self.M, 3), dtype=np.float64)
@@ -47,7 +47,7 @@ class FastSLAM:
         self.previous_motion = predicted_motion
         for idx, particle in enumerate(self.particles):
             cov = np.diag(predicted_motion_variances[idx]) * np.array(
-                self.config["motion_noise_gains"], dtype=np.float64
+                self.config["motion_noise_gain"], dtype=np.float64
             )
             particle.apply_u(u=predicted_motion[idx], R=cov)
 
@@ -107,10 +107,9 @@ class FastSLAM:
                 )
                 # remove landmarks that are out of range or unobserved too often
                 particle.prune_landmarks(
-                    max_distance=self.config["max_feature_range"],
                     max_unobserved_count=self.config["max_unobserved_count"],
+                    # max_distance=self.config["max_feature_range"],
                 )
-                # TODO: register the unobserved landmarks (or should it be done internally?)
                 idx_l_min, _ = best_correspondence
                 # compute a particles likelihood given its best correspondence
                 likelihood = self.observation_model.compute_likelihood(
@@ -123,6 +122,8 @@ class FastSLAM:
         w_eff = self.compute_effective_weight()
         # compute the indices to resample from
         idxs_resample = systematic_resample(weights=self.ws)
+        # store the weigths of the resampled particles before
+        self.ws_last = self.ws[idxs_resample]
         # create an intermediate set of resampled particles
         intermediate_particles: List[FastSLAMParticle] = []
         for idx_resampled in idxs_resample:
@@ -183,3 +184,16 @@ class FastSLAM:
         See `Eq. (16)` in [(Elfring, Torta, v.d. Molengraft, 2021)](https://www.mdpi.com/1424-8220/21/2/438).
         """
         return 1 / np.sum(np.square(self.ws)) / self.M
+
+    def get_most_likely_particle(self) -> FastSLAMParticle:
+        """Obtain a copy of the particle with the highest likelihood."""
+        idx_most_likely = np.argmax(self.ws_last)
+        return FastSLAMParticle.copy(self.particles[idx_most_likely])
+
+    def _dbg_set_groundtruth_pose(self, pose: Pose2D) -> None:
+        """A debugging method to set the pose of all particles to the ground truth.
+
+        Use this if you want to debug the mapping behavior.
+        """
+        for particle in self.particles:
+            particle._dbg_set_pose(pose)
