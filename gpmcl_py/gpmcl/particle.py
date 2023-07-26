@@ -59,6 +59,7 @@ class FastSLAMParticle:
         self,
         pcd_keypoints: open3d.geometry.PointCloud,
         knn_search_radius: float = 0.6,
+        max_observation_range: float = 10.0,
     ) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.int32], npt.NDArray[np.int32]]:
         """Estimate the correspondences between observed keypoints and landmarks in the map.
 
@@ -68,6 +69,12 @@ class FastSLAMParticle:
 
         This creates a copy of `pcd_keypoints` in order to transform the keypoints into the map frame and
         perofrm KDTree radius search on them.
+
+        Moreover, this method internally updates the observation-counter of all landmarks.
+        Counters of landmarks that matched to a feature are incremented.
+        Counters of landmarks that are within the `max_observation_range` but are unmatched are decremented.
+
+        Use the `prune_landmarks()` method to remove landmarks that are unobserved too often or outside the mapping range.
         """
         # copy the original pointcloud
         pcd_keypoints = open3d.geometry.PointCloud(pcd_keypoints)
@@ -129,10 +136,13 @@ class FastSLAMParticle:
                 # TODO: can we assume unique? (see param "assume_unique"), in
                 # https://numpy.org/doc/stable/reference/generated/numpy.setdiff1d.html
                 idxs_unmatched_landmarks = np.setdiff1d(idxs_all_landmarks, idxs_matched_landmarks)
+                idxs_landmarks_in_range = self.__get_idxs_landmarks_in_range(max_distance=max_observation_range)
+                # the indices of all unobserved landmarks that should have been observed
+                idxs_unobserved_landmarks_in_range = np.intersect1d(idxs_unmatched_landmarks, idxs_landmarks_in_range)
                 # increment the observation counter for matched landmarks
                 self.observation_counter[idxs_matched_landmarks, 0] += 1
                 # decrement the observation counter for unmatched landmarks
-                self.observation_counter[idxs_unmatched_landmarks, 0] -= 1
+                self.observation_counter[idxs_unobserved_landmarks_in_range, 0] -= 1
                 return (correspondences, closest_corresondence, non_outlier_unmatched_keypoints)
 
     def add_new_landmarks_from_keypoints(
@@ -140,8 +150,28 @@ class FastSLAMParticle:
         idxs_new_landmarks: npt.NDArray[np.int32],
         keypoints_in_robot_frame: npt.NDArray[np.float64],
         position_covariance: npt.NDArray[np.float64],
-        max_active_landmarks: int = 5,
+        max_active_landmarks: int = -1,
     ) -> None:
+        """Add a subset of keypoints to the map if they have previously been unobserved.
+
+        ### Remarks
+
+        #### Initializing new Landmarks
+
+        The array `idxs_new_landmarks` indicates which of the `keypoints_in_robot_frame` should be added to the map.
+        To add new landmarks, the `keyponits_in_robot_frame` are first transformed into the map frame.
+        The covariance of each new landmark is then set to `position_covariance`.
+
+        #### Restricting the Map Size
+
+        The amount of landmarks that will be added to the map is determined by the `max_active_landmarks` parameter.
+        If `max_active_landmarks > 0`, only the first `max_active_landmarks - currently_active_landmarks` will be admitted to the map.
+
+        ### Pruning spurios Landmarks
+
+        Set `max_active_landmarks < 0` to allow an arbitrary amount of landmarks to be admitted to the map.
+        If this is the case, the amount of landmarks within the map is then solely determined by the `prune_landmarks()` method.
+        """
         # region: add all keypoints to map if there is no restriction
         if max_active_landmarks < 0:
             pcd_l_new = open3d.geometry.PointCloud(
@@ -215,22 +245,36 @@ class FastSLAMParticle:
         # return the errors and covariances for likelihood computation
         return (ds, Qs)
 
-    def prune_landmarks(self, max_distance: float, max_unobserved_count: int = -1) -> None:
-        """Removes landmarks that exceed the mapping range or are unobserved too often.
+    def prune_landmarks(self, max_unobserved_count: int = -1, max_distance: Optional[float] = None) -> None:
+        """Removes landmarks that are unobserved too often (or - optionally - exceed the mapping range).
 
         This is basically a post-update map-management method.
         """
-        robot_position = np.array([*self.x.as_twist()[:2], 0], dtype=np.float64)
-        relative_landmark_positions = np.copy(self.landmarks)
-        relative_landmark_positions -= robot_position
-        landmark_distances = np.linalg.norm(relative_landmark_positions, axis=1)
-        idxs_landmarks_in_range = np.where(landmark_distances <= max_distance)
+        num_landmarks = self.landmarks.shape[0]
         idxs_landmarks_unobserved_too_often = np.where(self.observation_counter <= max_unobserved_count)
+        # if there is no pruning range supplied, keep all landmarks regardless of their distance
+        idxs_landmarks_in_range = (
+            self.__get_idxs_landmarks_in_range(max_distance)
+            if max_distance
+            else np.linspace(start=0, stop=num_landmarks - 1, num=num_landmarks, dtype=np.int32)
+        )
         idxs_to_keep = np.setdiff1d(idxs_landmarks_in_range, idxs_landmarks_unobserved_too_often)
         # keep all the map-related values of the landmarks in range and aren't unobserved too often
         self.landmarks = self.landmarks[idxs_to_keep]
         self.landmark_covariances = self.landmark_covariances[idxs_to_keep]
         self.observation_counter = self.observation_counter[idxs_to_keep]
+
+    def get_trajectory(self) -> np.ndarray:
+        """Obtain the trajectory traversed over the lifetime of this particle."""
+        return np.vstack((self.trajectory, self.x.as_twist()))
+
+    def __get_idxs_landmarks_in_range(self, max_distance: float = 10.0) -> np.ndarray:
+        robot_position = np.array([*self.x.as_twist()[:2], 0], dtype=np.float64)
+        relative_landmark_positions = np.copy(self.landmarks)
+        relative_landmark_positions -= robot_position
+        landmark_distances = np.linalg.norm(relative_landmark_positions, axis=1)
+        idxs_landmarks_in_range = np.where(landmark_distances <= max_distance)
+        return idxs_landmarks_in_range
 
     def __add_landmarks(self, ls: np.ndarray, Q_0: np.ndarray, Qs: Optional[np.ndarray] = None) -> None:
         """Add a set of landmarks with common or individual covariances.
@@ -273,3 +317,7 @@ class FastSLAMParticle:
         H_i = jacobian_of_h(l_i)
 
         return (z_i, H_i)
+
+    def _dbg_set_pose(self, pose: Pose2D) -> None:
+        """A debugging method to directy set the particles pose (i.e. from ground truth)."""
+        self.x = pose
