@@ -67,6 +67,7 @@ class GPMCLPipeline(LocalizationPipeline):
         odom_curr = Pose2D.from_odometry(synced_msgs.odom_est)
         delta_odom = Pose2D.delta(self.odom_last, odom_curr)
         self.slam.predict(estimated_motion=delta_odom)
+        # self.slam._dbg_set_groundtruth_pose(Pose2D.from_odometry(synced_msgs.groundtruth or synced_msgs.odom_est))
         w_eff = self.slam.update(pcd_keypoints=pcd_keypoints)
         # if synced_msgs.groundtruth is not None:
         #     T_curr = odometry_msg_to_affine_transform(synced_msgs.groundtruth)
@@ -90,7 +91,6 @@ class GPMCLPipeline(LocalizationPipeline):
         # create output directory if it does not exist
         if not out_dir.exists():
             out_dir.mkdir()
-        self.df_trajectory_estimated.to_csv(out_dir / "trajectory_estimated.csv")
         self.df_particles.to_csv(out_dir / "particles.csv")
         df_rows, *_ = self.df_trajectory_groundtruth.shape
         if df_rows > 0:
@@ -98,6 +98,13 @@ class GPMCLPipeline(LocalizationPipeline):
         df_rows, *_ = self.df_trajectory_odometry.shape
         if df_rows > 0:
             self.df_trajectory_odometry.to_csv(out_dir / "trajectory_odometry.csv")
+        # region: export trajectory and map of the most likely particle
+        best_state = self.slam.get_most_likely_particle()
+        df_landmarks = pd.DataFrame(columns=["x", "y", "z"], data=best_state.landmarks)
+        df_landmarks.to_csv(out_dir / "landmarks.csv")
+        self.df_trajectory_estimated = pd.DataFrame(columns=["x", "y", "theta"], data=best_state.get_trajectory())
+        self.df_trajectory_estimated.to_csv(out_dir / "trajectory_estimated.csv")
+        # endregion
 
     def __update_trajectory(
         self, estimate: np.ndarray, groundtruth: Optional[np.ndarray] = None, odometry: Optional[np.ndarray] = None
