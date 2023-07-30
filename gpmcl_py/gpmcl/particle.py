@@ -179,7 +179,8 @@ class FastSLAMParticle:
             )
             # transform the keyponits into the map frame
             pcd_l_new.transform(self.x.as_t3d())
-            l_new = np.asarray(pcd_l_new.points)
+            pcd_l_new_checked = self.__landmark_admission_check_filter(pcd_l_new)
+            l_new = np.asarray(pcd_l_new_checked.points)
             self.__add_landmarks(ls=l_new, Q_0=position_covariance)
             self.landmarks_initialized = True
         # endregion
@@ -192,7 +193,8 @@ class FastSLAMParticle:
             )
             # transform the keyponits into the map frame
             pcd_l_new.transform(self.x.as_t3d())
-            l_new = np.asarray(pcd_l_new.points)
+            pcd_l_new_checked = self.__landmark_admission_check_filter(pcd_l_new)
+            l_new = np.asarray(pcd_l_new_checked.points)
             self.__add_landmarks(ls=l_new, Q_0=position_covariance)
             self.landmarks_initialized = True
         # endregion
@@ -276,7 +278,7 @@ class FastSLAMParticle:
         relative_landmark_positions = np.copy(self.landmarks)
         relative_landmark_positions -= robot_position
         landmark_distances = np.linalg.norm(relative_landmark_positions, axis=1)
-        idxs_landmarks_in_range = np.where(landmark_distances <= max_distance)
+        idxs_landmarks_in_range, *_ = np.where(landmark_distances <= max_distance)
         return idxs_landmarks_in_range
 
     def __add_landmarks(self, ls: np.ndarray, Q_0: np.ndarray, Qs: Optional[np.ndarray] = None) -> None:
@@ -320,6 +322,33 @@ class FastSLAMParticle:
         H_i = jacobian_of_h(l_i)
 
         return (z_i, H_i)
+
+    def __landmark_admission_check_filter(
+        self, pcd_candidates: open3d.geometry.PointCloud, min_mutual_distance: float = 3.0
+    ) -> open3d.geometry.PointCloud:
+        """Filter landmark candidates for those that pass the admission check.
+
+        Current admission checks:
+            - must have at least `min_mutual_distance` to every landmark in the map
+
+        ### Remark
+
+        Will passthrough the input if the map is empty.
+        """
+        if not self.has_map():
+            return pcd_candidates
+
+        pcd_landmarks = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(self.landmarks))
+        kdtree_landmarks = open3d.geometry.KDTreeFlann(pcd_landmarks)
+        pts_candidates = np.asarray(pcd_candidates.points, dtype=np.float64)
+        passed = np.repeat(False, pts_candidates.shape[0])
+        for idx_candidate, pt_candidate in enumerate(pts_candidates):
+            num_matches, *_ = kdtree_landmarks.search_radius_vector_3d(query=pt_candidate, radius=min_mutual_distance)
+            if num_matches == 0:
+                passed[idx_candidate] = True
+        idxs_passed, *_ = np.where(passed)
+        pts_passed = pts_candidates[idxs_passed]
+        return open3d.geometry.PointCloud(open3d.utility.Vector3dVector(pts_passed))
 
     def _dbg_set_pose(self, pose: Pose2D) -> None:
         """A debugging method to directy set the particles pose (i.e. from ground truth)."""
