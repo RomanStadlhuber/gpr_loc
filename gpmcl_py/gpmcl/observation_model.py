@@ -33,7 +33,12 @@ class ObservationModel:
         dz = lz
         rho = anp.linalg.norm(anp.array([dx, dy, dz], dtype=anp.float64))
         rho_xy = anp.linalg.norm(anp.array([dx, dy], dtype=anp.float64))
+        # compute and normalize planar heading error
         phi = anp.arctan2(dy, dx) - pyaw
+        if phi > anp.pi:
+            phi -= 2 * anp.pi
+        elif phi < -anp.pi:
+            phi += 2 * anp.pi
         psi = anp.arctan2(dz, rho_xy)
         return anp.array([rho, phi, psi], dtype=anp.float64)
 
@@ -83,3 +88,23 @@ if __name__ == "__main__":
     # compute jacobian of h at l
     Jh = jacobian_of_h(p_l)
     print(Jh)
+
+    from transform import Pose2D
+
+    yaw = np.deg2rad(150)
+    x = np.array([0, 0, yaw])
+    l = np.array([-5.5, 0.1, 0.005])
+    # transform noisy landmark position into robot frame
+    k = (Pose2D.from_twist(x).inv3d() @ np.array([-5.2, -0.1, -0.05, 1.0]))[:3]
+    z_est = ObservationModel.range_bearing_observation_landmark(l, x)
+    z_true = ObservationModel.range_bearing_observation_keypoint(k)
+    delta_z = ObservationModel.observation_delta(z_true, z_est)
+    print(
+        f"""
+Observation error:
+    z_est: {z_est}
+    z_true: {z_true}
+is
+    delta_z: {delta_z}
+    """
+    )
