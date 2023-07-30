@@ -231,12 +231,15 @@ class FastSLAMParticle:
             S_l = self.landmark_covariances[idx_l]
             # innovation covariance
             # uses cholesky factor because H @ S @ H.T would not be symmetric
-            # ... why?
+            # ... likely due to small numerical offsets that build up as time goes on
             C = np.linalg.cholesky(S_l)
             HC = H_l @ C
             Q_l = HC @ HC.T + Q_z
+            L = np.linalg.cholesky(Q_l)
+            L_inv = np.linalg.inv(L)
+            Q_l_inv = L_inv @ L_inv.T
             # kalman gain
-            K_l = S_l @ H_l.T @ np.linalg.inv(Q_l)
+            K_l = S_l @ H_l.T @ Q_l_inv
             # update the landmark in question
             self.__update_landmark(idx_l, delta=delta_z, K_gain=K_l, H=H_l, Qz=Q_z)
             # set observation error and its covariance
