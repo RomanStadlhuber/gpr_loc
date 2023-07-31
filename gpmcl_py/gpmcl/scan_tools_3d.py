@@ -37,9 +37,9 @@ class ScanTools3D:
             # unpacking, where "f" means to interpet as 32-bit floating point data
             # the result of unpack_from is always a tuple, but we're just interested in the first entry
             # see: https://docs.python.org/3.8/library/struct.html#struct.unpack_from
-            x, *_ = struct.unpack_from("f", data_raw, i + offset_x)
-            y, *_ = struct.unpack_from("f", data_raw, i + offset_y)
-            z, *_ = struct.unpack_from("f", data_raw, i + offset_z)
+            x, *_ = struct.unpack_from("f", data_raw, i + offset_x)  # type: ignore
+            y, *_ = struct.unpack_from("f", data_raw, i + offset_y)  # type: ignore
+            z, *_ = struct.unpack_from("f", data_raw, i + offset_z)  # type: ignore
             points_xyz[idx_pt] = np.array([x, y, z])
             idx_pt += 1
         pcd_o3d = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(points_xyz))
@@ -81,8 +81,8 @@ class PointCloudVisualizer:
         This removes all geometry and adds it anew.
         Unfortunately, this is the only way that it will work right now.
         """
+        self.vis.clear_geometries()
         for pcd in pcds:
-            self.vis.remove_geometry(pcd)
             self.vis.add_geometry(pcd, reset_bounding_box=(not self.geometry_added))
         if not self.geometry_added:
             self.geometry_added = True
