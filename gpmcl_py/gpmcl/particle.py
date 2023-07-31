@@ -77,12 +77,12 @@ class FastSLAMParticle:
         Use the `prune_landmarks()` method to remove landmarks that are unobserved too often or outside the mapping range.
         """
         # copy the original pointcloud
-        pcd_keypoints = open3d.geometry.PointCloud(pcd_keypoints)
-        num_keypoints = np.asarray(pcd_keypoints.points).shape[0]
+        pcd_keypoints_local = open3d.geometry.PointCloud(pcd_keypoints)
+        num_keypoints = np.asarray(pcd_keypoints_local.points).shape[0]
         idxs_all_keypoints = np.linspace(start=0, stop=num_keypoints - 1, num=num_keypoints, dtype=np.int32)
         # transform the keypoints into the map frame
         # this is done under the assumptions that, at some point, there are more landmarks than keypoints being observed
-        pcd_keypoints.transform(self.x.as_t3d())
+        pcd_keypoints_local = pcd_keypoints_local.transform(self.x.as_t3d())
         n_landmarks, *_ = self.landmarks.shape
         if n_landmarks == 0:
             return (
@@ -92,7 +92,7 @@ class FastSLAMParticle:
             )
         else:
             # create a KD-Tree for correspondence search
-            kdtree_keypoints = open3d.geometry.KDTreeFlann(pcd_keypoints)
+            kdtree_keypoints = open3d.geometry.KDTreeFlann(pcd_keypoints_local)
             correspondences = np.empty((0, 2), dtype=np.int32)
             c_distances = np.empty((0, 1), dtype=np.float64)
             idxs_outlier_keypoints = np.empty(0, dtype=np.int32)
@@ -178,7 +178,7 @@ class FastSLAMParticle:
                 open3d.utility.Vector3dVector(keypoints_in_robot_frame[idxs_new_landmarks])
             )
             # transform the keyponits into the map frame
-            pcd_l_new.transform(self.x.as_t3d())
+            pcd_l_new = pcd_l_new.transform(self.x.as_t3d())
             pcd_l_new_checked = self.__landmark_admission_check_filter(pcd_l_new)
             l_new = np.asarray(pcd_l_new_checked.points)
             self.__add_landmarks(ls=l_new, Q_0=position_covariance)
@@ -192,7 +192,7 @@ class FastSLAMParticle:
                 open3d.utility.Vector3dVector(keypoints_in_robot_frame[idxs_new_landmarks][:num_new])
             )
             # transform the keyponits into the map frame
-            pcd_l_new.transform(self.x.as_t3d())
+            pcd_l_new = pcd_l_new.transform(self.x.as_t3d())
             pcd_l_new_checked = self.__landmark_admission_check_filter(pcd_l_new)
             l_new = np.asarray(pcd_l_new_checked.points)
             self.__add_landmarks(ls=l_new, Q_0=position_covariance)
@@ -335,9 +335,10 @@ class FastSLAMParticle:
 
         Will passthrough the input if the map is empty.
         """
-        if not self.has_map():
+        # skip if there aren't any landmarks in the map
+        if self.landmarks.shape[0] == 0:
             return pcd_candidates
-
+        # ohterwise transform the keypoints into the map frame and perform checks
         pcd_landmarks = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(self.landmarks))
         kdtree_landmarks = open3d.geometry.KDTreeFlann(pcd_landmarks)
         pts_candidates = np.asarray(pcd_candidates.points, dtype=np.float64)
