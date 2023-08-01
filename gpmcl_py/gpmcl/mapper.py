@@ -32,11 +32,9 @@ class Mapper:
 
     def process_scan(self, pcd_scan_curr: open3d.geometry.PointCloud) -> open3d.geometry.PointCloud:
         """Process the current scans pointcloud and compute ISS3D features"""
-        # preprocess the scan and compute its keypoints
         # downsample the scan
-        self.pcd_scan = pcd_scan_curr.voxel_down_sample(voxel_size=self.config["voxel_size"])
-        # remove reference to the input parameter to prevent incorrect access at a later time
-        del pcd_scan_curr
+        self.pcd_scan = open3d.geometry.PointCloud(pcd_scan_curr)
+        self.pcd_scan = self.pcd_scan.voxel_down_sample(voxel_size=self.config["voxel_size"])
         # transform the scan into the base frame
         self.pcd_scan.transform(self.tf_scan)
         # estimate normals using the default settings
