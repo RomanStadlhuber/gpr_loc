@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import argparse
 import pathlib
+import open3d
 
 # TODO:
 # the pipeline will later use the following modules
@@ -69,12 +70,26 @@ class GPMCLPipeline(LocalizationPipeline):
         self.slam.predict(estimated_motion=delta_odom)
         # self.slam._dbg_set_groundtruth_pose(Pose2D.from_odometry(synced_msgs.groundtruth or synced_msgs.odom_est))
         w_eff = self.slam.update(pcd_keypoints=pcd_keypoints)
-        # if synced_msgs.groundtruth is not None:
+        # region: visual debugging
+        x_max = self.slam.get_most_likely_particle()
+        pcd_map = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(x_max.landmarks))
+        pcd_scan.paint_uniform_color(0.5 * np.ones(3))
+        # transform scan PCD into world frame by applying robot pose
+        pcd_scan.transform(x_max.x.as_t3d())
+        pcd_keypoints.paint_uniform_color([1, 0, 0])
+        # transform keypoint PCD into world frame by applying robot pose
+        pcd_keypoints.transform(x_max.x.as_t3d())
+        pcd_map.paint_uniform_color([0, 0, 1])
+        self.visualizer.update(pcds=[pcd_scan, pcd_map, pcd_keypoints])
+        # endregion
+        # region: 3D scan mapping using ground truth
+        # if synced_msgs.groundtruth is not None:.
         #     T_curr = odometry_msg_to_affine_transform(synced_msgs.groundtruth)
         #     self.mapper.update_map(pose=T_curr)
         #     self.visualizer.update([self.mapper.pcd_map])
         #     map_points = np.asarray(self.mapper.pcd_map.points)
         #     print(f"Map contains {map_points.shape[0]} points.")
+        # endregion
         # increment the iteration counter
         self.debug_iteration_count += 1
         print(f"Iteration {self.debug_iteration_count}, W_eff: {w_eff}.")
