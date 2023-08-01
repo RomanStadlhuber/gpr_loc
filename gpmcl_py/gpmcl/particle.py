@@ -60,7 +60,11 @@ class FastSLAMParticle:
         pcd_keypoints: open3d.geometry.PointCloud,
         knn_search_radius: float = 0.6,
         max_observation_range: float = 10.0,
-    ) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+    ) -> Tuple[
+        npt.NDArray[np.int32],  # [[idx_l, idx_f], ...] update indices
+        npt.NDArray[np.int32],  # [idx_l, idx_f] closest correspondence
+        npt.NDArray[np.int32],  # [[idx_l, idx_f], ...]  previously unobserved keypoints
+    ]:
         """Estimate the correspondences between observed keypoints and landmarks in the map.
 
         returns `(all_correspondences, pcd_keypoints_in_map_frame, best_correspondence, new_landmark_idxs)`.
@@ -264,8 +268,7 @@ class FastSLAMParticle:
 
     def __get_idxs_landmarks_in_range(self, max_distance: float = 10.0) -> np.ndarray:
         robot_position = np.array([*self.x.as_twist()[:2], 0], dtype=np.float64)
-        relative_landmark_positions = np.copy(self.landmarks)
-        relative_landmark_positions -= robot_position
+        relative_landmark_positions = np.copy(self.landmarks) - robot_position
         landmark_distances = np.linalg.norm(relative_landmark_positions, axis=1)
         idxs_landmarks_in_range, *_ = np.where(landmark_distances <= max_distance)
         return idxs_landmarks_in_range
