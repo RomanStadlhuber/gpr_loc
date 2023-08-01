@@ -62,23 +62,31 @@ class FastSLAM:
         # range-bearing observation covariance
         Q_z = np.array(self.config["observation_covariance"]).reshape((3, 3))
         keypoints = np.asarray(pcd_keypoints.points)
+        # region: select only keypoints within the specified feature range
         # compute distance to all keypoints, used to select only those that are in range
         keypoint_distances = np.linalg.norm(keypoints, axis=1)
         # select only keypoints that lie within the max. feature range
         selected_keypoints = keypoints[np.where(keypoint_distances <= self.config["max_feature_range"])]
         # update the keypoint pcd if there are fewer points in range
-        if selected_keypoints.shape != keypoints.shape:
-            pcd_keypoints = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(selected_keypoints))
+        # otherwise just copy it
+        pcd_keypoints_local = (
+            open3d.geometry.PointCloud(open3d.utility.Vector3dVector(selected_keypoints))
+            if selected_keypoints.shape != keypoints.shape
+            else open3d.geometry.PointCloud(pcd_keypoints)
+        )
         if selected_keypoints.shape[0] == 0:
             print("[WARNING]: No keypoints available, skipping update!")
             return 1.0
-        # update the particle states and their corresponding likelihoods
+        # endregion
+        # region: update the particle states and their corresponding likelihoods
         for m, particle in enumerate(self.particles):
             (
                 correspondences,
                 best_correspondence,
                 idxs_new_keypoints,
-            ) = particle.estimate_correspondences(pcd_keypoints, knn_search_radius=self.config["kdtree_search_radius"])
+            ) = particle.estimate_correspondences(
+                pcd_keypoints_local, knn_search_radius=self.config["kdtree_search_radius"]
+            )
             if correspondences.shape[0] == 0:
                 # remove the particle (i.e. likelihood to zero) if it has landmarks but no matches
                 if (
@@ -116,6 +124,7 @@ class FastSLAM:
                     dz=innovations[idx_l_min], Q=innovation_covariances[idx_l_min]
                 )
                 self.ws[m] = likelihood
+        # endregion
         # normalize the likelihoods to obtain a nonparametric PDF
         self.ws /= np.sum(self.ws)
         # compute ratio of effective particles
