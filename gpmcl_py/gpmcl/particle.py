@@ -172,32 +172,21 @@ class FastSLAMParticle:
         Set `max_active_landmarks < 0` to allow an arbitrary amount of landmarks to be admitted to the map.
         If this is the case, the amount of landmarks within the map is then solely determined by the `prune_landmarks()` method.
         """
-        # region: add all keypoints to map if there is no restriction
-        if max_active_landmarks < 0:
-            pcd_l_new = open3d.geometry.PointCloud(
-                open3d.utility.Vector3dVector(keypoints_in_robot_frame[idxs_new_landmarks])
-            )
-            # transform the keyponits into the map frame
-            pcd_l_new = pcd_l_new.transform(self.x.as_t3d())
-            pcd_l_new_checked = self.__landmark_admission_check_filter(pcd_l_new)
-            l_new = np.asarray(pcd_l_new_checked.points)
-            self.__add_landmarks(ls=l_new, Q_0=position_covariance)
-            self.landmarks_initialized = True
-        # endregion
-        # region: add only the remainder of allowed landmarks
-        # amount of new landmarks that can be admitted
+        # number of keypoints that can be admitted into the map
         num_new = max_active_landmarks - self.landmarks.shape[0]
-        if num_new > 0:
-            pcd_l_new = open3d.geometry.PointCloud(
-                open3d.utility.Vector3dVector(keypoints_in_robot_frame[idxs_new_landmarks][:num_new])
-            )
-            # transform the keyponits into the map frame
-            pcd_l_new = pcd_l_new.transform(self.x.as_t3d())
-            pcd_l_new_checked = self.__landmark_admission_check_filter(pcd_l_new)
-            l_new = np.asarray(pcd_l_new_checked.points)
-            self.__add_landmarks(ls=l_new, Q_0=position_covariance)
-            self.landmarks_initialized = True
-        # endregion
+        pcd_l_new = open3d.geometry.PointCloud(
+            # use all keypoints if there is no restriction
+            open3d.utility.Vector3dVector(keypoints_in_robot_frame[idxs_new_landmarks])
+            if max_active_landmarks < 0
+            # otherwise use as many as is allowed
+            else open3d.utility.Vector3dVector(keypoints_in_robot_frame[idxs_new_landmarks][:num_new])
+        )
+        # transform the keyponits into the map frame
+        pcd_l_new = pcd_l_new.transform(self.x.as_t3d())
+        pcd_l_new_checked = self.__landmark_admission_check_filter(pcd_l_new)
+        l_new = np.asarray(pcd_l_new_checked.points)
+        self.__add_landmarks(ls=l_new, Q_0=position_covariance)
+        self.landmarks_initialized = True
 
     def update_existing_landmarks(
         self,
