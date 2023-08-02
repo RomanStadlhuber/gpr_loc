@@ -64,11 +64,11 @@ class GPMCLPipeline(LocalizationPipeline):
 
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
         pcd_scan = ScanTools3D.pointcloud2_to_open3d_pointcloud(synced_msgs.scan_3d)
-        pcd_keypoints = self.mapper.process_scan(pcd_scan)
+        pcd_keypoints, pcd_scan_sampled = self.mapper.process_scan(pcd_scan)
         # region: visual debugging of scan and keypoints
-        pcd_scan.paint_uniform_color([0.5, 0.5, 0.5])
+        pcd_scan_sampled.paint_uniform_color([0.5, 0.5, 0.5])
         pcd_keypoints.paint_uniform_color([1, 0, 0])
-        self.visualizer.update(pcds=[pcd_scan, pcd_keypoints])
+        self.visualizer.update(pcds=[pcd_scan_sampled, pcd_keypoints])
         # endregion
         odom_curr = Pose2D.from_odometry(synced_msgs.odom_est)
         delta_odom = Pose2D.delta(self.odom_last, odom_curr)
