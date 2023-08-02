@@ -3,6 +3,7 @@ from rosbags.serde import deserialize_cdr, ros1_to_cdr
 from typing import Set, Dict, Optional, Callable
 from abc import ABC, abstractmethod
 import pathlib
+import sys
 
 
 class SyncMessage(ABC):
@@ -96,3 +97,4 @@ class RosbagSyncReader:
 
         except Exception as e:
             print(str(e))
+            sys.exit(-1)
