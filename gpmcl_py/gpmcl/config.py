@@ -29,6 +29,8 @@ class MapperConfig(TypedDict):
     min_neighbor_count: int
     voxel_size: float
     scan_tf: ScanTFConfig
+    min_height: float
+    max_height: float
 
 
 class FastSLAMConfig(TypedDict):

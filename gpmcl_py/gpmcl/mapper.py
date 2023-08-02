@@ -4,6 +4,7 @@
 from dataclasses import dataclass
 from scipy.spatial.transform import Rotation
 from gpmcl.config import MapperConfig
+from typing import Tuple
 import numpy as np
 import open3d
 
@@ -30,7 +31,9 @@ class Mapper:
         Rmat_scan = Rotation.from_quat(np.array(self.config["scan_tf"]["orientation"])).as_matrix()
         self.tf_scan[:3, :3] = Rmat_scan
 
-    def process_scan(self, pcd_scan_curr: open3d.geometry.PointCloud) -> open3d.geometry.PointCloud:
+    def process_scan(
+        self, pcd_scan_curr: open3d.geometry.PointCloud
+    ) -> Tuple[open3d.geometry.PointCloud, open3d.geometry.PointCloud]:
         """Process the current scans pointcloud and compute ISS3D features"""
         # downsample the scan
         self.pcd_scan = open3d.geometry.PointCloud(pcd_scan_curr)
@@ -51,7 +54,12 @@ class Mapper:
             gamma_32=self.config["eig_ratio_32"],
             min_neighbors=self.config["min_neighbor_count"],
         )
-        return pcd_keypoints
+        keypoints = np.asarray(pcd_keypoints.points, dtype=np.float64)
+        keypoints_in_range = keypoints[
+            np.where((keypoints[:, 2] >= self.config["min_height"]) & (keypoints[:, 2] <= self.config["max_height"]))
+        ]
+        pcd_keypoints_in_range = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(keypoints_in_range))
+        return pcd_keypoints_in_range, self.pcd_scan
 
     def update_map(self, pose: np.ndarray):
         # transform the scan PCD into the current pose (needed for both initialization and update)
