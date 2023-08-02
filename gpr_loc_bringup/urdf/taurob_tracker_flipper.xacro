@@ -241,9 +241,12 @@
     </xacro:hokuyo_utm30lx>
   </xacro:unless>
 
-  <!-- Velodyne 20 Grad nach vorne geneigt-->
+  
   <VLP-16 parent="chassis_link" name="velodyne" topic="/velodyne_points" hz="10" samples="440" gpu="${gpu}" max_range="30.0">
-    <origin xyz="-0.66375 0 0.898" rpy="0.3490659 0 ${M_PI/2}" />
+    <!-- Rotated 20° so most points face the ground in front of the robot -->
+    <!-- <origin xyz="-0.66375 0 0.898" rpy="0.3490659 0 ${M_PI/2}" /> -->
+    <!-- Put at a lower height and no rotation.. -->
+    <origin xyz="-0.3 0 0.25" rpy="0 0 0" />
   </VLP-16>
   <!-- IMU -->
   <link name="imu_link" />
