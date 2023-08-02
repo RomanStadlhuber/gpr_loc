@@ -84,6 +84,7 @@ class PointCloudVisualizer:
         self.vis.clear_geometries()
         for pcd in pcds:
             self.vis.add_geometry(pcd, reset_bounding_box=(not self.geometry_added))
+            self.vis.get_view_control().set_up([0, 0, 1])
         if not self.geometry_added:
             self.geometry_added = True
 
