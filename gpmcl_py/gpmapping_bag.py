@@ -66,9 +66,9 @@ class GPMCLPipeline(LocalizationPipeline):
         pcd_scan = ScanTools3D.pointcloud2_to_open3d_pointcloud(synced_msgs.scan_3d)
         pcd_keypoints, pcd_scan_sampled = self.mapper.process_scan(pcd_scan)
         # region: visual debugging of scan and keypoints
-        pcd_scan_sampled.paint_uniform_color([0.5, 0.5, 0.5])
-        pcd_keypoints.paint_uniform_color([1, 0, 0])
-        self.visualizer.update(pcds=[pcd_scan_sampled, pcd_keypoints])
+        # pcd_scan_sampled.paint_uniform_color([0.5, 0.5, 0.5])
+        # pcd_keypoints.paint_uniform_color([1, 0, 0])
+        # self.visualizer.update(pcds=[pcd_scan_sampled, pcd_keypoints])
         # endregion
         odom_curr = Pose2D.from_odometry(synced_msgs.odom_est)
         delta_odom = Pose2D.delta(self.odom_last, odom_curr)
@@ -76,16 +76,13 @@ class GPMCLPipeline(LocalizationPipeline):
         # self.slam._dbg_set_groundtruth_pose(Pose2D.from_odometry(synced_msgs.groundtruth or synced_msgs.odom_est))
         w_eff = self.slam.update(pcd_keypoints=pcd_keypoints)
         # region: visual debugging
-        # x_max = self.slam.get_most_likely_particle()
-        # pcd_map = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(x_max.landmarks))
-        # pcd_scan.paint_uniform_color(0.5 * np.ones(3))
-        # # transform scan PCD into world frame by applying robot pose
-        # pcd_scan.transform(x_max.x.as_t3d())
-        # pcd_keypoints.paint_uniform_color([1, 0, 0])
-        # # transform keypoint PCD into world frame by applying robot pose
-        # pcd_keypoints.transform(x_max.x.as_t3d())
-        # pcd_map.paint_uniform_color([0, 0, 1])
-        # self.visualizer.update(pcds=[pcd_scan, pcd_map, pcd_keypoints])
+        if self.debug_visualize:
+            x_max = self.slam.get_most_likely_particle()
+            pcd_map = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(x_max.landmarks))
+            pcd_scan_sampled.paint_uniform_color(0.5 * np.ones(3))
+            pcd_keypoints.paint_uniform_color([1, 0, 0])
+            pcd_map.paint_uniform_color([0, 0, 1])
+            self.visualizer.update(pcds=[pcd_scan_sampled, pcd_map, pcd_keypoints])
         # endregion
         # region: 3D scan mapping using ground truth
         # if synced_msgs.groundtruth is not None:.
