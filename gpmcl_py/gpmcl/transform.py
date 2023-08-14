@@ -1,4 +1,4 @@
-from rosbags.typesys.types import nav_msgs__msg__Odometry as Odometry
+from rosbags.typesys.types import nav_msgs__msg__Odometry as Odometry, geometry_msgs__msg__Twist as Twist
 from scipy.spatial.transform import Rotation
 from typing import Optional
 import numpy as np
@@ -47,6 +47,13 @@ class Pose2D:
             ]
         )
         return T
+
+    def global_velocity_to_local(self, vel: np.ndarray) -> np.ndarray:
+        """Transforms a velocity vector from the global to the local frame."""
+        _, _, w = vel
+        Rmat = self.T[:2, :2]
+        dx, dy = Rmat.T @ vel[:2]
+        return np.array([dx, dy, w])
 
     @staticmethod
     def delta(p_from: "Pose2D", p_to: "Pose2D") -> np.ndarray:
@@ -123,6 +130,10 @@ class Pose2D:
 
         u = np.array([x, y, theta], dtype=np.float64)
         return Pose2D.from_twist(u)
+
+    @staticmethod
+    def velocity_from_odom_twist(twist: Twist) -> np.ndarray:
+        return np.array([twist.linear.x, twist.linear.y, twist.angular.z])
 
 
 def odometry_msg_to_affine_transform(odom: Odometry) -> np.ndarray:
