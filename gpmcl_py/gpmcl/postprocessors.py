@@ -186,6 +186,7 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
                 new_df.loc[i, f"delta2d.yaw ({odom_topic})"] = delta_yaw
                 if not labels:
                     twist_2nd = twist_from_topic(row_2nd, odom_topic)
+                    # TODO: should it really be in the previous frame?
                     dx, dy, w = OdomDeltaPostprocessor.transform_twist_into_frame(twist_2nd, pose_1st)
                     new_df.loc[i, f"twist2d.x ({odom_topic})"] = dx
                     new_df.loc[i, f"twist2d.y ({odom_topic})"] = dy
