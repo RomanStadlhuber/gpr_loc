@@ -37,12 +37,12 @@ class FastSLAM:
         # endregion
         self.particles, self.ws = self.sample_identical(initial_guess=x0)
 
-    def predict(self, estimated_motion: np.ndarray) -> None:
+    def predict(self, estimated_motion: np.ndarray, estimated_twist: np.ndarray) -> None:
         # predict new particle poses
         # update the trajectories by appending the prior
         predicted_motion, predicted_motion_variances = self.motion_model.predict(
             estimated_motion=np.repeat([estimated_motion], repeats=self.M, axis=0),
-            previous_motion=self.previous_motion,
+            estimated_twist=np.repeat([estimated_twist], repeats=self.M, axis=0),
         )
         self.previous_motion = predicted_motion
         for idx, particle in enumerate(self.particles):

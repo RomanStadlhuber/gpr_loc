@@ -17,7 +17,7 @@ class MotionComponentLabelConfig(TypedDict):
 class MotionModelGPConfig(TypedDict):
     model_dir: str
     estimated_motion_labels: MotionComponentLabelConfig
-    previous_motion_labels: MotionComponentLabelConfig
+    estimated_twist_labels: MotionComponentLabelConfig
 
 
 class MapperConfig(TypedDict):

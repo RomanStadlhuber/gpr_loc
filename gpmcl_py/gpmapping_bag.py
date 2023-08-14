@@ -72,7 +72,10 @@ class GPMCLPipeline(LocalizationPipeline):
         # endregion
         odom_curr = Pose2D.from_odometry(synced_msgs.odom_est)
         delta_odom = Pose2D.delta(self.odom_last, odom_curr)
-        self.slam.predict(estimated_motion=delta_odom)
+        global_twist = Pose2D.velocity_from_odom_twist(synced_msgs.odom_est.twist.twist)
+        # TODO: should it really be in the previous frame?
+        local_twist = self.odom_last.global_velocity_to_local(global_twist)
+        self.slam.predict(estimated_motion=delta_odom, estimated_twist=local_twist)
         # self.slam._dbg_set_groundtruth_pose(Pose2D.from_odometry(synced_msgs.groundtruth or synced_msgs.odom_est))
         w_eff = self.slam.update(pcd_keypoints=pcd_keypoints)
         # region: visual debugging

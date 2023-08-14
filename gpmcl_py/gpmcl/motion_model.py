@@ -14,10 +14,10 @@ class MotionModel:
             config["estimated_motion_labels"]["y"],
             config["estimated_motion_labels"]["theta"],
         ]
-        self.colnames_previous_motion = [
-            config["previous_motion_labels"]["x"],
-            config["previous_motion_labels"]["y"],
-            config["previous_motion_labels"]["theta"],
+        self.colnames_estimated_twist = [
+            config["estimated_twist_labels"]["x"],
+            config["estimated_twist_labels"]["y"],
+            config["estimated_twist_labels"]["theta"],
         ]
 
         # region: load GP models
@@ -36,7 +36,7 @@ Unable to load GP Models!
     def predict(
         self,
         estimated_motion: np.ndarray,
-        previous_motion: np.ndarray,
+        estimated_twist: np.ndarray,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Perform motion prediction using Gaussian process regression.
 
@@ -48,9 +48,9 @@ Unable to load GP Models!
         but they are required to have identical dimensions.
         """
         # create dataframes with the required column names for regression
-        features_est = pd.DataFrame(columns=self.colnames_estimated_motion, data=estimated_motion)
-        features_prev = pd.DataFrame(columns=self.colnames_previous_motion, data=previous_motion)
-        features = features_est.join(features_prev)
+        features_motion = pd.DataFrame(columns=self.colnames_estimated_motion, data=estimated_motion)
+        features_twist = pd.DataFrame(columns=self.colnames_estimated_twist, data=estimated_twist)
+        features = features_motion.join(features_twist)
         # create an unnamed dataset without labels
         D_in = GPDataset(name="", features=features, labels=pd.DataFrame())
         # pass the unscaled dataset to the regression method.
