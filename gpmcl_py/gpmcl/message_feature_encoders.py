@@ -47,6 +47,9 @@ def __encode_odometry(msg: Odometry, topic: str) -> List[GPFeature]:
             (f"pose2d.x ({topic})", msg.pose.pose.position.x),
             (f"pose2d.y ({topic})", msg.pose.pose.position.y),
             (f"pose2d.yaw ({topic})", theta),
+            (f"twist2d.x ({topic})", msg.twist.twist.linear.x),
+            (f"twist2d.y ({topic})", msg.twist.twist.linear.y),
+            (f"twist2d.ang ({topic})", msg.twist.twist.angular.z),
         ]
     )
 

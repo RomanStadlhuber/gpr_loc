@@ -28,10 +28,14 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
         NOTE: in order for this to work, some strict datastructure needs to be assumed.
         See the `pose_from_topic` function for more information.
         """
+        print("Postprocessing feature dataframe.")
+        new_features = self.convert_dataframe(dataset.features, labels=False)
+        print("Postprocessing label dataframe.")
+        new_labels = self.convert_dataframe(dataset.labels, labels=True)
         return GPDataset(
             name=f"{dataset.name}-deltas",
-            features=self.convert_dataframe(dataset.features),
-            labels=self.convert_dataframe(dataset.labels),
+            features=new_features,
+            labels=new_labels,
         )
 
     @staticmethod
@@ -75,22 +79,47 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
         y_delta = T_delta[1, 2]
         return (x_delta, y_delta, yaw_delta)
 
-    def convert_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Wrapper function to apply the postprocessing logic on an entire dataframe"""
+    @staticmethod
+    def transform_twist_into_frame(twist: np.ndarray, frame: Pose2D) -> np.ndarray:
+        """Transform `twist` into `frame`."""
+        _, _, theta = frame
+        _, _, w = twist
+        Rmat_inv = np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]])
+        dx, dy = Rmat_inv @ twist[:2].reshape((-1, 1))
+        # return the transformed x and y twists, omega (w) stays the same
+        return np.array([dx, dy, w], dtype=np.float64)
+
+    def convert_dataframe(self, df: pd.DataFrame, labels: bool = False) -> pd.DataFrame:
+        """Wrapper function to apply the postprocessing logic on an entire dataframe
+
+        This method treats the label-dataframe differently.
+        It only keeps the motion deltas but discards the twists.
+        Use `labels=True` to indicate that a dataframe contains label data and needs its twists removed.
+        """
 
         row_count, *_ = df.shape
 
         old_columns: List[str] = []
         modified_colums: List[str] = []
+        twist_columns: List[str] = []
         for topic in self.odom_topics:
             if f"pose2d.x ({topic})" not in df.columns:
                 continue
+
+            twist_columns.extend(
+                [
+                    f"twist2d.x ({topic})",
+                    f"twist2d.y ({topic})",
+                    f"twist2d.ang ({topic})",
+                ]
+            )
 
             old_columns.extend(
                 [
                     f"pose2d.x ({topic})",
                     f"pose2d.y ({topic})",
                     f"pose2d.yaw ({topic})",
+                    *twist_columns,
                 ]
             )
             modified_colums.extend(
@@ -98,13 +127,18 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
                     f"delta2d.x ({topic})",
                     f"delta2d.y ({topic})",
                     f"delta2d.yaw ({topic})",
+                    *twist_columns,
                 ]
             )
         # the columns of the original dataframe that will not be modified
         remaining_columns = set(df.columns.to_list()).difference(old_columns)
 
         # the new dataframe that will be iteratively filled in this function
-        new_df = pd.DataFrame(columns=[*modified_colums, *remaining_columns])
+        new_df = (
+            pd.DataFrame(columns=[*modified_colums, *remaining_columns])
+            if not labels
+            else pd.DataFrame(columns=modified_colums)
+        )
 
         def pose_from_topic(row: pd.Series, topic: str) -> Pose2D:
             """retreives the 2D pose of a topic assuming valid column notation
@@ -112,7 +146,7 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
             NOTE: if the column notation is not correct this function will fail and throw an error
             """
             try:
-                x, y, yaw = row[
+                x, y, yaw = row[  # type: ignore
                     [
                         f"pose2d.x ({topic})",
                         f"pose2d.y ({topic})",
@@ -123,7 +157,18 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
             except Exception:
                 raise KeyError(f"No 2D pose can be extracted from this topics data: '{topic}'")
 
-        print("post-processing poses to compute deltas")
+        def twist_from_topic(row: pd.Series, topic: str) -> np.ndarray:
+            try:
+                dx, dy, dtheta = row[  # type: ignore
+                    [
+                        f"twist2d.x ({topic})",
+                        f"twist2d.y ({topic})",
+                        f"twist2d.ang ({topic})",
+                    ]
+                ]
+                return np.array([dx, dy, dtheta])
+            except Exception:
+                raise KeyError(f"No 2D twist can be extracted from this topics data: '{topic}'")
 
         for i in tqdm(range(row_count - 2)):
             row_1st = df.loc[i]  # the current row
@@ -132,7 +177,6 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
             for odom_topic in self.odom_topics:
                 if f"pose2d.x ({odom_topic})" not in df.columns:
                     continue
-
                 pose_1st = pose_from_topic(row_1st, odom_topic)
                 pose_2nd = pose_from_topic(row_2nd, odom_topic)
                 pose_delta = OdomDeltaPostprocessor.compute_pose_delta(frm=pose_1st, to=pose_2nd)
@@ -140,7 +184,14 @@ class OdomDeltaPostprocessor(DatasetPostprocessor):
                 new_df.loc[i, f"delta2d.x ({odom_topic})"] = delta_x
                 new_df.loc[i, f"delta2d.y ({odom_topic})"] = delta_y
                 new_df.loc[i, f"delta2d.yaw ({odom_topic})"] = delta_yaw
-            # add the remaining columns aren't modified
+                if not labels:
+                    twist_2nd = twist_from_topic(row_2nd, odom_topic)
+                    dx, dy, w = OdomDeltaPostprocessor.transform_twist_into_frame(twist_2nd, pose_1st)
+                    new_df.loc[i, f"twist2d.x ({odom_topic})"] = dx
+                    new_df.loc[i, f"twist2d.y ({odom_topic})"] = dy
+                    new_df.loc[i, f"twist2d.ang ({odom_topic})"] = w
             new_df.loc[i, list(remaining_columns)] = row_1st[list(remaining_columns)]
-
+        if labels:
+            new_df_twist_columns = [col for col in df.columns if "twist2d" in col]
+            new_df = new_df.drop(columns=new_df_twist_columns)
         return new_df
