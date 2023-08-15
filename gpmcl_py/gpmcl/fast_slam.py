@@ -4,7 +4,7 @@ from gpmcl.particle import FastSLAMParticle
 from gpmcl.motion_model import MotionModel
 from gpmcl.observation_model import ObservationModel
 from filterpy.monte_carlo import systematic_resample
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import numpy as np
 import scipy.stats
 import open3d
@@ -23,6 +23,7 @@ class FastSLAM:
         self.motion_model = motion_model
         self.observation_model = observation_model
         self.previous_motion = np.zeros((self.M, 3), dtype=np.float64)
+        self.previous_motion_variances = np.zeros((self.M, 3))
         pass
 
     def initialize_from_pose(self, x0: np.ndarray) -> None:
@@ -44,86 +45,99 @@ class FastSLAM:
             estimated_motion=np.repeat([estimated_motion], repeats=self.M, axis=0),
             estimated_twist=np.repeat([estimated_twist], repeats=self.M, axis=0),
         )
+        # obtain the gain applied to the motion noise
+        motion_noise_gain = np.array(self.config["motion_noise_gain"], dtype=np.float64)
+        # store the estimated motion and its variances
         self.previous_motion = predicted_motion
+        self.previous_motion_variances = predicted_motion_variances * motion_noise_gain
+        # apply the motion to all particles
         for idx, particle in enumerate(self.particles):
-            cov = np.diag(predicted_motion_variances[idx]) * np.array(
-                self.config["motion_noise_gain"], dtype=np.float64
-            )
-            particle.apply_u(u=predicted_motion[idx], R=cov)
+            cov = np.diag(predicted_motion_variances[idx]) * motion_noise_gain
+            noisy_motion = particle.apply_u(u=predicted_motion[idx], R=cov)
+            self.previous_motion[idx] = noisy_motion
 
-    def update(self, pcd_keypoints: open3d.geometry.PointCloud) -> float:
+    def update(self, pcd_keypoints: open3d.geometry.PointCloud, observed_motion: Optional[np.ndarray] = None) -> float:
         """Update the particle poses and landmarks from observed keypoints.
 
         Returns the so-called *effective weight* or the relative amount of "useful"
         particles w.r.t. the particle-count.
         """
-        # initial landmark covariance
-        Q_0 = np.array(self.config["keypoint_covariance"]).reshape((3, 3))
-        # range-bearing observation covariance
-        Q_z = np.array(self.config["observation_covariance"]).reshape((3, 3))
-        keypoints = np.asarray(pcd_keypoints.points)
-        # region: select only keypoints within the specified feature range
-        # compute distance to all keypoints, used to select only those that are in range
-        keypoint_distances = np.linalg.norm(keypoints, axis=1)
-        # select only keypoints that lie within the max. feature range
-        selected_keypoints = keypoints[np.where(keypoint_distances <= self.config["max_feature_range"])]
-        # update the keypoint pcd if there are fewer points in range
-        # otherwise just copy it
-        pcd_keypoints_local = (
-            open3d.geometry.PointCloud(open3d.utility.Vector3dVector(selected_keypoints))
-            if selected_keypoints.shape != keypoints.shape
-            else open3d.geometry.PointCloud(pcd_keypoints)
-        )
-        if selected_keypoints.shape[0] == 0:
-            print("[WARNING]: No keypoints available, skipping update!")
-            return 1.0
-        # endregion
-        # region: update the particle states and their corresponding likelihoods
-        for m, particle in enumerate(self.particles):
-            (
-                correspondences,
-                best_correspondence,
-                idxs_new_keypoints,
-            ) = particle.estimate_correspondences(
-                pcd_keypoints_local, knn_search_radius=self.config["kdtree_search_radius"]
+
+        if observed_motion is not None:
+            # compute particle likelihoods from observed motion
+            for idx in range(len(self.particles)):
+                motion = self.previous_motion[idx]
+                self.ws[idx] = scipy.stats.multivariate_normal.pdf(
+                    x=motion, mean=observed_motion, cov=np.diag(self.previous_motion_variances)
+                )
+        else:
+            # initial landmark covariance
+            Q_0 = np.array(self.config["keypoint_covariance"]).reshape((3, 3))
+            # range-bearing observation covariance
+            Q_z = np.array(self.config["observation_covariance"]).reshape((3, 3))
+            keypoints = np.asarray(pcd_keypoints.points)
+            # region: select only keypoints within the specified feature range
+            # compute distance to all keypoints, used to select only those that are in range
+            keypoint_distances = np.linalg.norm(keypoints, axis=1)
+            # select only keypoints that lie within the max. feature range
+            selected_keypoints = keypoints[np.where(keypoint_distances <= self.config["max_feature_range"])]
+            # update the keypoint pcd if there are fewer points in range
+            # otherwise just copy it
+            pcd_keypoints_local = (
+                open3d.geometry.PointCloud(open3d.utility.Vector3dVector(selected_keypoints))
+                if selected_keypoints.shape != keypoints.shape
+                else open3d.geometry.PointCloud(pcd_keypoints)
             )
-            if correspondences.shape[0] == 0:
-                # remove the particle (i.e. likelihood to zero) if it has landmarks but no matches
-                if (
-                    self.config["max_active_landmarks"] > 0
-                    and particle.landmarks.shape[0] == self.config["max_active_landmarks"]
-                ):
-                    self.ws[m] = 1e-3
-                    continue
-                particle.add_new_landmarks_from_keypoints(
-                    idxs_new_landmarks=idxs_new_keypoints,
-                    keypoints_in_robot_frame=selected_keypoints,
-                    position_covariance=Q_0,
-                    max_active_landmarks=self.config["max_active_landmarks"],
+            if selected_keypoints.shape[0] == 0:
+                print("[WARNING]: No keypoints available, skipping update!")
+                return 1.0
+            # endregion
+            # region: update the particle states and their corresponding likelihoods
+            for m, particle in enumerate(self.particles):
+                (
+                    correspondences,
+                    best_correspondence,
+                    idxs_new_keypoints,
+                ) = particle.estimate_correspondences(
+                    pcd_keypoints_local, knn_search_radius=self.config["kdtree_search_radius"]
                 )
-            else:
-                innovations, innovation_covariances = particle.update_existing_landmarks(
-                    correspondences=correspondences,
-                    keypoints_in_robot_frame=selected_keypoints,
-                    observation_covariance=Q_z,
-                )
-                particle.add_new_landmarks_from_keypoints(
-                    idxs_new_landmarks=idxs_new_keypoints,
-                    keypoints_in_robot_frame=selected_keypoints,
-                    position_covariance=Q_0,
-                    max_active_landmarks=self.config["max_active_landmarks"],
-                )
-                # remove landmarks that are out of range or unobserved too often
-                particle.prune_landmarks(
-                    max_unobserved_count=self.config["max_unobserved_count"],
-                    # max_distance=self.config["max_feature_range"],
-                )
-                idx_l_min, _ = best_correspondence
-                # compute a particles likelihood given its best correspondence
-                likelihood = self.observation_model.compute_likelihood(
-                    dz=innovations[idx_l_min], Q=innovation_covariances[idx_l_min]
-                )
-                self.ws[m] = likelihood
+                if correspondences.shape[0] == 0:
+                    # remove the particle (i.e. likelihood to zero) if it has landmarks but no matches
+                    if (
+                        self.config["max_active_landmarks"] > 0
+                        and particle.landmarks.shape[0] == self.config["max_active_landmarks"]
+                    ):
+                        self.ws[m] = 1e-3
+                        continue
+                    particle.add_new_landmarks_from_keypoints(
+                        idxs_new_landmarks=idxs_new_keypoints,
+                        keypoints_in_robot_frame=selected_keypoints,
+                        position_covariance=Q_0,
+                        max_active_landmarks=self.config["max_active_landmarks"],
+                    )
+                else:
+                    innovations, innovation_covariances = particle.update_existing_landmarks(
+                        correspondences=correspondences,
+                        keypoints_in_robot_frame=selected_keypoints,
+                        observation_covariance=Q_z,
+                    )
+                    particle.add_new_landmarks_from_keypoints(
+                        idxs_new_landmarks=idxs_new_keypoints,
+                        keypoints_in_robot_frame=selected_keypoints,
+                        position_covariance=Q_0,
+                        max_active_landmarks=self.config["max_active_landmarks"],
+                    )
+                    # remove landmarks that are out of range or unobserved too often
+                    particle.prune_landmarks(
+                        max_unobserved_count=self.config["max_unobserved_count"],
+                        # max_distance=self.config["max_feature_range"],
+                    )
+                    idx_l_min, _ = best_correspondence
+                    # compute a particles likelihood given its best correspondence
+                    likelihood = self.observation_model.compute_likelihood(
+                        dz=innovations[idx_l_min], Q=innovation_covariances[idx_l_min]
+                    )
+                    self.ws[m] = likelihood
         # endregion
         # normalize the likelihoods to obtain a nonparametric PDF
         self.ws /= np.sum(self.ws)

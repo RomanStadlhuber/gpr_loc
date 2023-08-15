@@ -42,7 +42,7 @@ class FastSLAMParticle:
         """Evaluate whether or not this particle already has a map."""
         return self.landmarks_initialized
 
-    def apply_u(self, u: np.ndarray, R: np.ndarray = np.eye(3, dtype=np.float64)) -> None:
+    def apply_u(self, u: np.ndarray, R: np.ndarray = np.eye(3, dtype=np.float64)) -> npt.NDArray[np.float64]:
         """Apply a motion to the particles pose.
 
         NOTE: this implicitly updates the trajectory of the particle.
@@ -52,8 +52,10 @@ class FastSLAMParticle:
         self.trajectory = np.vstack((self.trajectory, x_vec))
         # generate motion noise from covariance
         noise = scipy.stats.multivariate_normal.rvs(mean=np.zeros(3), cov=R)
+        noisy_motion = u + noise
         # apply the motion to obtain the new pose
-        self.x.perturb(u + noise)
+        self.x.perturb(noisy_motion)
+        return noisy_motion
 
     def estimate_correspondences(
         self,

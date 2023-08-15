@@ -61,6 +61,9 @@ class GPMCLPipeline(LocalizationPipeline):
         self.slam.initialize_from_pose(x0=initial_guess_pose.as_twist())
         # buffer the latest estimated pose, this is used to compute estimated motion from odometry
         self.odom_last = Pose2D.from_odometry(synced_msgs.odom_est)
+        self.groundtruth_last = (
+            Pose2D.from_odometry(synced_msgs.groundtruth) if synced_msgs.groundtruth is not None else None
+        )
 
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
         pcd_scan = ScanTools3D.pointcloud2_to_open3d_pointcloud(synced_msgs.scan_3d)
@@ -73,11 +76,17 @@ class GPMCLPipeline(LocalizationPipeline):
         odom_curr = Pose2D.from_odometry(synced_msgs.odom_est)
         delta_odom = Pose2D.delta(self.odom_last, odom_curr)
         global_twist = Pose2D.velocity_from_odom_twist(synced_msgs.odom_est.twist.twist)
+        if synced_msgs.groundtruth and self.groundtruth_last:
+            groundtruth_curr = Pose2D.from_odometry(synced_msgs.groundtruth)
+            observed_motion = Pose2D.delta(self.groundtruth_last, groundtruth_curr)
+            self.groundtruth_last = groundtruth_curr
+        else:
+            observed_motion = None
         # TODO: should it really be in the previous frame?
         local_twist = self.odom_last.global_velocity_to_local(global_twist)
         self.slam.predict(estimated_motion=delta_odom, estimated_twist=local_twist)
         # self.slam._dbg_set_groundtruth_pose(Pose2D.from_odometry(synced_msgs.groundtruth or synced_msgs.odom_est))
-        w_eff = self.slam.update(pcd_keypoints=pcd_keypoints)
+        w_eff = self.slam.update(pcd_keypoints=pcd_keypoints, observed_motion=observed_motion)
         # region: visual debugging
         if self.debug_visualize:
             x_max = self.slam.get_most_likely_particle()
