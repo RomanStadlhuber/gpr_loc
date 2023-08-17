@@ -156,7 +156,6 @@ class FastSLAMParticle:
         idxs_new_landmarks: npt.NDArray[np.int32],
         keypoints_in_robot_frame: npt.NDArray[np.float64],
         position_covariance: npt.NDArray[np.float64],
-        max_active_landmarks: int = -1,
     ) -> None:
         """Add a subset of keypoints to the map if they have previously been unobserved.
 
@@ -167,27 +166,9 @@ class FastSLAMParticle:
         The array `idxs_new_landmarks` indicates which of the `keypoints_in_robot_frame` should be added to the map.
         To add new landmarks, the `keyponits_in_robot_frame` are first transformed into the map frame.
         The covariance of each new landmark is then set to `position_covariance`.
-
-        #### Restricting the Map Size
-
-        The amount of landmarks that will be added to the map is determined by the `max_active_landmarks` parameter.
-        If `max_active_landmarks > 0`, only the first `max_active_landmarks - currently_active_landmarks` will be admitted to the map.
-
-        ### Pruning spurios Landmarks
-
-        Set `max_active_landmarks < 0` to allow an arbitrary amount of landmarks to be admitted to the map.
-        If this is the case, the amount of landmarks within the map is then solely determined by the `prune_landmarks()` method.
         """
-        # number of keypoints that can be admitted into the map
-        num_new = max_active_landmarks - self.landmarks.shape[0]
-        pcd_l_new = open3d.geometry.PointCloud(
-            # use all keypoints if there is no restriction
-            open3d.utility.Vector3dVector(keypoints_in_robot_frame[idxs_new_landmarks])
-            if max_active_landmarks < 0
-            # otherwise use as many as is allowed
-            else open3d.utility.Vector3dVector(keypoints_in_robot_frame[idxs_new_landmarks][:num_new])
-        )
         # transform the keyponits into the map frame
+        pcd_l_new = open3d.geometry.PointCloud(open3d.geometry.Vector3dVector(keypoints_in_robot_frame))
         pcd_l_new = pcd_l_new.transform(self.x.as_t3d())
         pcd_l_new_checked = self.__landmark_admission_check_filter(pcd_l_new)
         l_new = np.asarray(pcd_l_new_checked.points)
