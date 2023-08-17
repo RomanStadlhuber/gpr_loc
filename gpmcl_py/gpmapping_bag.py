@@ -86,7 +86,7 @@ class GPMCLPipeline(LocalizationPipeline):
         local_twist = self.odom_last.global_velocity_to_local(global_twist)
         self.slam.predict(estimated_motion=delta_odom, estimated_twist=local_twist)
         # self.slam._dbg_set_groundtruth_pose(Pose2D.from_odometry(synced_msgs.groundtruth or synced_msgs.odom_est))
-        w_eff = self.slam.update(pcd_keypoints=pcd_keypoints, observed_motion=observed_motion)
+        w_eff = self.slam.update(pcd_keypoints=pcd_keypoints)
         # region: visual debugging
         if self.debug_visualize:
             x_max = self.slam.get_most_likely_particle()
