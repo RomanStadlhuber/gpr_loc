@@ -103,18 +103,14 @@ class FastSLAM:
                 )
                 if correspondences.shape[0] == 0:
                     # remove the particle (i.e. likelihood to zero) if it has landmarks but no matches
-                    if (
-                        self.config["max_active_landmarks"] > 0
-                        and particle.landmarks.shape[0] == self.config["max_active_landmarks"]
-                    ):
+                    if particle.landmarks.shape[0] != 0:
                         self.ws[m] = 1e-3
-                        continue
-                    particle.add_new_landmarks_from_keypoints(
-                        idxs_new_landmarks=idxs_new_keypoints,
-                        keypoints_in_robot_frame=selected_keypoints,
-                        position_covariance=Q_0,
-                        max_active_landmarks=self.config["max_active_landmarks"],
-                    )
+                    else:
+                        particle.add_new_landmarks_from_keypoints(
+                            idxs_new_landmarks=idxs_new_keypoints,
+                            keypoints_in_robot_frame=selected_keypoints,
+                            position_covariance=Q_0,
+                        )
                 else:
                     innovations, innovation_covariances = particle.update_existing_landmarks(
                         correspondences=correspondences,
@@ -125,7 +121,6 @@ class FastSLAM:
                         idxs_new_landmarks=idxs_new_keypoints,
                         keypoints_in_robot_frame=selected_keypoints,
                         position_covariance=Q_0,
-                        max_active_landmarks=self.config["max_active_landmarks"],
                     )
                     # remove landmarks that are out of range or unobserved too often
                     particle.prune_landmarks(
