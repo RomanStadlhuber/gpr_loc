@@ -168,7 +168,7 @@ class FastSLAMParticle:
         The covariance of each new landmark is then set to `position_covariance`.
         """
         # transform the keyponits into the map frame
-        pcd_l_new = open3d.geometry.PointCloud(open3d.geometry.Vector3dVector(keypoints_in_robot_frame))
+        pcd_l_new = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(keypoints_in_robot_frame))
         pcd_l_new = pcd_l_new.transform(self.x.as_t3d())
         pcd_l_new_checked = self.__landmark_admission_check_filter(pcd_l_new)
         l_new = np.asarray(pcd_l_new_checked.points)
@@ -237,14 +237,16 @@ class FastSLAMParticle:
             idxs_to_remove = np.intersect1d(
                 self.__get_idxs_landmarks_in_range(max_distance), idxs_landmarks_unobserved_too_often
             )
-            self.landmarks = np.delete(self.landmarks, idxs_to_remove)
-            self.landmark_covariances = np.delete(self.landmark_covariances, idxs_to_remove)
-            self.observation_counter = np.delete(self.observation_counter, idxs_to_remove)
+            self.landmarks = np.delete(self.landmarks, idxs_to_remove, axis=0)
+            self.landmark_covariances = np.delete(self.landmark_covariances, idxs_to_remove, axis=0)
+            self.observation_counter = np.delete(self.observation_counter, idxs_to_remove, axis=0)
 
         else:
-            self.landmarks = np.delete(self.landmarks, idxs_landmarks_unobserved_too_often)
-            self.landmark_covariances = np.delete(self.landmark_covariances, idxs_landmarks_unobserved_too_often)
-            self.observation_counter = np.delete(self.observation_counter, idxs_landmarks_unobserved_too_often)
+            self.landmarks = np.delete(self.landmarks, idxs_landmarks_unobserved_too_often, axis=0)
+            self.landmark_covariances = np.delete(
+                self.landmark_covariances, idxs_landmarks_unobserved_too_often, axis=0
+            )
+            self.observation_counter = np.delete(self.observation_counter, idxs_landmarks_unobserved_too_often, axis=0)
 
     def get_trajectory(self) -> np.ndarray:
         """Obtain the trajectory traversed over the lifetime of this particle."""
