@@ -250,19 +250,20 @@ class FastSLAMParticle:
 
         This is basically a post-update map-management method.
         """
-        num_landmarks = self.landmarks.shape[0]
+        # get all landmarks that went unobserved too often
         idxs_landmarks_unobserved_too_often = np.where(self.observation_counter <= max_unobserved_count)
-        # if there is no pruning range supplied, keep all landmarks regardless of their distance
-        idxs_landmarks_in_range = (
-            self.__get_idxs_landmarks_in_range(max_distance)
-            if max_distance
-            else np.linspace(start=0, stop=num_landmarks - 1, num=num_landmarks, dtype=np.int32)
-        )
-        idxs_to_keep = np.setdiff1d(idxs_landmarks_in_range, idxs_landmarks_unobserved_too_often)
-        # keep all the map-related values of the landmarks in range and aren't unobserved too often
-        self.landmarks = self.landmarks[idxs_to_keep]
-        self.landmark_covariances = self.landmark_covariances[idxs_to_keep]
-        self.observation_counter = self.observation_counter[idxs_to_keep]
+        if max_distance is not None:
+            idxs_to_remove = np.intersect1d(
+                self.__get_idxs_landmarks_in_range(max_distance), idxs_landmarks_unobserved_too_often
+            )
+            self.landmarks = np.delete(self.landmarks, idxs_to_remove)
+            self.landmark_covariances = np.delete(self.landmark_covariances, idxs_to_remove)
+            self.observation_counter = np.delete(self.observation_counter, idxs_to_remove)
+
+        else:
+            self.landmarks = np.delete(self.landmarks, idxs_landmarks_unobserved_too_often)
+            self.landmark_covariances = np.delete(self.landmark_covariances, idxs_landmarks_unobserved_too_often)
+            self.observation_counter = np.delete(self.observation_counter, idxs_landmarks_unobserved_too_often)
 
     def get_trajectory(self) -> np.ndarray:
         """Obtain the trajectory traversed over the lifetime of this particle."""
