@@ -59,17 +59,17 @@ class FastSLAMParticle:
 
     def estimate_correspondences(
         self,
-        pcd_keypoints: open3d.geometry.PointCloud,
-        knn_search_radius: float = 0.6,
-        max_observation_range: float = 10.0,
+        pcd_keypoints: open3d.geometry.PointCloud,  # keypoints in the robots frame
+        knn_search_radius: float = 0.6,  # search radius cutoff
+        max_observation_range: float = 10.0,  # range for updating observation counter
     ) -> Tuple[
         npt.NDArray[np.int32],  # [[idx_l, idx_f], ...] update indices
         npt.NDArray[np.int32],  # [idx_l, idx_f] closest correspondence
-        npt.NDArray[np.int32],  # [[idx_l, idx_f], ...]  previously unobserved keypoints
+        npt.NDArray[np.int32],  # [idx_f, ...]  previously unobserved keypoints
     ]:
         """Estimate the correspondences between observed keypoints and landmarks in the map.
 
-        returns `(all_correspondences, pcd_keypoints_in_map_frame, best_correspondence, new_landmark_idxs)`.
+        returns `(all_correspondences, best_correspondence, new_landmark_idxs)`.
 
         ### Remarks
 
@@ -146,9 +146,9 @@ class FastSLAMParticle:
                 # the indices of all unobserved landmarks that should have been observed
                 idxs_unobserved_landmarks_in_range = np.intersect1d(idxs_unmatched_landmarks, idxs_landmarks_in_range)
                 # increment the observation counter for matched landmarks
-                self.observation_counter[idxs_matched_landmarks, 0] += 1
+                self.observation_counter[idxs_matched_landmarks] += 1
                 # decrement the observation counter for unmatched landmarks
-                self.observation_counter[idxs_unobserved_landmarks_in_range, 0] -= 1
+                self.observation_counter[idxs_unobserved_landmarks_in_range] -= 1
                 return (correspondences, closest_corresondence, non_outlier_unmatched_keypoints)
 
     def add_new_landmarks_from_keypoints(
