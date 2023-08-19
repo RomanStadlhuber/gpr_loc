@@ -1,7 +1,7 @@
 from rosbags.typesys.types import (
     sensor_msgs__msg__PointCloud2 as PointCloud2,
 )
-from typing import List
+from typing import List, Tuple
 import numpy as np
 import open3d
 import struct
@@ -74,6 +74,22 @@ class PointCloudVisualizer:
 
     def terminate(self) -> None:
         self.vis.destroy_window()
+
+    @staticmethod
+    def visualize_single(pcds: List[Tuple[open3d.geometry.PointCloud, np.ndarray],]) -> None:
+        """Method to visualize a set of pointclouds in a separate window.
+
+        Pass arguments as a list of `(pcd, RGB_color)` tuples.
+
+        This is a blocking, 'single-shot' method for visualization. Use this for debugging
+        of individual pointclouds throughout the algorithm."""
+        # at first, paint all the PCDs
+        for pcd, color in pcds:
+            pcd.paint_uniform_color(color)
+        # remove the colors from the input arg
+        pcds = list(map(lambda tup: tup[0], pcds))
+        # visualize them
+        open3d.visualization.draw_geometries(pcds, zoom=1.0, up=[0, 0, 1], front=[1, 0, 0])
 
     def __update_pcds(self, pcds: List[open3d.geometry.PointCloud]) -> None:
         """Update an already displayed PCD.
