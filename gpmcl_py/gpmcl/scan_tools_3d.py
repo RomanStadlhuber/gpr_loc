@@ -89,7 +89,16 @@ class PointCloudVisualizer:
         # remove the colors from the input arg
         pcds = list(map(lambda tup: tup[0], pcds))
         # visualize them
-        open3d.visualization.draw_geometries(pcds, zoom=1.0, up=[0, 0, 1], front=[1, 0, 0])
+        open3d.visualization.draw_geometries(
+            pcds,
+            # NOTE: for some reason, these args don't work...
+            # http://www.open3d.org/docs/latest/python_api/open3d.visualization.draw_geometries.html
+            # zoom=float(1.0),
+            # up=np.array([0, 0, 1], dtype=np.float64),
+            # front=np.array([1, 0, 0], dtype=np.float64),
+            width=int(800),
+            height=int(600),
+        )
 
     def __update_pcds(self, pcds: List[open3d.geometry.PointCloud]) -> None:
         """Update an already displayed PCD.
