@@ -1,8 +1,8 @@
-from dataclasses import dataclass
-from typing import Optional, Tuple
+from gpmcl.scan_tools_3d import PointCloudVisualizer
 from gpmcl.observation_model import ObservationModel
 from gpmcl.transform import Pose2D
-from filterpy.kalman import ExtendedKalmanFilter
+from dataclasses import dataclass
+from typing import Optional, Tuple
 from autograd import jacobian
 import numpy as np
 import numpy.typing as npt
@@ -12,7 +12,20 @@ import open3d
 
 @dataclass
 class FastSLAMParticle:
-    """A particle as described in the Fast-SLAM algorithm."""
+    """A particle as described in the Fast-SLAM algorithm.
+
+    Initialize instances of this class using `FastSlamParticle(x=some_pose)`,
+    all the other members are intended to be set by default and not modified
+    externally.
+
+    Optionally, you can pass `debug_mode=True`, see remark below.
+
+    ### Remark
+
+    By default, `debug_mode=False`. When enabling debug mode,
+    it is recommended to not use more than a single particle, as the
+    correspondence search process is visualized on a per-particle
+    basis."""
 
     # 2d pose
     x: Pose2D
@@ -26,6 +39,7 @@ class FastSLAMParticle:
     landmark_covariances: np.ndarray = np.empty((0, 3, 3))
     # counts how often a landmark is observed during its lifetime
     observation_counter: np.ndarray = np.zeros((0, 1), dtype=np.int32)
+    debug_mode: bool = False
 
     @staticmethod
     def copy(other: "FastSLAMParticle") -> "FastSLAMParticle":
@@ -36,6 +50,7 @@ class FastSLAMParticle:
             landmarks=np.copy(other.landmarks),
             landmark_covariances=np.copy(other.landmark_covariances),
             observation_counter=np.copy(other.observation_counter),
+            debug_mode=other.debug_mode,
         )
 
     def has_map(self) -> bool:
@@ -91,6 +106,8 @@ class FastSLAMParticle:
         pcd_keypoints_local = pcd_keypoints_local.transform(self.x.as_t3d())
         n_landmarks, *_ = self.landmarks.shape
         if n_landmarks == 0:
+            if self.debug_mode:
+                print("[INFO] particle does not have a map, skipping debug visualization.")
             return (
                 np.empty((0, 2), dtype=np.int32),
                 np.empty((0, 2), dtype=np.int32),  # closest correspondence
@@ -102,6 +119,17 @@ class FastSLAMParticle:
             correspondences = np.empty((0, 2), dtype=np.int32)
             c_distances = np.empty((0, 1), dtype=np.float64)
             idxs_outlier_keypoints = np.empty(0, dtype=np.int32)
+            # visualize the PCD to be matched when in debug mode
+            # region
+            if self.debug_mode:
+                PointCloudVisualizer.visualize_single(
+                    [
+                        # (pcd, color), ...
+                        (self.get_map_pcd(), [0, 0, 1]),
+                        (pcd_keypoints_local, [1, 0, 0]),
+                    ]
+                )
+            # endregion
             for idx_l, landmark in enumerate(self.landmarks):
                 # (num_neighbors, idxs, distances) = ...
                 # see: http://www.open3d.org/docs/latest/python_api/open3d.geometry.KDTreeFlann.html#open3d.geometry.KDTreeFlann.search_radius_vector_3d
@@ -251,6 +279,10 @@ class FastSLAMParticle:
     def get_trajectory(self) -> np.ndarray:
         """Obtain the trajectory traversed over the lifetime of this particle."""
         return np.vstack((self.trajectory, self.x.as_twist()))
+
+    def get_map_pcd(self) -> open3d.geometry.PointCloud:
+        """Obtain a copy of the map as `open3d.geometry.PointCloud`."""
+        return open3d.geometry.PointCloud(open3d.utility.Vector3dVector(self.landmarks))
 
     def __get_idxs_landmarks_in_range(self, max_distance: float = 10.0) -> np.ndarray:
         robot_position = np.array([*self.x.as_twist()[:2], 0], dtype=np.float64)

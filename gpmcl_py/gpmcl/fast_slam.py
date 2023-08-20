@@ -190,7 +190,12 @@ class FastSLAM:
         """Create `self.M` particles at the exact same pose."""
         particles: List[FastSLAMParticle] = []
         for _ in range(self.M):
-            particles.append(FastSLAMParticle(x=Pose2D.from_twist(initial_guess)))
+            particles.append(
+                FastSLAMParticle(
+                    x=Pose2D.from_twist(initial_guess),
+                    debug_mode=self.config["visual_debug_mode"],
+                )
+            )
         ws = 1 / self.M * np.ones(self.M)
         return (particles, ws)
 

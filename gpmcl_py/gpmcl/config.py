@@ -44,6 +44,8 @@ class FastSLAMConfig(TypedDict):
     # parameter for correspondence estimation using KDTree-FLANN
     kdtree_search_radius: float  # the nearest neighbor search radius
     motion_noise_gain: List[float]  # amplification of the motion noise to achieve higher spread
+    # use this for visual debugging of the particles map and keypoint PCDs
+    visual_debug_mode: bool
 
 
 class BagRunnerConfig(TypedDict):
