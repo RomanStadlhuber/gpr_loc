@@ -93,6 +93,9 @@ class GPMCLPipeline(LocalizationPipeline):
             pcd_map = x_max.get_map_pcd()
             pcd_scan_sampled.paint_uniform_color(0.5 * np.ones(3))
             pcd_keypoints.paint_uniform_color([1, 0, 0])
+            tf_pose = x_max.x.as_t3d()
+            pcd_keypoints.transform(tf_pose)
+            pcd_scan_sampled.transform(tf_pose)
             pcd_map.paint_uniform_color([0, 0, 1])
             self.visualizer.update(pcds=[pcd_scan_sampled, pcd_map, pcd_keypoints])
         # endregion
