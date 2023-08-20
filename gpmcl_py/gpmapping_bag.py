@@ -90,7 +90,7 @@ class GPMCLPipeline(LocalizationPipeline):
         # region: visual debugging
         if self.debug_visualize:
             x_max = self.slam.get_most_likely_particle()
-            pcd_map = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(x_max.landmarks))
+            pcd_map = x_max.get_map_pcd()
             pcd_scan_sampled.paint_uniform_color(0.5 * np.ones(3))
             pcd_keypoints.paint_uniform_color([1, 0, 0])
             pcd_map.paint_uniform_color([0, 0, 1])
