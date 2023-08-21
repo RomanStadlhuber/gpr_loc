@@ -1,30 +1,35 @@
 mapper:
-  scatter_radius: 1.0
-  nms_radius: 0.4
+  scatter_radius: 0.5
+  nms_radius: 0.5
   eig_ratio_32: 0.65
   eig_ratio_21: 0.65
   min_neighbor_count: 5
-  voxel_size: 0.2
+  voxel_size: 0.05
   scan_tf:
-    position: [0, 0, 0] # position in base frame
+    position: [-0.3, 0, 0.25] # position in base frame
     orientation: [0, 0, 0, 1] # orientation in base frame
-  kdtree_search_radius: 0.85
+  min_height: 0.2
+  max_height: 2.0
 fast_slam:
-  max_feature_range: 12 # [m]
-  max_unobserved_count: -10 # remove landmark after unobserved this often
-  particle_count: 100
+  improve_proposal_distribution: True # if true, algorithm will run FastSLAM 2.0
+  max_feature_range: 20 # [m]
+  max_unobserved_count: -1 # remove landmark after unobserved this often
+  particle_count: 10
   keypoint_covariance: [0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6]
-  observation_covariance: [0.4, 0, 0, 0, 0.2, 0, 0, 0, 0.2]
+  observation_covariance: [0.2, 0, 0, 0, 0.1, 0, 0, 0, 0.1]
+  kdtree_search_radius: 0.2
+  motion_noise_gain: [10, 100, 100]
+  visual_debug_mode: False # visualize the map and keypoint pcds (ideally only one particle)
 motion_model_gp:
   model_dir: "/path/to/model_dir/"
   estimated_motion_labels:
     x: "gp_label_x"
     y: "gp_label_y"
     theta: "gp_label_theta"
-  previous_motion_labels:
-    x: "gp_label_x"
-    y: "gp_label_y"
-    theta: "gp_label_theta"
+  estimated_twist_labels:
+    x: twist2d.x (/odom)
+    y: twist2d.y (/odom)
+    theta: twist2d.ang (/odom)
   bag_runner:
     bag_path: "/path/to/rosbag"
     estimated_odometry_topic: "/odom" # estimated odometry
