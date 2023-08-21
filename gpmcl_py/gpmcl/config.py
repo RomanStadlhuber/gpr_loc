@@ -34,6 +34,10 @@ class MapperConfig(TypedDict):
 
 
 class FastSLAMConfig(TypedDict):
+    # whether to run as FastSLAM 2.0 (True) or regular FastSLAM (False)
+    # NOTE that FastSLAM 2.0 obtains improved estimates while increasing computational costs
+    # depending on the accuracy of your Gaussian process, regular FastSLAM is prone to divergence
+    improve_proposal_distribution: bool
     # ignore features and landmarks beyond this range
     max_feature_range: float  # the max distance in which features are observed
     # these parameters are related to Fast SLAM

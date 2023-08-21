@@ -62,6 +62,8 @@ class FastSLAMParticle:
 
         NOTE: this implicitly updates the trajectory of the particle.
         """
+        # store the controls motion covariance
+        self.R_u = R
         # add the current pose to the trajectory
         x_vec = self.x.as_twist()
         self.trajectory = np.vstack((self.trajectory, x_vec))
@@ -179,6 +181,42 @@ class FastSLAMParticle:
                 self.observation_counter[idxs_unobserved_landmarks_in_range] -= 1
                 return (correspondences, closest_corresondence, non_outlier_unmatched_keypoints)
 
+    def improve_sampled_pose(
+        self, keypoint: npt.NDArray[npt.float64], idx_l: int, Q_z: npt.NDArray[np.float64], R_u: npt.NDArray[np.float64]
+    ) -> None:
+        """Improve the sampled pose by applying a correction based on a given observation.
+
+        This function implements the approach of the FastSLAM 2.0 algorithm as described in
+        `(Montelermo et. al, 2003), Ch.4` (see http://robots.stanford.edu/papers/Montemerlo03a.pdf).
+        """
+        # compute the range-bearing observation
+        z = ObservationModel.range_bearing_observation_keypoint(keypoint)
+        # compute the estimated observation and its derivatives w.r.t. landmark and pose
+        z_est, H_l, H_x = ObservationModel.range_bearing_observation_landmark(self.landmarks[idx_l])
+        # compute the observation error
+        delta_z = ObservationModel.observation_delta(z_true=z, z_est=z_est)
+        # the landmark covariance prior is used to update the entire state
+        Q_l = self.landmark_covariances[idx_l]
+        # compute cholesky for numerically stable inverse
+        C_l = np.linalg.cholesky(Q_l)
+        HC_l = H_l @ C_l
+        Q_l = HC_l @ HC_l.T + Q_z
+        L_l = np.linalg.cholesky(Q_l)
+        L_l_inv = np.linalg.inv(L_l)
+        # the inverse of this matrix is also used when updating the landmark states
+        self.Q2_inv = L_l_inv.T @ L_l_inv
+        # covariance of the proposed state (used for update equation)
+        C_u = np.linalg.cholesky(R_u)
+        C_u_inv = np.linalg.inv(C_u)
+        R_u_inv = C_u_inv.T @ C_u_inv
+        L_x = np.linalg.cholesky(H_x.T @ self.Q2_inv @ H_x + R_u_inv)
+        L_x_inv = np.linalg.inv(L_x)
+        P_x = L_x_inv.T @ L_x_inv
+        # compute the correction which is to be applied to the pose state
+        delta_x = P_x @ H_x.T @ self.Q2_inv @ delta_z
+        # apply the correction
+        self.x.perturb(delta_x)
+
     def add_new_landmarks_from_keypoints(
         self,
         idxs_new_landmarks: npt.NDArray[np.int32],
@@ -208,6 +246,7 @@ class FastSLAMParticle:
         correspondences: npt.NDArray[np.int32],
         keypoints_in_robot_frame: npt.NDArray[np.float64],
         observation_covariance: np.ndarray,
+        apply_state_correction: bool = False,  # whether or not to correct the entire state estimate
     ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
         """Update the landmarks from observed keypoints and their landmark correspondences.
 
@@ -223,12 +262,18 @@ class FastSLAMParticle:
         N_landmarks, *_ = self.landmarks.shape
         ds = np.empty((N_landmarks, 3), dtype=np.float64)
         Qs = np.empty((N_landmarks, 3, 3), dtype=np.float64)
+        # region: pose update (FastSLAM 2.0)
+        if apply_state_correction:
+            # apply correction for each corresponding observation and landmark
+            for idx_l, idx_kp in correspondences:
+                self.improve_sampled_pose(keypoint=keypoints_in_robot_frame[idx_kp], idx_l=idx_l, R_u=self.R_u)
+        # endregion
         # update the landmarks using EKF approach
         for idx_l, idx_kp in correspondences:
             # the observed keypoint in XYZ coordinates
             kp = keypoints_in_robot_frame[idx_kp]
             # landmark range-bearing observation and its corresponding jacobian
-            z_l, H_l = self.__compute_landmark_observation(idx_l)
+            z_l, H_l, _ = self.__compute_landmark_observation(idx_l)
             # keypoint range-bearing observation
             z_kp = ObservationModel.range_bearing_observation_keypoint(kp)
             # compute delta between the two observation
@@ -243,7 +288,7 @@ class FastSLAMParticle:
             Q_l = HC @ HC.T + Q_z
             L = np.linalg.cholesky(Q_l)
             L_inv = np.linalg.inv(L)
-            Q_l_inv = L_inv @ L_inv.T
+            Q_l_inv = L_inv.T @ L_inv if not apply_state_correction else self.Q2_inv
             # kalman gain
             K_l = S_l @ H_l.T @ Q_l_inv
             # update the landmark in question
@@ -317,21 +362,29 @@ class FastSLAMParticle:
         # update landmark position covariance
         self.landmark_covariances[idx] = J @ P @ J.T + K_gain @ Qz @ K_gain.T
 
-    def __compute_landmark_observation(self, idx_landmark: int) -> Tuple[np.ndarray, np.ndarray]:
-        """Compute the observation of a landmark plus the corresponding jacobian w.r.t. the landmark.
+    def __compute_landmark_observation(self, idx_landmark: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Compute the observation of a landmark plus the corresponding jacobians w.r.t. the landmark and the pose.
 
-        Returns `(z, H)` where `z` is the observation vector and `H` the models jacobian w.r.t. the landmark `l`.
+        Returns `(z, H_i, H_x)` where `z` is the observation vector and `H_i` the models jacobian w.r.t. the landmark `l_i`,
+        and `H_x` w.r.t. the pose `x`.
         """
 
-        def h(l: np.ndarray) -> np.ndarray:
-            return ObservationModel.range_bearing_observation_landmark(l=l, x=self.x.as_twist())
-
         l_i = self.landmarks[idx_landmark]
-        z_i = h(l_i)
-        jacobian_of_h = jacobian(h)
-        H_i = jacobian_of_h(l_i)
+        x_m = self.x.as_twist()
 
-        return (z_i, H_i)
+        def h_of_l(l: np.ndarray) -> np.ndarray:
+            return ObservationModel.range_bearing_observation_landmark(l=l, x=x_m)
+
+        def h_of_x(x: np.ndarray) -> np.ndarray:
+            return ObservationModel.range_bearing_observation_landmark8(l=l_i, x=x)
+
+        z_i = h_of_l(l_i)
+        jacobian_of_h_of_l = jacobian(h_of_l)
+        H_i = jacobian_of_h_of_l(l_i)
+        jacobian_of_h_of_x = jacobian(h_of_x)
+        H_x = jacobian_of_h_of_x(x_m)
+
+        return (z_i, H_i, H_x)
 
     def __landmark_admission_check_filter(
         self, pcd_candidates: open3d.geometry.PointCloud, min_mutual_distance: float = 3.0
