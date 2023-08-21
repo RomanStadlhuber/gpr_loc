@@ -182,7 +182,7 @@ class FastSLAMParticle:
                 return (correspondences, closest_corresondence, non_outlier_unmatched_keypoints)
 
     def improve_sampled_pose(
-        self, keypoint: npt.NDArray[npt.float64], idx_l: int, Q_z: npt.NDArray[np.float64], R_u: npt.NDArray[np.float64]
+        self, keypoint: npt.NDArray[np.float64], idx_l: int, Q_z: npt.NDArray[np.float64], R_u: npt.NDArray[np.float64]
     ) -> None:
         """Improve the sampled pose by applying a correction based on a given observation.
 
@@ -192,7 +192,7 @@ class FastSLAMParticle:
         # compute the range-bearing observation
         z = ObservationModel.range_bearing_observation_keypoint(keypoint)
         # compute the estimated observation and its derivatives w.r.t. landmark and pose
-        z_est, H_l, H_x = ObservationModel.range_bearing_observation_landmark(self.landmarks[idx_l])
+        z_est, H_l, H_x = self.__compute_landmark_observation(idx_l)
         # compute the observation error
         delta_z = ObservationModel.observation_delta(z_true=z, z_est=z_est)
         # the landmark covariance prior is used to update the entire state
@@ -331,7 +331,7 @@ class FastSLAMParticle:
         kp = keypoints_in_robot_frame[idx_kp]
         z_kp = ObservationModel.range_bearing_observation_keypoint(kp)
         # compute the estimated observation and its derivatives w.r.t. landmark and pose
-        z_est, H_l, H_x = ObservationModel.range_bearing_observation_landmark(self.landmarks[idx_l])
+        z_est, H_l, H_x = self.__compute_landmark_observation(idx_l)
         # compute delta between the two observation
         delta_z = ObservationModel.observation_delta(z_true=z_kp, z_est=z_est)
         # the landmark covariance prior is used to update the entire state
@@ -395,7 +395,7 @@ class FastSLAMParticle:
             return ObservationModel.range_bearing_observation_landmark(l=l, x=x_m)
 
         def h_of_x(x: np.ndarray) -> np.ndarray:
-            return ObservationModel.range_bearing_observation_landmark8(l=l_i, x=x)
+            return ObservationModel.range_bearing_observation_landmark(l=l_i, x=x)
 
         z_i = h_of_l(l_i)
         jacobian_of_h_of_l = jacobian(h_of_l)

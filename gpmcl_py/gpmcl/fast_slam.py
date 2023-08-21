@@ -112,15 +112,22 @@ class FastSLAM:
                             position_covariance=Q_0,
                         )
                 else:
-                    if self.config["improve_proposal_distribution"]:
-                        idx_l_best, _ = best_correspondence
-                        # TODO: provide Q from gaussian process?
-                        dz_best, Q_best = particle.compute_improved_importance_moments(idx_l=idx_l_best, Q_z=Q_z)
                     innovations, innovation_covariances = particle.update_existing_landmarks(
                         correspondences=correspondences,
                         keypoints_in_robot_frame=selected_keypoints,
                         observation_covariance=Q_z,
                     )
+                    # region: improved importance distribution (if enabled)
+                    if self.config["improve_proposal_distribution"]:
+                        idx_l_best, idx_kp_best = best_correspondence
+                        # TODO: provide Q_z from gaussian process?
+                        dz_best, Q_best = particle.compute_improved_importance_weight(
+                            keypoints_in_robot_frame=selected_keypoints,
+                            idx_kp=idx_kp_best,
+                            idx_l=idx_l_best,
+                            Q_z=Q_z,
+                        )
+                    # endregion
                     particle.add_new_landmarks_from_keypoints(
                         idxs_new_landmarks=idxs_new_keypoints,
                         keypoints_in_robot_frame=selected_keypoints,
