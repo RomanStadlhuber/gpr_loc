@@ -112,6 +112,10 @@ class FastSLAM:
                             position_covariance=Q_0,
                         )
                 else:
+                    if self.config["improve_proposal_distribution"]:
+                        idx_l_best, _ = best_correspondence
+                        # TODO: provide Q from gaussian process?
+                        dz_best, Q_best = particle.compute_improved_importance_moments(idx_l=idx_l_best, Q_z=Q_z)
                     innovations, innovation_covariances = particle.update_existing_landmarks(
                         correspondences=correspondences,
                         keypoints_in_robot_frame=selected_keypoints,
@@ -129,8 +133,13 @@ class FastSLAM:
                     )
                     idx_l_min, _ = best_correspondence
                     # compute a particles likelihood given its best correspondence
-                    likelihood = self.observation_model.compute_likelihood(
-                        dz=innovations[idx_l_min], Q=innovation_covariances[idx_l_min]
+                    # use improved importance sampling if FastSLAM 2.0 is enabled
+                    likelihood = (
+                        self.observation_model.compute_likelihood(
+                            dz=innovations[idx_l_min], Q=innovation_covariances[idx_l_min]
+                        )
+                        if self.config["improve_proposal_distribution"]
+                        else ObservationModel.likelihood_from_innovation(dz=dz_best, Q=Q_best)
                     )
                     self.ws[m] = likelihood
         # endregion

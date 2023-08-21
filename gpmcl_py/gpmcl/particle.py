@@ -321,6 +321,25 @@ class FastSLAMParticle:
             )
             self.observation_counter = np.delete(self.observation_counter, idxs_landmarks_unobserved_too_often, axis=0)
 
+    def compute_improved_importance_weight(
+        self, keypoints_in_robot_frame: npt.NDArray[np.float64], idx_kp: int, idx_l: int, Q_z: npt.NDArray[np.float64]
+    ):
+        """Compute the importance sampling distributions moments given the best correspondence index.
+
+        Returns `(observation_error, error_covariance)` to be used in computing the pdf.
+        This implements `(Thrun, Burgard and Fox, 2006) p. 465 Eq. 13.54`."""
+        kp = keypoints_in_robot_frame[idx_kp]
+        z_kp = ObservationModel.range_bearing_observation_keypoint(kp)
+        # compute the estimated observation and its derivatives w.r.t. landmark and pose
+        z_est, H_l, H_x = ObservationModel.range_bearing_observation_landmark(self.landmarks[idx_l])
+        # compute delta between the two observation
+        delta_z = ObservationModel.observation_delta(z_true=z_kp, z_est=z_est)
+        # the landmark covariance prior is used to update the entire state
+        Q_l = self.landmark_covariances[idx_l]
+        # covariance of the importance distribution
+        S_w = H_x.T @ Q_z @ H_x + H_l @ Q_l @ H_l.T + self.R_u
+        return (delta_z, S_w)
+
     def get_trajectory(self) -> np.ndarray:
         """Obtain the trajectory traversed over the lifetime of this particle."""
         return np.vstack((self.trajectory, self.x.as_twist()))
