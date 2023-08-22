@@ -138,7 +138,7 @@ class FastSLAM:
                         self.observation_model.compute_likelihood(
                             dz=innovations[idx_l_min], Q=innovation_covariances[idx_l_min]
                         )
-                        if self.config["improve_proposal_distribution"]
+                        if not self.config["improve_proposal_distribution"]
                         else ObservationModel.likelihood_from_innovation(dz=dz_best, Q=Q_best)
                     )
                     self.ws[m] = likelihood
