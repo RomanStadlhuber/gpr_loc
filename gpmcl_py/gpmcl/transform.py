@@ -4,8 +4,33 @@ from typing import Optional
 import numpy as np
 
 
-def regularize_cov(A: np.ndarray) -> np.ndarray:
-    return 0.5 * (A + A.T)
+def approx_psd(A: np.ndarray) -> np.ndarray:
+    """Regularize a matrix to compute its closest positive-semidefinite matrix.
+
+    Will passthrough if `A` is psd already. Otherwise, will compute eigenvalue decomposition
+    and apply `np.sqrt(np.square(eigvals))` or simply `np.abs(eigvals)`, generating a psd matrix
+    using `P @ D @ P.T`.
+    """
+    if np.allclose(A, A.T) and np.all(np.linalg.eigvals(A) > 0):
+        return A
+    else:
+        eigvals, P = np.linalg.eig(A)
+        eigvals = np.abs(eigvals)
+        D = np.diag(eigvals)
+        L = np.linalg.cholesky(P @ D @ P.T)
+        B = L @ L.T
+        return B
+
+
+def inv_approx_psd(A: np.ndarray) -> np.ndarray:
+    """Compute the inverse of the (closest approximate) positive-semidefinite matrix.
+
+    See also `approx_psd`."""
+    A = approx_psd(A)
+    L = np.linalg.cholesky(A)
+    L_inv = np.linalg.inv(L)
+    A_inv = L_inv.T @ L_inv
+    return A_inv
 
 
 class Pose2D:
