@@ -348,7 +348,7 @@ class FastSLAMParticle:
         # the landmark covariance prior is used to update the entire state
         Q_l = self.landmark_covariances[idx_l]
         # covariance of the importance distribution
-        S_w = H_x.T @ Q_z @ H_x + H_l @ Q_l @ H_l.T + self.R_u
+        S_w = approx_psd(H_x.T @ Q_z @ H_x + H_l @ Q_l @ H_l.T + self.R_u)
         return (delta_z, S_w)
 
     def get_trajectory(self) -> np.ndarray:
