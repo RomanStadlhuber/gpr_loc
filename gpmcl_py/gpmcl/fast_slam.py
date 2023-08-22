@@ -116,6 +116,8 @@ class FastSLAM:
                         correspondences=correspondences,
                         keypoints_in_robot_frame=selected_keypoints,
                         observation_covariance=Q_z,
+                        #
+                        apply_state_correction=self.config["improve_proposal_distribution"],
                     )
                     # region: improved importance distribution (if enabled)
                     if self.config["improve_proposal_distribution"]:
@@ -128,16 +130,7 @@ class FastSLAM:
                             Q_z=Q_z,
                         )
                     # endregion
-                    particle.add_new_landmarks_from_keypoints(
-                        idxs_new_landmarks=idxs_new_keypoints,
-                        keypoints_in_robot_frame=selected_keypoints,
-                        position_covariance=Q_0,
-                    )
-                    # remove landmarks that are out of range or unobserved too often
-                    particle.prune_landmarks(
-                        max_unobserved_count=self.config["max_unobserved_count"],
-                        # max_distance=self.config["max_feature_range"],
-                    )
+                    # compute the best (or "most likely") correspondence from the updated states
                     idx_l_min, _ = best_correspondence
                     # compute a particles likelihood given its best correspondence
                     # use improved importance sampling if FastSLAM 2.0 is enabled
@@ -149,6 +142,18 @@ class FastSLAM:
                         else ObservationModel.likelihood_from_innovation(dz=dz_best, Q=Q_best)
                     )
                     self.ws[m] = likelihood
+                    # region: map management
+                    particle.add_new_landmarks_from_keypoints(
+                        idxs_new_landmarks=idxs_new_keypoints,
+                        keypoints_in_robot_frame=selected_keypoints,
+                        position_covariance=Q_0,
+                    )
+                    # remove landmarks that are out of range or unobserved too often
+                    particle.prune_landmarks(
+                        max_unobserved_count=self.config["max_unobserved_count"],
+                        # max_distance=self.config["max_feature_range"],
+                    )
+                    # endregion
         # endregion
         # normalize the likelihoods to obtain a nonparametric PDF
         self.ws /= np.sum(self.ws)
