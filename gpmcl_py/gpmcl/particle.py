@@ -204,7 +204,7 @@ class FastSLAMParticle:
         self.Q2_inv = inv_approx_psd(self.Q2)
         # covariance of the proposed state (used for update equation)
         R_inv = inv_approx_psd(R_u)
-        P_x = approx_psd(H_x.T @ self.Q2_inv @ H_x + R_inv)
+        P_x = inv_approx_psd(H_x.T @ self.Q2_inv @ H_x + R_inv)
         # compute the correction which is to be applied to the pose state
         delta_x = P_x @ H_x.T @ self.Q2_inv @ delta_z
         # apply the correction
