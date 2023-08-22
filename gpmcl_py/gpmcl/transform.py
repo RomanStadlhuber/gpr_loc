@@ -4,6 +4,10 @@ from typing import Optional
 import numpy as np
 
 
+def regularize_cov(A: np.ndarray) -> np.ndarray:
+    return 0.5 * (A + A.T)
+
+
 class Pose2D:
     def __init__(self, T0: Optional[np.ndarray] = None) -> None:
         self.T = T0 if T0 is not None else np.eye(3)
