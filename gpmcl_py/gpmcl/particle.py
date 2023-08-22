@@ -1,11 +1,12 @@
 from gpmcl.scan_tools_3d import PointCloudVisualizer
 from gpmcl.observation_model import ObservationModel
-from gpmcl.transform import Pose2D
+from gpmcl.transform import Pose2D, regularize_cov
 from dataclasses import dataclass
 from typing import Optional, Tuple
 from autograd import jacobian
 import numpy as np
 import numpy.typing as npt
+import scipy.spatial
 import scipy.stats
 import open3d
 
@@ -127,8 +128,8 @@ class FastSLAMParticle:
                 PointCloudVisualizer.visualize_single(
                     [
                         # (pcd, color), ...
-                        (self.get_map_pcd(), [0, 0, 1]),
-                        (pcd_keypoints_local, [1, 0, 0]),
+                        (self.get_map_pcd(), np.array([0, 0, 1], dtype=np.float64)),
+                        (pcd_keypoints_local, np.array([1, 0, 0], dtype=np.float64)),
                     ]
                 )
             # endregion
@@ -144,7 +145,8 @@ class FastSLAMParticle:
                     distances = np.asarray(distances, dtype=np.float64)
                     idx_min_dist = np.argmin(distances)
                     # set min-distance point to be the corresponding
-                    correspondences = np.vstack((correspondences, [idx_l, idxs[idx_min_dist]]))
+                    idx_kp = idxs[idx_min_dist]
+                    correspondences = np.vstack((correspondences, [idx_l, idx_kp]))
                     idxs_outlier_keypoints = np.hstack((idxs_outlier_keypoints, np.delete(idxs, idx_min_dist)))
                     c_distances = np.vstack((c_distances, distances[idx_min_dist]))
             # safeguard in case there are no correspondences
@@ -204,14 +206,15 @@ class FastSLAMParticle:
         L_l = np.linalg.cholesky(Q_l)
         L_l_inv = np.linalg.inv(L_l)
         # the inverse of this matrix is also used when updating the landmark states
-        self.Q2_inv = L_l_inv.T @ L_l_inv
+        self.Q2 = regularize_cov(L_l @ L_l.T)
+        self.Q2_inv = regularize_cov(L_l_inv.T @ L_l_inv)
         # covariance of the proposed state (used for update equation)
         C_u = np.linalg.cholesky(R_u)
         C_u_inv = np.linalg.inv(C_u)
         R_u_inv = C_u_inv.T @ C_u_inv
         L_x = np.linalg.cholesky(H_x.T @ self.Q2_inv @ H_x + R_u_inv)
         L_x_inv = np.linalg.inv(L_x)
-        P_x = L_x_inv.T @ L_x_inv
+        P_x = regularize_cov(L_x_inv.T @ L_x_inv)
         # compute the correction which is to be applied to the pose state
         delta_x = P_x @ H_x.T @ self.Q2_inv @ delta_z
         # apply the correction
@@ -266,7 +269,12 @@ class FastSLAMParticle:
         if apply_state_correction:
             # apply correction for each corresponding observation and landmark
             for idx_l, idx_kp in correspondences:
-                self.improve_sampled_pose(keypoint=keypoints_in_robot_frame[idx_kp], idx_l=idx_l, R_u=self.R_u)
+                self.improve_sampled_pose(
+                    keypoint=keypoints_in_robot_frame[idx_kp],
+                    idx_l=idx_l,
+                    R_u=self.R_u,
+                    Q_z=Q_z,
+                )
         # endregion
         # update the landmarks using EKF approach
         for idx_l, idx_kp in correspondences:
@@ -281,14 +289,18 @@ class FastSLAMParticle:
             # covariance of the landmark in question
             S_l = self.landmark_covariances[idx_l]
             # innovation covariance
-            # uses cholesky factor because H @ S @ H.T would not be symmetric
-            # ... likely due to small numerical offsets that build up as time goes on
-            C = np.linalg.cholesky(S_l)
-            HC = H_l @ C
-            Q_l = HC @ HC.T + Q_z
-            L = np.linalg.cholesky(Q_l)
-            L_inv = np.linalg.inv(L)
-            Q_l_inv = L_inv.T @ L_inv if not apply_state_correction else self.Q2_inv
+            if apply_state_correction:
+                Q_l = regularize_cov(self.Q2)
+                Q_l_inv = regularize_cov(self.Q2_inv)
+            else:
+                # uses cholesky factor because H @ S @ H.T would not be symmetric
+                # ... likely due to small numerical offsets that build up as time goes on
+                C = np.linalg.cholesky(S_l)
+                HC = H_l @ C
+                Q_l = regularize_cov(HC @ HC.T + Q_z)
+                L = np.linalg.cholesky(Q_l)
+                L_inv = np.linalg.inv(L)
+                Q_l_inv = regularize_cov(L_inv.T @ L_inv)
             # kalman gain
             K_l = S_l @ H_l.T @ Q_l_inv
             # update the landmark in question
@@ -296,8 +308,23 @@ class FastSLAMParticle:
             # set observation error and its covariance
             ds[idx_l] = delta_z
             Qs[idx_l] = Q_l
+        self.innovation_distances = ds
+        self.innovation_covariances = Qs
         # return the errors and covariances for likelihood computation
         return (ds, Qs)
+
+    def get_best_correspondence(
+        self, ds: npt.NDArray[np.float64], Qs: npt.NDArray[np.float64], cs: npt.NDArray[np.int32]
+    ) -> npt.NDArray[np.int32]:
+        """Compute the most likely correspondence based on the lowest mahalanobis distance.
+
+        Returns the `c_max = [idx_l, idx_kp]` that satisfies `c_max = argmin{i}{(z - z_i)^T * Q^-1 * (z - z_i)}`"""
+        N = self.landmarks.shape[0]
+        mhds = np.zeros((N, 1), dtype=np.float64)
+        for idx, (d, Q) in enumerate(zip(ds, Qs)):
+            mhds[idx] = scipy.spatial.distance.mahalanobis(d, np.zeros(3), Q)
+        idx_mhd_min = np.argmin(mhds, axis=0)
+        return cs[idx_mhd_min, :].flatten()
 
     def prune_landmarks(self, max_unobserved_count: int = -1, max_distance: Optional[float] = None) -> None:
         """Removes landmarks that are unobserved too often (or - optionally - exceed the mapping range).
