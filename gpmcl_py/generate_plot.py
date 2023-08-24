@@ -145,14 +145,25 @@ class PaperFigurePlotter:
                 np.repeat("FastSLAM", hist_fastslam1.shape),
                 np.repeat("FastSLAM2.0", hist_fastslam2.shape),
             )
-        ).astype(np.string_)
+        )
         df_hist = pd.DataFrame(
             columns=["value", "occurrences", "variant"],
             # amalgamate and transpose to create table shape
             data=np.vstack((bins, counts, variants)).T,
         )
         plotter = MultiHistogramPlotter()
-        plotter.plot_data(df_hist, x="value", y="occurrences", color="variant")
+        plotter.plot_data(
+            df_hist,
+            x="value",
+            y="occurrences",
+            color="variant",
+            width=600,
+            height=350,
+            # custom colors for the two variants
+            custom_colors=["blue", "brown"],
+            x_axis_title="occurrences",
+            y_axis_title=r"$w_{eff}$",  # LaTeX
+        )
 
 
 if __name__ == "__main__":

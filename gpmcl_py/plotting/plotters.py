@@ -35,9 +35,9 @@ class TrajectoryPlotter:
     ```
     """
 
-    def __init__(self, dash_width: float = 3.5, fontsize: float = 14) -> None:
+    def __init__(self, dash_width: float = 3.5, font_size: float = 14) -> None:
         self.dash_width = dash_width
-        self.fontsize = fontsize
+        self.font_size = font_size
 
     def line_trace(
         self,
@@ -117,8 +117,8 @@ class TrajectoryPlotter:
                 borderwidth=1,  # border width
                 font=dict(size=self.fontsize),
             ),
-            paper_bgcolor="rgba(0,0,0,0)",  # set background transparent ...
-            plot_bgcolor="rgba(0,0,0,0)",  # ... (required for prints)
+            paper_bgcolor="white",  # set background transparent ...
+            plot_bgcolor="white",  # ... (required for prints)
             # LaTeX axis titles
             yaxis_title=y_title,
             xaxis_title=x_title,
@@ -160,6 +160,45 @@ class MultiHistogramPlotter:
     def __init__(self, font_size: float = 14) -> None:
         self.font_size = font_size
 
-    def plot_data(self, data: pd.DataFrame, x: str, y: str, color: str) -> None:
-        fig = px.histogram(data, x, y, color)
+    def plot_data(
+        self,
+        data: pd.DataFrame,
+        x: str,
+        y: str,
+        color: str,
+        title: Optional[str] = None,
+        width: int = 600,
+        height: int = 400,
+        custom_colors: Optional[List[str]] = None,
+        x_axis_title: Optional[str] = None,
+        y_axis_title: Optional[str] = None,
+    ) -> None:
+        fig = px.histogram(data, x, y, color, color_discrete_sequence=custom_colors)
+        fig.update_layout(
+            # set a title (if provided)
+            title=title if title is not None else None,
+            # set font
+            font_family="Times New Roman",
+            # move the legend to the top right
+            legend=dict(
+                yanchor="top",  # ?
+                y=0.99,  # y relative position
+                xanchor="left",  # ?
+                x=0.01,  # x relative position
+                bgcolor="lightgray",  # backround color for the legend
+                bordercolor="black",  # border color
+                borderwidth=1,  # border width
+                font=dict(size=self.font_size),
+            ),
+            paper_bgcolor="white",  # set background transparent ...
+            plot_bgcolor="white",  # ... (required for prints)
+            # plot dimensions
+            height=height,
+            width=width,
+            font=dict(size=self.font_size),
+            # xaxis_range=x_range,
+            # yaxis_range=y_range,
+            xaxis_title=x_axis_title,
+            yaxis_title=y_axis_title,
+        )
         fig.show()
