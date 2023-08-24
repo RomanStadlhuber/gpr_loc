@@ -38,6 +38,8 @@ class GPMCLPipeline(LocalizationPipeline):
         self.df_trajectory_groundtruth = pd.DataFrame(columns=["x", "y", "theta"])
         self.df_trajectory_odometry = pd.DataFrame(columns=["x", "y", "theta"])
         self.df_particles = pd.DataFrame(columns=["x", "y", "theta"])
+        # dataframe containing the effective weights over the entire trajecory
+        self.df_w_eff = pd.DataFrame(columns={"w_eff"})
         # a count used to print the number of iterations already performed by the filter
         self.debug_iteration_count = 0
         # the visualizer used to display the 3D scan map
@@ -68,11 +70,7 @@ class GPMCLPipeline(LocalizationPipeline):
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
         pcd_scan = ScanTools3D.pointcloud2_to_open3d_pointcloud(synced_msgs.scan_3d)
         pcd_keypoints, pcd_scan_sampled = self.mapper.process_scan(pcd_scan)
-        # region: visual debugging of scan and keypoints
-        # pcd_scan_sampled.paint_uniform_color([0.5, 0.5, 0.5])
-        # pcd_keypoints.paint_uniform_color([1, 0, 0])
-        # self.visualizer.update(pcds=[pcd_scan_sampled, pcd_keypoints])
-        # endregion
+        # region: use relative motion to update PF (just a test)
         odom_curr = Pose2D.from_odometry(synced_msgs.odom_est)
         delta_odom = Pose2D.delta(self.odom_last, odom_curr)
         global_twist = Pose2D.velocity_from_odom_twist(synced_msgs.odom_est.twist.twist)
@@ -82,7 +80,10 @@ class GPMCLPipeline(LocalizationPipeline):
             self.groundtruth_last = groundtruth_curr
         else:
             observed_motion = None
+        # endregion
         # TODO: should it really be in the previous frame?
+        # NOTE: if this is adapted, the computation in the Odom-Delta-Postprocessor
+        # needs to be adapted as well!
         local_twist = self.odom_last.global_velocity_to_local(global_twist)
         self.slam.predict(estimated_motion=delta_odom, estimated_twist=local_twist)
         # self.slam._dbg_set_groundtruth_pose(Pose2D.from_odometry(synced_msgs.groundtruth or synced_msgs.odom_est))
@@ -117,6 +118,7 @@ class GPMCLPipeline(LocalizationPipeline):
             estimate=self.slam.get_mean_pose().as_twist(),
             groundtruth=Pose2D.from_odometry(synced_msgs.groundtruth).as_twist() if synced_msgs.groundtruth else None,
             odometry=Pose2D.from_odometry(synced_msgs.odom_est).as_twist(),
+            w_eff=w_eff,
         )
 
     def export_trajectory(self, out_dir: pathlib.Path) -> None:
@@ -136,10 +138,15 @@ class GPMCLPipeline(LocalizationPipeline):
         df_landmarks.to_csv(out_dir / "landmarks.csv")
         self.df_trajectory_estimated = pd.DataFrame(columns=["x", "y", "theta"], data=best_state.get_trajectory())
         self.df_trajectory_estimated.to_csv(out_dir / "trajectory_estimated.csv")
+        self.df_w_eff.to_csv(out_dir / "effective_weights.csv")
         # endregion
 
     def __update_trajectory(
-        self, estimate: np.ndarray, groundtruth: Optional[np.ndarray] = None, odometry: Optional[np.ndarray] = None
+        self,
+        estimate: np.ndarray,
+        groundtruth: Optional[np.ndarray] = None,
+        odometry: Optional[np.ndarray] = None,
+        w_eff: Optional[float] = None,
     ) -> None:
         """Update the dataframes containing the estimated and (optionally) ground truth trajectories."""
         # the current index is the length of the dataframe
@@ -152,6 +159,8 @@ class GPMCLPipeline(LocalizationPipeline):
             self.df_trajectory_groundtruth.loc[idx_trajectory_curr, :] = groundtruth
         if odometry is not None:
             self.df_trajectory_odometry.loc[idx_trajectory_curr, :] = odometry
+        if w_eff is not None:
+            self.df_w_eff.loc[idx_trajectory_curr] = np.clip(w_eff, 0.0, 1.0)
 
 
 arg_parser = argparse.ArgumentParser(
