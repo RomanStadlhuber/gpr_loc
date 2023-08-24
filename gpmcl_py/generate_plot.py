@@ -1,8 +1,10 @@
 from plotting.plot_trajectory_from_regression import plot_trajectory_from_regression, compute_trajectory_from_deltas
-from plotting.plotters import TrajectoryPlotter
+from plotting.plotters import TrajectoryPlotter, MultiHistogramPlotter
 from gpmcl.helper_types import GPDataset
+from typing import Optional
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 import pathlib
 
 
@@ -122,9 +124,45 @@ class PaperFigurePlotter:
 
         fig.show()
 
+    def paper_2__effective_weight_histogram(
+        self,
+        df_w_fastslam1: pd.DataFrame,
+        df_w_fastslam2: pd.DataFrame,
+        num_bins: int = 20,
+        title: Optional[str] = "Effective weight comparison between FastSLAM variants.",
+        w_eff_colname: str = "w_eff",
+    ) -> None:
+        # prepare the datasets for plotting
+        ws_fastslam1 = df_w_fastslam1[w_eff_colname]
+        ws_fastslam2 = df_w_fastslam2[w_eff_colname]
+        hist_fastslam1, bins_fastslam1 = np.histogram(ws_fastslam1, num_bins)
+        hist_fastslam2, bins_fastslam2 = np.histogram(ws_fastslam2, num_bins)
+        counts = np.hstack((hist_fastslam1, hist_fastslam2))
+        # stack the bin values but omit the last bin edge (or should it be the first?)
+        bins = np.hstack((bins_fastslam1[:-1], bins_fastslam2[:-1]))
+        variants = np.hstack(
+            (
+                np.repeat("FastSLAM", hist_fastslam1.shape),
+                np.repeat("FastSLAM2.0", hist_fastslam2.shape),
+            )
+        ).astype(np.string_)
+        df_hist = pd.DataFrame(
+            columns=["value", "occurrences", "variant"],
+            # amalgamate and transpose to create table shape
+            data=np.vstack((bins, counts, variants)).T,
+        )
+        plotter = MultiHistogramPlotter()
+        plotter.plot_data(df_hist, x="value", y="occurrences", color="variant")
+
 
 if __name__ == "__main__":
     plotter = PaperFigurePlotter()
     # plotter.paper_2__compare_gp_with_ros()
     # plotter.paper_2__trajectories_from_GPs()
-    plotter.paper_2__compare_trajectories()
+    data_dir = pathlib.Path("./data/eval_trajectories")
+    # plotter.paper_2__compare_trajectories()
+    plotter.paper_2__effective_weight_histogram(
+        df_w_fastslam1=pd.DataFrame(columns=["w_eff"]),
+        df_w_fastslam2=pd.read_csv(data_dir / "effective_weights.csv"),
+        num_bins=50,
+    )

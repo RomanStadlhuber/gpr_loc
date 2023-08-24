@@ -1,6 +1,9 @@
 from typing import Tuple, Optional
 import plotly.graph_objects as go
+import plotly.express as px
+from typing import List, Tuple
 from enum import Enum
+import pandas as pd
 import numpy as np
 
 
@@ -89,7 +92,6 @@ class TrajectoryPlotter:
         height_px: Optional[int] = None,
         figure_title: Optional[str] = None,
     ) -> None:
-
         # set a title object for the layout, if a figure title was provided, see:
         # https://plotly.com/python/figure-labels/#align-plot-title
         title = dict(
@@ -150,3 +152,14 @@ class TrajectoryPlotter:
             scaleanchor="x",
             scaleratio=1,
         )
+
+
+class MultiHistogramPlotter:
+    """Utility class used to plot multiple histograms in aligned plots."""
+
+    def __init__(self, font_size: float = 14) -> None:
+        self.font_size = font_size
+
+    def plot_data(self, data: pd.DataFrame, x: str, y: str, color: str) -> None:
+        fig = px.histogram(data, x, y, color)
+        fig.show()
