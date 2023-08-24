@@ -12,13 +12,13 @@ mapper:
   max_height: 2.0
 fast_slam:
   improve_proposal_distribution: True # if true, algorithm will run FastSLAM 2.0
-  max_feature_range: 20 # [m]
-  max_unobserved_count: -1 # remove landmark after unobserved this often
+  max_feature_range: 10 # [m]
+  max_unobserved_count: -5 # remove landmark after unobserved this often
   particle_count: 10
   keypoint_covariance: [0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6]
   observation_covariance: [0.2, 0, 0, 0, 0.1, 0, 0, 0, 0.1]
   kdtree_search_radius: 0.2
-  motion_noise_gain: [10, 100, 100]
+  motion_noise_gain: [10, 10, 10]
   visual_debug_mode: False # visualize the map and keypoint pcds (ideally only one particle)
 motion_model_gp:
   model_dir: "/path/to/model_dir/"
