@@ -57,7 +57,7 @@ class PaperFigurePlotter:
         pth_landmarks = pathlib.Path(data_dir / "landmarks.csv")
 
         fig = go.Figure()
-        plotter = TrajectoryPlotter(fontsize=18)
+        plotter = TrajectoryPlotter(font_size=18)
         # endregion
         # --- plot trajectories for GPMCL paper
         # region
@@ -171,7 +171,7 @@ if __name__ == "__main__":
     # plotter.paper_2__compare_gp_with_ros()
     # plotter.paper_2__trajectories_from_GPs()
     data_dir = pathlib.Path("./data/eval_trajectories")
-    # plotter.paper_2__compare_trajectories()
+    plotter.paper_2__compare_trajectories()
     plotter.paper_2__effective_weight_histogram(
         df_w_fastslam1=pd.DataFrame(columns=["w_eff"]),
         df_w_fastslam2=pd.read_csv(data_dir / "effective_weights.csv"),

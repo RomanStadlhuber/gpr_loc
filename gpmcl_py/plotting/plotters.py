@@ -115,7 +115,7 @@ class TrajectoryPlotter:
                 bgcolor="lightgray",  # backround color for the legend
                 bordercolor="black",  # border color
                 borderwidth=1,  # border width
-                font=dict(size=self.fontsize),
+                font=dict(size=self.font_size),
             ),
             paper_bgcolor="white",  # set background transparent ...
             plot_bgcolor="white",  # ... (required for prints)
@@ -125,7 +125,7 @@ class TrajectoryPlotter:
             # plot dimensions
             height=height_px,
             width=width_px,
-            font=dict(size=self.fontsize),
+            font=dict(size=self.font_size),
             xaxis_range=x_range,
             yaxis_range=y_range,
         )
