@@ -178,7 +178,6 @@ class MultiHistogramPlotter:
             # set a title (if provided)
             title=title if title is not None else None,
             # set font
-            font_family="Times New Roman",
             # move the legend to the top right
             legend=dict(
                 yanchor="top",  # ?
