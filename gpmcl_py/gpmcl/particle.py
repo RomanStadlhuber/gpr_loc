@@ -283,7 +283,7 @@ class FastSLAMParticle:
                 Q_l = self.Q2
                 Q_l_inv = self.Q2_inv
             else:
-                Q_l = approx_psd(H_l @ S_l @ H_l + Q_z)
+                Q_l = approx_psd(H_l @ S_l @ H_l.T + Q_z)
                 Q_l_inv = inv_approx_psd(Q_l)
             # kalman gain
             K_l = S_l @ H_l.T @ Q_l_inv
