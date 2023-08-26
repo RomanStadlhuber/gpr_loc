@@ -57,7 +57,7 @@ class PaperFigurePlotter:
         pth_landmarks = pathlib.Path(data_dir / "landmarks.csv")
 
         fig = go.Figure()
-        plotter = TrajectoryPlotter(font_size=18)
+        plotter = TrajectoryPlotter(font_size=26)
         # endregion
         # --- plot trajectories for GPMCL paper
         # region
@@ -88,17 +88,17 @@ class PaperFigurePlotter:
             name="Odometry estimates",
         )
         markers_particles = plotter.marker_trace(
-            x=df_particles["x"],
-            y=df_particles["y"],
+            x=df_particles["x"],  # type: ignore
+            y=df_particles["y"],  # type: ignore
             symbol="circle",
             color="black",
-            marker_size=6,
+            marker_size=8,
             marker_outline_width=1,
             name="Particles",
         )
         markers_landmarks = plotter.marker_trace(
-            x=df_landmarks["x"],
-            y=df_landmarks["y"],
+            x=df_landmarks["x"],  # type: ignore
+            y=df_landmarks["y"],  # type: ignore
             symbol="diamond",
             color="blue",
             marker_size=10,
@@ -135,11 +135,17 @@ class PaperFigurePlotter:
         # prepare the datasets for plotting
         ws_fastslam1 = df_w_fastslam1[w_eff_colname]
         ws_fastslam2 = df_w_fastslam2[w_eff_colname]
-        hist_fastslam1, bins_fastslam1 = np.histogram(ws_fastslam1, num_bins)
-        hist_fastslam2, bins_fastslam2 = np.histogram(ws_fastslam2, num_bins)
+        bins_all = np.linspace(0, 1, num_bins + 1)
+        hist_fastslam1, bins_fastslam1 = np.histogram(ws_fastslam1, bins_all)
+        hist_fastslam2, bins_fastslam2 = np.histogram(ws_fastslam2, bins_all)
         counts = np.hstack((hist_fastslam1, hist_fastslam2))
         # stack the bin values but omit the last bin edge (or should it be the first?)
-        bins = np.hstack((bins_fastslam1[:-1], bins_fastslam2[:-1]))
+        bins = np.hstack(
+            (
+                list(map(lambda x: "{:.1}".format(x), bins_fastslam1[:-1])),
+                list(map(lambda x: "{:.1}".format(x), bins_fastslam2[:-1])),
+            )
+        )
         variants = np.hstack(
             (
                 np.repeat("FastSLAM", hist_fastslam1.shape),
@@ -151,7 +157,7 @@ class PaperFigurePlotter:
             # amalgamate and transpose to create table shape
             data=np.vstack((bins, counts, variants)).T,
         )
-        plotter = MultiHistogramPlotter()
+        plotter = MultiHistogramPlotter(font_size=14)
         plotter.plot_data(
             df_hist,
             x="value",
@@ -161,8 +167,8 @@ class PaperFigurePlotter:
             height=350,
             # custom colors for the two variants
             custom_colors=["blue", "brown"],
-            x_axis_title="occurrences",
-            y_axis_title=r"$w_{eff}$",  # LaTeX
+            x_axis_title=r"$w_{eff}$",  # LaTeX
+            y_axis_title="occurrences",
         )
 
 
@@ -170,10 +176,9 @@ if __name__ == "__main__":
     plotter = PaperFigurePlotter()
     # plotter.paper_2__compare_gp_with_ros()
     # plotter.paper_2__trajectories_from_GPs()
-    data_dir = pathlib.Path("./data/eval_trajectories")
     plotter.paper_2__compare_trajectories()
     plotter.paper_2__effective_weight_histogram(
-        df_w_fastslam1=pd.DataFrame(columns=["w_eff"]),
-        df_w_fastslam2=pd.read_csv(data_dir / "effective_weights.csv"),
-        num_bins=50,
+        df_w_fastslam1=pd.read_csv("data/fastslam1_weff/effective_weights.csv"),
+        df_w_fastslam2=pd.read_csv("data/fastslam2_weff/effective_weights.csv"),
+        num_bins=10,
     )
