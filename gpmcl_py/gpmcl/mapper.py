@@ -32,9 +32,17 @@ class Mapper:
         self.tf_scan[:3, :3] = Rmat_scan
 
     def process_scan(
-        self, pcd_scan_curr: open3d.geometry.PointCloud
+        self, pcd_scan_curr: open3d.geometry.PointCloud, skip_keypoints: bool = False
     ) -> Tuple[open3d.geometry.PointCloud, open3d.geometry.PointCloud]:
-        """Process the current scans pointcloud and compute ISS3D features"""
+        """Process the current scans pointcloud and compute ISS3D features.
+
+        Returns `(pcd_keypoints, processed_scan)`.
+
+        ### Remark
+
+        Use `skip_keypoints=True` if you are just debugging the 3D scan and aren't interested in ISS3D keypoints.
+        In this case, the method will return `(empty_keypoints, processed_scan)`.
+        """
         # downsample the scan
         self.pcd_scan = open3d.geometry.PointCloud(pcd_scan_curr)
         self.pcd_scan = self.pcd_scan.voxel_down_sample(voxel_size=self.config["voxel_size"])
@@ -46,20 +54,25 @@ class Mapper:
         # see: http://www.open3d.org/docs/latest/tutorial/geometry/iss_keypoint_detector.html
         # and:
         # >>> help(open3d.geometry.keypoint.compute_iss_keypoints)
-        pcd_keypoints = open3d.geometry.keypoint.compute_iss_keypoints(
-            input=self.pcd_scan,
-            salient_radius=self.config["scatter_radius"],
-            non_max_radius=self.config["nms_radius"],
-            gamma_21=self.config["eig_ratio_21"],
-            gamma_32=self.config["eig_ratio_32"],
-            min_neighbors=self.config["min_neighbor_count"],
-        )
-        keypoints = np.asarray(pcd_keypoints.points, dtype=np.float64)
-        keypoints_in_range = keypoints[
-            np.where((keypoints[:, 2] >= self.config["min_height"]) & (keypoints[:, 2] <= self.config["max_height"]))
-        ]
-        pcd_keypoints_in_range = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(keypoints_in_range))
-        return pcd_keypoints_in_range, self.pcd_scan
+        if not skip_keypoints:
+            pcd_keypoints = open3d.geometry.keypoint.compute_iss_keypoints(
+                input=self.pcd_scan,
+                salient_radius=self.config["scatter_radius"],
+                non_max_radius=self.config["nms_radius"],
+                gamma_21=self.config["eig_ratio_21"],
+                gamma_32=self.config["eig_ratio_32"],
+                min_neighbors=self.config["min_neighbor_count"],
+            )
+            keypoints = np.asarray(pcd_keypoints.points, dtype=np.float64)
+            keypoints_in_range = keypoints[
+                np.where(
+                    (keypoints[:, 2] >= self.config["min_height"]) & (keypoints[:, 2] <= self.config["max_height"])
+                )
+            ]
+            pcd_keypoints_in_range = open3d.geometry.PointCloud(open3d.utility.Vector3dVector(keypoints_in_range))
+            return pcd_keypoints_in_range, self.pcd_scan
+        else:
+            return open3d.geometry.PointCloud(), self.pcd_scan
 
     def update_map(self, pose: np.ndarray):
         # transform the scan PCD into the current pose (needed for both initialization and update)
