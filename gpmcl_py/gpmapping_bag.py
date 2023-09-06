@@ -30,7 +30,12 @@ class GPMCLPipeline(LocalizationPipeline):
     Uses a Gaussian Process Particle Filter (GP-PF).
     """
 
-    def __init__(self, config: GPMappingOfflineConfig, debug_visualize: bool = False) -> None:
+    def __init__(
+        self,
+        config: GPMappingOfflineConfig,
+        debug_visualize: bool = False,
+        pcd_export_dir: Optional[pathlib.Path] = None,
+    ) -> None:
         self.config = config  # dict containing the pipeline configuration
         self.debug_visualize = debug_visualize
         # the evaluation trajectories
@@ -56,6 +61,8 @@ class GPMCLPipeline(LocalizationPipeline):
         self.slam = FastSLAM(
             config=self.config["fast_slam"], motion_model=self.motion_model, observation_model=self.observation_model
         )
+        # directory (if any) to export scan geometry to
+        self.pcd_export_dir = pcd_export_dir
 
     def initialize(self, synced_msgs: LocalizationSyncMessage) -> None:
         # sample initial guess about ground truth or first odometry estimate
@@ -70,6 +77,7 @@ class GPMCLPipeline(LocalizationPipeline):
     def inference(self, synced_msgs: LocalizationSyncMessage, timestamp: int) -> None:
         pcd_scan = ScanTools3D.pointcloud2_to_open3d_pointcloud(synced_msgs.scan_3d)
         pcd_keypoints, pcd_scan_sampled = self.mapper.process_scan(pcd_scan)
+        self.pcd_scan_sampled = pcd_scan_sampled
         # region: use relative motion to update PF (just a test)
         odom_curr = Pose2D.from_odometry(synced_msgs.odom_est)
         delta_odom = Pose2D.delta(self.odom_last, odom_curr)
@@ -161,6 +169,11 @@ class GPMCLPipeline(LocalizationPipeline):
             self.df_trajectory_odometry.loc[idx_trajectory_curr, :] = odometry
         if w_eff is not None:
             self.df_w_eff.loc[idx_trajectory_curr] = np.clip(w_eff, 0.0, 1.0)
+        if self.pcd_export_dir is not None:
+            open3d.io.write_point_cloud(
+                str(self.pcd_export_dir / f"{idx_trajectory_curr}.xyz"),
+                self.pcd_scan_sampled,
+            )
 
 
 arg_parser = argparse.ArgumentParser(
@@ -194,15 +207,27 @@ arg_parser.add_argument(
     default=".",
 )
 
+arg_parser.add_argument(
+    "-pcd",
+    "--pointcloud_dir",
+    dest="pcd_dir",
+    metavar="/path/to/pointclouds",
+    help="Whether or not to export pointclouds",
+    required=False,
+)
+
 if __name__ == "__main__":
     args = arg_parser.parse_args()
     config_path = pathlib.Path(args.config_path)
     dbg_vis = args.debug_visualize
     out_dir = pathlib.Path(args.out_dir)
+    pcd_dir = pathlib.Path(args.pcd_dir) if args.pcd_dir else None
+    if pcd_dir is not None and not pcd_dir.exists():
+        pcd_dir.mkdir()
     # load the pipelines configuration
     gpmapping_config = load_gpmapping_offline_config(config_path)
     # instantiate the pipeline
-    pipeline = GPMCLPipeline(config=gpmapping_config, debug_visualize=dbg_vis)
+    pipeline = GPMCLPipeline(config=gpmapping_config, debug_visualize=dbg_vis, pcd_export_dir=pcd_dir)
     # instantiate the scenario
     localization_scenario = LocalizationScenario(config=gpmapping_config["bag_runner"], pipeline=pipeline)
     # run localization inference
