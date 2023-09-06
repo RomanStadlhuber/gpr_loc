@@ -61,16 +61,19 @@ class PointCloudVisualizer:
         # this is needed once to initialize the view-point
         self.geometry_added = False
 
-    def update(self, pcds: List[open3d.geometry.PointCloud]) -> None:
+    def update(self, pcds: List[open3d.geometry.PointCloud], width: int = 800, height: int = 600) -> None:
         """Update the visualizer with a (consistent) set of point clouds."""
         if not self.started:
             # create a named window that is smaller than your average screen
             # I found it to be quite annoying when it's too large
-            self.vis.create_window(window_name="3D Scan Map", width=800, height=600)
+            self.vis.create_window(window_name="3D Scan Map", width=width, height=height)
             self.started = True
         else:
             self.__update_pcds(pcds)
             self.__update_window()
+
+    def render_image(self, filename: str) -> None:
+        self.vis.capture_screen_image(filename)
 
     def terminate(self) -> None:
         self.vis.destroy_window()
