@@ -10,6 +10,10 @@ Install the latest version of pip. This is **required** in order to install the 
 pip install --upgrade pip
 ```
 
+### Example Documentation
+
+Have a look at the [Tutorial](EXAMPLE.md) to learn how to quickly train a GP and use your dataset.
+
 ### Installing all Dependencies
 
 Install the virtualenv module, then create a virtual environment, upgrade PIP and install all dependencies.
@@ -196,37 +200,6 @@ data/process_train_ccw data/process_train_cw/ \
 ```
 
 This example will use the pre-trained models from above and only perfrom prediction on the new data. The results of that prediction process will be stored in a new folder named after `--name`, withing the `--out_dir`.
-
-#### Loading a Sparse Regression Model
-
-As of now, a sparse model cannot be detected automatically. Therefore, when loading and evaluating a sparse regression model, specify the `--sparsity=<NUM_INDUCING>` flag in the above command, where `<NUM_INDUCING>` is the exact number of inducing inputs that were used when training the sparse GP .
-
-Below is an example on how to load a sparse model using `helper_types.GPModel`:
-
-```python
->>> from helper_types import GPModel, GPDataset
-# choose some example test dataset and make sure it exists
->>> dataset_dir = pathlib.Path("data/process_test")
->>> dataset_dir.exists()
-True
->>> D = GPDataset.load(dataset_dir)
-# load the test input features
->>> X = D.get_X()
-# load some test label data
->>> Y = D.get_Y("your label name")
->>> params_file = pathlib.Path("data/models/sparse-pretrained/example.npy")
-# make sure the directory exists...
->>> params_file.exists()
-True
->>> sparse_models = GPModel.load_regression_model(
-    file=params_file,
-    X=X,
-    Y=Y,
-    sparsity=NUM_INDUCING
-)
-# print the model
->>> print(model)
-```
 
 #### Misceral Information
 
