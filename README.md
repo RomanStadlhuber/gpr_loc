@@ -1,5 +1,7 @@
 # Mobile Robot Localization using Gaussian Process Regression
 
+![SLAM trajectory and map estimate](./slam.png)
+
 This mono-repo contains a set of ROS and non-ROS packages that can be used to simulate, train and evaluate a localization scenario that uses Gaussian Process Regression.
 
 Have a look at the documentation of the individual packages `gpr_loc_bringup` and `gpmcl_py` for detailed information on their usage. You can find a rough description below.
