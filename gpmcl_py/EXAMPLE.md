@@ -19,6 +19,14 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+Also, create the following directories:
+
+```bash
+mkdir bag models data
+```
+
+then download the [demo Rosbag](https://cloud.technikum-wien.at/s/ojEdiPzapAWBZgB) and put it into the `bags` folder.
+
 Now you're all set. If later on you decide you do not want to use the virtual environment any longer, you can exit it using the command `$ deactivate` and remove the entire folder using `$ rm -rf .venv/`.
 
 **Note:** due to some of the dependencies having been updated since the time of development, warnings may occur when running the scripts. These can be safely ignored, for example
