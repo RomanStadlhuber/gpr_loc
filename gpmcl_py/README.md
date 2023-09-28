@@ -25,20 +25,6 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Also, create the following directories:
-
-```bash
-mkdir bag models data
-```
-
-then download the [demo Rosbag](https://cloud.technikum-wien.at/s/ojEdiPzapAWBZgB) and put it into the `bags` folder.
-
-#### Installing Open3Ds Development Version
-
-> **Remark**: This might change with future releases of `open3d-cpu>=0.17.0`.
-
-Currently _(July 2023)_ the `gpmcl.mapper.Mapper` class makes use of a method that is not available in the release version of Open3D. In order to get the mapping code to work, you need to install the development version of Open3D using `install_open3d_dev.sh`
-
 ## Generating Datasets from Rosbags
 
 The following will give an overview of how to generate and interpret GP datasets from resbags.
