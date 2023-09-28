@@ -4,13 +4,13 @@ This mono-repo contains a set of ROS and non-ROS packages that can be used to si
 
 Have a look at the documentation of the individual packages `gpr_loc_bringup` and `gpmcl_py` for detailed information on their usage. You can find a rough description below.
 
-## `gpr_loc_bringup` and `linear_ctrl`
+## `gpr_loc_bringup` and `linear_controller`
 
 This package makes use of the [`taurob_simulation`](https://github.com/TW-Robotics/taurob_simulation) Docker-Environment to start and orchestrate a simulation of a search and rescue (SAR) scenario.
 
 Make sure to put this repository into the `catkin_ws/src` of the docker environment and use it from therein. Although the package is using the ROS setup provided by `taurob_simulation`, its functionality is self-contained and should not require any modification of the docker environment besides installation of the necessary dependencies (see [gpr_loc_bringup/README.md](gpr_loc_bringup/README.md)).
 
-The `linear_ctrl` package was used to generate a simple trajectory in an earlier setup, but this is mentioned in the bringup packages readme as well. Have a look at the configuration `.yaml` and `.launch` files therein to learn how to configure this package.
+The `linear_controller` package was used to generate a simple trajectory in an earlier setup, but this is mentioned in the bringup packages readme as well. Have a look at the configuration `.yaml` and `.launch` files therein to learn how to configure this package.
 
 ## `gpmcl_py`
 
