@@ -25,6 +25,14 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+Also, create the following directories:
+
+```bash
+mkdir bag models data
+```
+
+then download the [demo Rosbag](https://cloud.technikum-wien.at/s/ojEdiPzapAWBZgB) and put it into the `bags` folder.
+
 #### Installing Open3Ds Development Version
 
 > **Remark**: This might change with future releases of `open3d-cpu>=0.17.0`.
