@@ -1,49 +1,52 @@
-# the filter configuration
-particle_filter: # class ParticleFilterConfig
-  particle_count: 50
-  process_covariance_R: [
-    0.2, 0, 0,
-    0, 0.2, 0,
-    0, 0, 0.2,
-  ]
-  observation_covariance_Q: [
-    0.1, 0, 0,
-    0, 0.1, 0,
-    0, 0, 0.1,
-  ]
-# the mapper configuration
-iss3d_mapper: # class ISS3DMapperConfig
-  downsampling_voxel_size: 0.05 # [m^3] cannot be 0
-  mapping_radius: 12.0 # [m], cannot be 0
-  nms_radius: 1.5 # [m], can be 0
-  ratio_eigs_1_2: 0.65 # ISS3D saliency factor 1
-  ratio_eigs_2_3: 0.65 # ISS3D saliency factor 2
-  min_neighbor_count: 5 # req. neighbors to consider a feature
-  max_feature_distance: 0.15 # max. distance to consider matches
-  max_unobserved_count: 3 # how often a landmark can go unobserved
-  scan_tf: # transformation from the base to 3D-Scan frame
-    position: [0, 0, 0] # 
-    orientation: [0, 0, 0, 1] # unit quaternion
-process_gp: # class GPRegressionConfig
-  model_dir: "/path/to/model/dir"
-  training_data_dirs: # ALL the datasets used in training
-    - "/path/to/data_1"
-    - "/path/to/data_2"
-  is_sparse: False # whether or not the GP is sparse
-  labels_dX_last: # labels used for the last state change
-    - "delta2d.x (/ground_truth/odom)"
-    - "delta2d.y (/ground_truth/odom)"
-    - "delta2d.yaw (/ground_truth/odom)"
-  labels_dU: # labels used for the estimated state change
-    - "delta2d.x (/odom)"
-    - "delta2d.y (/odom)"
-    - "delta2d.yaw (/odom)"
-  dU_first: True # GP accepts <dU, dX> (True) or <dX, dU> (False)
-scenario: # class LocalizationScenarioConfig
-  bag_path: "/path/to/rosbag"
-  topic_odom_est: "/odom" # estimated odometry
-  topic_scan_3d: "/velodyne_points" # 3D scan
-  topic_odom_groundtruth: "/ground_truth/odom"
-  bag_sync_period: 0.1 # [sec.]
-  # remove this or set to <= 0 to ignore
-  max_iteration_count: 1000 # will end after this many iterations
+# REMARK: this is the same configuration that I use in the project report
+mapper: # NOTE: it's called mapper but it is more akin to the feature detector
+  scatter_radius: 1.0
+  nms_radius: 1.0
+  eig_ratio_32: 0.3
+  eig_ratio_21: 0.3
+  min_neighbor_count: 10
+  voxel_size: 0.05
+  scan_tf:
+    position: [-0.3, 0, 0.25] # position in base frame
+    orientation: [0, 0, 0, 1] # orientation in base frame
+  min_height: 0.0
+  max_height: 2.0
+fast_slam:
+  improve_proposal_distribution: True # if true, algorithm will run FastSLAM 2.0 (recommended)
+  max_feature_range: 25 # [m]
+  # NOTE: experiments have shown that removing landmarks is a bad idea most of the time
+  # have the number very low to reduce the chance of landmarks being dropped prematurely
+  # value MUST be negative, there is no check in the code
+  max_unobserved_count: -1000 # remove landmark after unobserved this often
+  particle_count: 20
+  keypoint_covariance: [0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6]
+  observation_covariance: [0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3]
+  kdtree_search_radius: 0.5
+  # NOTE: gain is for [x, y, heading] values
+  motion_noise_gain: [10, 10, 10]
+  # NOTE: this is a debug feature I implemented for testing purposes only
+  # will display the 3D state for each particle
+  # IF you use this (which you should not), set particle_count: 1
+  visual_debug_mode: False # visualize the map and keypoint pcds
+motion_model_gp:
+  model_dir: /path/to/model_dir
+  # NOTE: these are the standard labels generated from gpdatagen.py
+  # it is recommended to leave those as-is, given that nothing there is modified
+  estimated_motion_labels:
+    x: delta2d.x (/odom)
+    y: delta2d.y (/odom)
+    theta: delta2d.yaw (/odom)
+  estimated_twist_labels:
+    x: twist2d.x (/odom)
+    y: twist2d.y (/odom)
+    theta: twist2d.ang (/odom)
+bag_runner:
+  bag_path: /path/to/your_recording.bag
+  estimated_odometry_topic: /odom # estimated odometry
+  pointcloud_topic: /velodyne_points # 3D scan
+  # NOTE: ground truth is optional and will not change the working behavior
+  groundtruth_topic: /ground_truth/odom # ground truth odometry
+  # NOTE: have a look at the timesteps in your data using rqt_bag
+  sync_period: 0.1 # [sec.]
+  # NOTE: using -1 will run the bag until it has ended
+  stop_after: 1000 # will end after this many iterations
