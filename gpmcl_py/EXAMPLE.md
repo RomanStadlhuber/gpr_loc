@@ -199,6 +199,7 @@ python3 gpmapping_bag.py -h
 To make use of the GP motion model in the SLAM pipeline, the pipeline needs to be configured to read the relevant topics from the bag, load the GP model and tune relevant parameters accordingly.
 
 Create a file called `config/slam.yaml` that containg the following values in no relevant order.
+You can also have a look at the [example configuration file](config/gpmcl_config_example.yaml) as a general starting point.
 
 #### 3D Scan Mapping Parameters
 
